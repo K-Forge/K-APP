@@ -1,23 +1,84 @@
-# Dependencias de Node.js
-node_modules/
+# Android
+*.iml
+.idea/
+.gradle/
+local.properties
+*.jks
+*.keystore
+build/
 
-# Archivos de registro
+# Coverage
+coverage/
+*.lcov
+
+# Entornos
+.env
+.env.production
+.env.test
+
+# Husky
+.husky/_/
+
+# iOS
+build/
+DerivedData/
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.pbxuser
+!default.pbxuser
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xcuserstate
+*.xcworkspace
+
+# Linux
+.nfs*
+
+# Locks
+bun.lockb
+pnpm-lock.yaml
+
+# Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Salidas de construcción / producción
-dist/
-build/
-
-# Configuraciones de entornos
-.env
-.env.test
-.env.production
-
-# Archivos de módulos de Husky
-.husky/_/
-
-# Archivos de sistema de macOS
+# macOS
 .DS_Store
+
+# NetBeans
+nbproject/private/
+
+# Node.js
+node_modules/
+
+# Producción
+dist/
+
+# Temporales
+*.bak
+*.swp
+*.swo
+*.tmp
+*~
+
+# VS Code
+.vscode/
+
+# Windows
+Desktop.ini
+Thumbs.db
+ehthumbs.db
+$RECYCLE.BIN/
+
+# Xcode
+*.xccheckout
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+*.xcsettings
+*.xcscheme
