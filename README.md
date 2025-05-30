@@ -49,4 +49,3 @@ Si te interesa unirte al equipo:
 - Consulta el archivo 👥 [CONTRIBUTORS.md](./CONTRIBUTORS.md) para más información sobre nuestro equipo.
 
 ¡Siempre estamos buscando nuevas ideas y talentos! 🌱
-xd
