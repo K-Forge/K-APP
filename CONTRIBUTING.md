@@ -6,53 +6,55 @@ Si formas parte del equipo de desarrollo, sigue estas pautas para contribuir al 
 
 ---
 
-## 📌 Convención para Commits
-Para mantener un historial limpio y comprensible, seguimos la convención **Conventional Commits**. Usa el siguiente formato:
+## 📌 Flujo de trabajo y convención de commits
+Para mantener un historial limpio y comprensible, seguimos la convención **Git Glow** y el flujo de trabajo basado en ramas. Usa el siguiente formato para tus commits:
 
 ```
-tipo(scope): mensaje corto en presente
+[TYPE][Scope] Mensaje corto en presente
 ```
 
 ---
 
-### 🧾 Tipos de Commits:
-El *tipo* indica la naturaleza del cambio realizado. Cada tipo ayuda a identificar rápidamente el propósito del commit en el historial del repositorio.
-- **feat**: Nueva funcionalidad  
-- **fix**: Corrección de errores  
-- **docs**: Cambios en documentación  
-- **style**: Cambios que no afectan la funcionalidad (espacios, comas, etc.)  
-- **refactor**: Mejoras en el código sin cambiar funcionalidad  
-- **test**: Agregar o modificar tests  
-- **chore**: Tareas de mantenimiento del proyecto  
+### 🧾 Tipos de Commits (TYPE):
+El *TYPE* indica la naturaleza del cambio realizado. Cada tipo ayuda a identificar rápidamente el propósito del commit en el historial del repositorio.
+- **FEAT**: Nueva funcionalidad  
+- **FIX**: Corrección de errores  
+- **CHORE**: Tareas de mantenimiento del proyecto  
+- **RELEASE**: Preparación de una nueva versión  
+- **HOTFIX**: Corrección urgente en producción
 
 ---
 
 ### 🗂️ Scopes Comunes:
-El *scope* indica qué parte del código se está modificando.
-- **ui**: interfaz de usuario  
-- **auth**: autenticación y manejo de sesión  
-- **db**: base de datos  
-- **api**: servicios o controladores  
-- **readme**, **contributing**, **license**: archivos del repositorio  
-- **config**: configuración del proyecto  
+El *Scope* indica qué parte del código se está modificando.
+- **UI**: interfaz de usuario  
+- **AUTH**: autenticación y manejo de sesión  
+- **DB**: base de datos  
+- **API**: servicios o controladores  
+- **README**, **CONTRIBUTING**, **LICENSE**: archivos del repositorio  
+- **CONFIG**: configuración del proyecto
 
 Puedes proponer nuevos scopes si se justifica por el contexto del cambio.
 
 ---
 
 ### ✅ Ejemplos Correctos:
-- feat(ui): agregar pantalla de inicio  
-- fix(auth): corregir bug en validación de usuario  
-- docs(readme): actualizar instrucciones de instalación  
-- refactor(db): optimizar consultas de obtención de usuarios  
+- [FEAT][UI] Agregar pantalla de inicio  
+- [FIX][AUTH] Corregir bug en validación de usuario  
+- [CHORE][CONFIG] Actualizar dependencias  
+- [RELEASE][API] Preparar versión 1.0.0
 
 ---
 
 ### ⛔ Ejemplos Incorrectos:
 - `update` → No describe nada útil  
 - `cambios` → Muy ambiguo  
-- `arreglos varios` → No es claro qué se hizo  
+- `arreglos varios` → No es claro qué se hizo
 
 ---
 
-📚 Para más información, visita [Conventional Commits](https://www.conventionalcommits.org/)
+📚 Para más información sobre Git Glow, visita [GitHub - Git Glow](https://github.com/arthurdenner/git-glow) o consulta la documentación interna del equipo.
+
+---
+
+<!-- Los scripts de instalación de hooks se encuentran en la carpeta scripts/ y están diferenciados por plataforma: macos-git-glow.sh y windows-git-glow.ps1. -->
