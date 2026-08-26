@@ -719,7 +719,8 @@ components:
             - type: 'null'
         phone:
           type: [string, 'null']
-          maxLength: 15
+          maxLength: 16
+          pattern: '^\+[1-9]\d{1,14}$'
           description: Contact number in E.164 form, or null.
           example: '+573105551234'
         avatarUrl:
@@ -789,7 +790,8 @@ components:
           example: Vargas Clavijo
         phone:
           type: [string, 'null']
-          maxLength: 15
+          maxLength: 16
+          pattern: '^\+[1-9]\d{1,14}$'
           description: Contact number in E.164 form. Send null to clear it.
           example: '+573105551234'
         avatarUrl:
