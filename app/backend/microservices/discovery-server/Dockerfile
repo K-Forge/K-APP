@@ -16,7 +16,7 @@ COPY common/pom.xml common/
 COPY discovery-server/pom.xml discovery-server/
 COPY api-gateway/pom.xml api-gateway/
 COPY auth-service/pom.xml auth-service/
-COPY discovery-server/pom.xml discovery-server/
+COPY user-service/pom.xml user-service/
 COPY semaphore-service/pom.xml semaphore-service/
 COPY schedule-service/pom.xml schedule-service/
 COPY map-service/pom.xml map-service/

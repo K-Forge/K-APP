@@ -122,17 +122,8 @@ services:
     environment:
       SERVER_PORT: 8080
       EUREKA_URI: http://discovery-server:8761/eureka/
-      # api-gateway/application.properties still hardcodes the Eureka URL rather than
-      # reading EUREKA_URI. Spring's relaxed binding maps this environment variable onto
-      # the same property and environment wins over the properties file, so the gateway
-      # registers correctly either way.
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
       EUREKA_ENABLED: "true"
-      KAPP_JWKS_URI: http://auth-service:8081/.well-known/jwks.json
-      # Legacy HS256 placeholder: application.properties declares ${JWT_SECRET} with no
-      # default, so an unset value stops the gateway from starting at all. Remove once
-      # the gateway validates against the JWKS document like the other services.
-      JWT_SECRET: ${JWT_SECRET:-change-me-local-only}
+      KAPP_CORS_ORIGINS: ${KAPP_CORS_ORIGINS:-http://localhost:4200,http://localhost:5173}
       KAPP_LOG_LEVEL: ${KAPP_LOG_LEVEL:-INFO}
     depends_on:
       discovery-server:
