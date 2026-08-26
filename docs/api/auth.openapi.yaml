@@ -1,0 +1,667 @@
+openapi: 3.1.0
+
+info:
+  title: KApp Auth API
+  version: 0.1.0
+  summary: Credential and token service for the KApp platform.
+  description: |
+    Authentication service for KApp, the mobile application of Fundación
+    Universitaria Konrad Lorenz built by the K-Forge club.
+
+    ## Service boundary
+
+    This service owns **credentials only**: e-mail, password hash, e-mail
+    verification state and role assignment. It never stores or returns profile
+    data (identification document, phone, avatar, academic record). Profile data
+    belongs to the User API and is created there through the internal upsert
+    endpoint that this service calls during registration.
+
+    ## Tokens
+
+    Access tokens are JWTs signed with **RS256**. The public half of the signing
+    key is published at `/.well-known/jwks.json`; every other KApp service
+    validates incoming tokens against that document instead of sharing a secret.
+    Send the token as `Authorization: Bearer <accessToken>`.
+
+    Token claims: `sub` (user id), `email`, `roles`, `iss`, `iat`, `exp`.
+
+    ## Roles
+
+    | Role | Granted by |
+    |---|---|
+    | `ROLE_GUEST` | Guest registration. May only read the campus map. |
+    | `ROLE_STUDENT` | Institutional registration with a student intake code. |
+    | `ROLE_PROFESSOR` | Institutional registration with a staff invitation code. |
+    | `ROLE_ADMIN` | Assigned manually by the registrar, never through signup. |
+
+    ## Deliberately deferred past the MVP
+
+    **Refresh tokens and logout are out of scope for this contract.** Access
+    tokens are short lived (one hour) and there is no refresh endpoint, no token
+    revocation list and no `POST /auth/logout`. Clients must treat a `401` as
+    "send the user back to the login screen" and must clear the token locally on
+    sign-out. Both flows are on the roadmap and will be added as a minor version
+    of this specification; do not design client state around their absence being
+    permanent.
+
+    ## Conventions
+
+    - Institutional accounts must use the `@konradlorenz.edu.co` domain.
+    - Academic period strings across KApp match `^\d{4}[12]$`, where the trailing
+      digit is the semester: `"20262"` is 2026 semester 2. No field in this
+      service carries a period, but invitation codes are minted per period.
+    - Errors share the `ApiError` shape across every KApp service.
+  contact:
+    name: K-Forge
+    url: https://github.com/K-Forge
+
+servers:
+  - url: http://localhost:8080
+    description: Local API gateway
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Registration
+    description: Account creation for institutional members and guests.
+  - name: Authentication
+    description: Credential exchange for access tokens.
+  - name: Verification
+    description: E-mail ownership confirmation.
+  - name: Discovery
+    description: Public key material consumed by the other KApp services.
+  - name: Health
+    description: Liveness probe.
+
+paths:
+  /auth/register:
+    post:
+      operationId: registerInstitutionalUser
+      summary: Register an institutional account
+      description: |
+        Creates a credential record for a member of the university and asks the
+        User API to create the matching profile.
+
+        Public endpoint: no token required.
+
+        Rules enforced:
+
+        - `email` must end in `@konradlorenz.edu.co`. Any other domain is
+          rejected with `400`; guests must use `POST /auth/register/guest`.
+        - `invitationCode` is mandatory and is what decides the role. A student
+          intake code yields `ROLE_STUDENT`, a staff code yields
+          `ROLE_PROFESSOR`. An unknown, spent or expired code is rejected with
+          `400`. `ROLE_ADMIN` is never granted through this endpoint.
+        - The account is created with `emailVerified: false` and a verification
+          e-mail is sent. Login is refused until the address is confirmed.
+      tags: [Registration]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+            example:
+              email: brian.vargasc@konradlorenz.edu.co
+              password: Str0ngPassphrase!26
+              firstName: Brian Steven
+              lastName: Vargas Clavijo
+              invitationCode: KL-20262-7F3A9C
+              studentCode: '506232730'
+              programCode: '506'
+      responses:
+        '201':
+          description: Account created, verification e-mail sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationResponse'
+              example:
+                userId: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+                email: brian.vargasc@konradlorenz.edu.co
+                emailVerified: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/register/guest:
+    post:
+      operationId: registerGuest
+      summary: Register a guest account
+      description: |
+        Creates a credential record for a visitor with no formal link to the
+        university: applicants, relatives attending an event, external
+        attendees.
+
+        Public endpoint: no token required.
+
+        Differences from institutional registration:
+
+        - `email` may use **any** domain. A `@konradlorenz.edu.co` address is
+          accepted here as well, but it still produces a guest account with no
+          academic record.
+        - No invitation code is required or accepted.
+        - The account always receives `ROLE_GUEST`, whose only permission is
+          reading the campus map. The matching profile in the User API is
+          created with `academic: null`.
+      tags: [Registration]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuestRegistrationRequest'
+            example:
+              email: maria.rodriguez@gmail.com
+              password: VisitanteSegura!26
+              firstName: María Fernanda
+              lastName: Rodríguez Peña
+      responses:
+        '201':
+          description: Guest account created, verification e-mail sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationResponse'
+              example:
+                userId: c41d7b90-2e63-4a18-9f52-6b0d3ac71e84
+                email: maria.rodriguez@gmail.com
+                emailVerified: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/login:
+    post:
+      operationId: login
+      summary: Exchange credentials for an access token
+      description: |
+        Verifies the e-mail and password pair and returns a signed RS256 access
+        token together with the roles the client should use to shape its
+        navigation.
+
+        Public endpoint: no token required.
+
+        Outcomes:
+
+        - `200` credentials valid and the address is verified.
+        - `401` unknown e-mail or wrong password. The message is intentionally
+          identical for both so the response does not reveal which accounts
+          exist.
+        - `403` credentials are valid but the address has not been confirmed
+          yet. Clients should route the user to the "resend verification"
+          screen.
+
+        There is no refresh token. When `expiresIn` elapses the client must
+        prompt for credentials again.
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: brian.vargasc@konradlorenz.edu.co
+              password: Str0ngPassphrase!26
+      responses:
+        '200':
+          description: Authentication succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                accessToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImthcHAtYXV0aC0yMDI2LTA4In0.eyJzdWIiOiIzZjhhMWMyZS03YjRkLTRlNWEtOWM2Zi0yZDFiOGUwYTRjNzMiLCJlbWFpbCI6ImJyaWFuLnZhcmdhc2NAa29ucmFkbG9yZW56LmVkdS5jbyIsInJvbGVzIjpbIlJPTEVfU1RVREVOVCJdLCJpc3MiOiJodHRwczovL2F1dGgua2FwcC5rb25yYWRsb3JlbnouZWR1LmNvIiwiaWF0IjoxNzg3NjU0NDAwLCJleHAiOjE3ODc2NTgwMDB9.Yx3nQK1pV9sM0bZrT8uLf2Hc7EjWd5AoXgN4iRySlPvCmUt6BqDkJhZ0wF3xO9aInGe1rMcT7yUvKpL5dQsRb2WjXhA8fZoNmE4gCtIuYlBvPkSxDqMrH6JaWnTcOe0
+                tokenType: Bearer
+                expiresIn: 3600
+                userId: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+                roles: [ROLE_STUDENT]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /auth/verify:
+    post:
+      operationId: verifyEmail
+      summary: Confirm an e-mail address
+      description: |
+        Consumes the single-use token delivered in the verification e-mail and
+        marks the address as confirmed. After a successful call the account can
+        log in.
+
+        Public endpoint: no token required. The `token` in the body is the
+        verification token from the e-mail link, not a JWT access token.
+
+        The token is single use: replaying it returns `400`, same as an expired
+        or malformed one. Clients should treat `400` as "ask the user to request
+        a new link" and call `POST /auth/verify/resend`.
+      tags: [Verification]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationRequest'
+            example:
+              token: 8f14e45fceea167a5a36dedd4bea2543c1e9b1f0a7d24c5e
+      responses:
+        '204':
+          description: Address confirmed, no content returned
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /auth/verify/resend:
+    post:
+      operationId: resendVerificationEmail
+      summary: Request a new verification e-mail
+      description: |
+        Issues a fresh verification token and sends it to the address supplied.
+
+        Public endpoint: no token required.
+
+        This endpoint **always answers `202`**, whether or not an account with
+        that address exists and whether or not it was already verified. That is
+        deliberate: a per-address distinction would turn this into an account
+        enumeration oracle. Clients must show the same neutral confirmation in
+        every case and must never infer account existence from the response.
+
+        Any previously issued verification token for the account is invalidated.
+      tags: [Verification]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+            example:
+              email: brian.vargasc@konradlorenz.edu.co
+      responses:
+        '202':
+          description: Request accepted, delivery is not confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedResponse'
+              example:
+                message: If an account exists for that address, a verification e-mail has been sent.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /.well-known/jwks.json:
+    get:
+      operationId: getJwks
+      summary: Fetch the JSON Web Key Set
+      description: |
+        Publishes the public half of the RS256 signing keys as a JWKS document.
+
+        Public endpoint: no token required, and it is exposed unauthenticated on
+        purpose. Every other KApp service (gateway, user, course, assignment)
+        fetches this document, caches it by `kid`, and uses it to validate the
+        signature of incoming access tokens. No service holds the private key
+        and no shared secret is distributed.
+
+        More than one key may be present during a rotation: the retiring key
+        stays published until the last token signed with it has expired. Consumers
+        must select the key whose `kid` matches the token header rather than
+        assuming a single entry.
+      tags: [Discovery]
+      security: []
+      responses:
+        '200':
+          description: Current key set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Jwks'
+              example:
+                keys:
+                  - kty: RSA
+                    use: sig
+                    kid: kapp-auth-2026-08
+                    alg: RS256
+                    n: mHp-KSSSE9O4r6gDSwaRoc8JtkAbCpAKTYyMttr-LD2ZEwr87Dd87N7VuW-Jg5upl7m_ikT3DW00G5-Gly7MF9sDOl8aZxDzB9tGTwMiR32jAVQEFLJR4ibqeqNxLHv77kDdaVDbp_mtjJno8UBp7DThJouSyUE2DEaQAdXDMUyXG5DHqpd4aUJYesZpNU91bkQBakdHEhFhKvU2_GLH5jiF-C-jGQxRo0Ev130SDQGDQGMlFTuzfZ7iFrkBiXD91cUxyPxM54Ww5-lNkkt_mIwuf0uwcNbmMUm0Vv_99S_lDMwDEvlCz4gno2ywvLIVaKvXKfoFy6rbO5rqQlSDhw
+                    e: AQAB
+
+  /auth/health:
+    get:
+      operationId: getAuthHealth
+      summary: Report service liveness
+      description: |
+        Liveness probe used by Docker Compose, the Eureka registry and the
+        gateway circuit breaker.
+
+        Public endpoint: no token required. It reports only whether the service
+        process is answering; it deliberately exposes no build, dependency or
+        database detail.
+      tags: [Health]
+      security: []
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              example:
+                status: UP
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApiError:
+      type: object
+      required: [timestamp, status, error, message, path]
+      properties:
+        timestamp: { type: string, format: date-time }
+        status: { type: integer, example: 400 }
+        error: { type: string, example: Bad Request }
+        message: { type: string }
+        path: { type: string }
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              issue: { type: string }
+
+    RegistrationRequest:
+      type: object
+      description: |
+        Institutional signup payload. `studentCode` and `programCode` are
+        supplied for student intakes and omitted for staff invitations, so they
+        are optional; `invitationCode` is always required and determines which
+        role the account receives.
+      required: [email, password, firstName, lastName, invitationCode]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          pattern: '^[A-Za-z0-9._%+-]+@konradlorenz\.edu\.co$'
+          description: Institutional address. Must use the `@konradlorenz.edu.co` domain.
+          example: brian.vargasc@konradlorenz.edu.co
+        password:
+          type: string
+          format: password
+          minLength: 10
+          maxLength: 72
+          description: |
+            Plain-text password, at least 10 characters. Stored as a BCrypt hash
+            and never returned by any endpoint. The 72 character ceiling is the
+            BCrypt input limit.
+          example: Str0ngPassphrase!26
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Given names as printed on the identity document.
+          example: Brian Steven
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Family names as printed on the identity document.
+          example: Vargas Clavijo
+        invitationCode:
+          type: string
+          minLength: 6
+          maxLength: 32
+          description: |
+            Single-use code issued by the registrar for an intake. It carries the
+            role the account will receive. Rejected with `400` when unknown,
+            already spent or expired.
+          example: KL-20262-7F3A9C
+        studentCode:
+          type: string
+          pattern: '^\d{6,20}$'
+          description: |
+            University student code. Required for student intakes, absent for
+            staff invitations.
+          example: '506232730'
+        programCode:
+          type: string
+          pattern: '^\d{1,10}$'
+          description: |
+            Academic program code the student is enrolled in. `506` is
+            Ingeniería de Sistemas.
+          example: '506'
+
+    GuestRegistrationRequest:
+      type: object
+      description: |
+        Guest signup payload. Any e-mail domain is accepted and no invitation
+        code is involved. The resulting account receives `ROLE_GUEST`.
+      required: [email, password, firstName, lastName]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          description: Personal address. Any domain is accepted.
+          example: maria.rodriguez@gmail.com
+        password:
+          type: string
+          format: password
+          minLength: 10
+          maxLength: 72
+          description: Plain-text password, at least 10 characters. Stored as a BCrypt hash.
+          example: VisitanteSegura!26
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: María Fernanda
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Rodríguez Peña
+
+    RegistrationResponse:
+      type: object
+      description: |
+        Identity of the freshly created account. `emailVerified` is always
+        `false` here: the address is only confirmed through `POST /auth/verify`.
+      required: [userId, email, emailVerified]
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: |
+            Stable identifier shared with the User API. It is the `sub` claim of
+            every token issued for this account.
+          example: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+        email:
+          type: string
+          format: email
+          example: brian.vargasc@konradlorenz.edu.co
+        emailVerified:
+          type: boolean
+          description: Always `false` immediately after registration.
+          example: false
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          description: Institutional or personal address used at registration.
+          example: brian.vargasc@konradlorenz.edu.co
+        password:
+          type: string
+          format: password
+          minLength: 10
+          maxLength: 72
+          example: Str0ngPassphrase!26
+
+    TokenResponse:
+      type: object
+      description: |
+        Signed access token and the minimum context a client needs to render the
+        right navigation without an extra profile call. No refresh token is
+        issued.
+      required: [accessToken, tokenType, expiresIn, userId, roles]
+      properties:
+        accessToken:
+          type: string
+          description: |
+            RS256 JWT. Send it as `Authorization: Bearer <accessToken>`. Validate
+            it against `/.well-known/jwks.json` using the `kid` in its header.
+          example: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImthcHAtYXV0aC0yMDI2LTA4In0.eyJzdWIiOiIzZjhhMWMyZS03YjRkLTRlNWEtOWM2Zi0yZDFiOGUwYTRjNzMiLCJlbWFpbCI6ImJyaWFuLnZhcmdhc2NAa29ucmFkbG9yZW56LmVkdS5jbyIsInJvbGVzIjpbIlJPTEVfU1RVREVOVCJdLCJpc3MiOiJodHRwczovL2F1dGgua2FwcC5rb25yYWRsb3JlbnouZWR1LmNvIiwiaWF0IjoxNzg3NjU0NDAwLCJleHAiOjE3ODc2NTgwMDB9.Yx3nQK1pV9sM0bZrT8uLf2Hc7EjWd5AoXgN4iRySlPvCmUt6BqDkJhZ0wF3xO9aInGe1rMcT7yUvKpL5dQsRb2WjXhA8fZoNmE4gCtIuYlBvPkSxDqMrH6JaWnTcOe0
+        tokenType:
+          type: string
+          enum: [Bearer]
+          description: Always the literal `Bearer`.
+          example: Bearer
+        expiresIn:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Token lifetime in seconds from issuance. One hour.
+          example: 3600
+        userId:
+          type: string
+          format: uuid
+          description: Authenticated account id, matching the `sub` claim.
+          example: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+        roles:
+          type: array
+          minItems: 1
+          description: |
+            Roles granted to the account, mirroring the `roles` claim. Clients
+            use these to hide interface they cannot reach, but authorization is
+            always re-checked server side.
+          items:
+            type: string
+            enum: [ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
+          example: [ROLE_STUDENT]
+
+    VerificationRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          minLength: 16
+          maxLength: 256
+          description: |
+            Single-use verification token taken from the e-mail link. This is
+            not a JWT access token.
+          example: 8f14e45fceea167a5a36dedd4bea2543c1e9b1f0a7d24c5e
+
+    ResendVerificationRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          description: Address the new verification e-mail should be sent to.
+          example: brian.vargasc@konradlorenz.edu.co
+
+    AcceptedResponse:
+      type: object
+      description: |
+        Neutral acknowledgement. The wording is identical for existing,
+        unknown and already-verified addresses.
+      required: [message]
+      properties:
+        message:
+          type: string
+          example: If an account exists for that address, a verification e-mail has been sent.
+
+    JsonWebKey:
+      type: object
+      description: RSA public key in JWK form, as defined by RFC 7517.
+      required: [kty, use, kid, alg, n, e]
+      properties:
+        kty:
+          type: string
+          enum: [RSA]
+          description: Key type. Always `RSA` for KApp signing keys.
+          example: RSA
+        use:
+          type: string
+          enum: [sig]
+          description: Intended use. Always `sig`, these keys never encrypt.
+          example: sig
+        kid:
+          type: string
+          description: |
+            Key identifier. Matches the `kid` header of tokens signed with this
+            key and is the value consumers must select on.
+          example: kapp-auth-2026-08
+        alg:
+          type: string
+          enum: [RS256]
+          description: Signing algorithm. Always `RS256`.
+          example: RS256
+        n:
+          type: string
+          description: RSA modulus, base64url encoded without padding.
+          example: mHp-KSSSE9O4r6gDSwaRoc8JtkAbCpAKTYyMttr-LD2ZEwr87Dd87N7VuW-Jg5upl7m_ikT3DW00G5-Gly7MF9sDOl8aZxDzB9tGTwMiR32jAVQEFLJR4ibqeqNxLHv77kDdaVDbp_mtjJno8UBp7DThJouSyUE2DEaQAdXDMUyXG5DHqpd4aUJYesZpNU91bkQBakdHEhFhKvU2_GLH5jiF-C-jGQxRo0Ev130SDQGDQGMlFTuzfZ7iFrkBiXD91cUxyPxM54Ww5-lNkkt_mIwuf0uwcNbmMUm0Vv_99S_lDMwDEvlCz4gno2ywvLIVaKvXKfoFy6rbO5rqQlSDhw
+        e:
+          type: string
+          description: RSA public exponent, base64url encoded. `AQAB` is 65537.
+          example: AQAB
+
+    Jwks:
+      type: object
+      description: |
+        JSON Web Key Set. Holds every key currently accepted for signature
+        validation, which is more than one while a rotation is in flight.
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/JsonWebKey'
+
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN]
+          description: Service state. `UP` when the process is answering.
+          example: UP
+
+  responses:
+    BadRequest:
+      description: Validation failed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Unauthorized:
+      description: Missing or invalid token
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Forbidden:
+      description: Authenticated but not allowed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    NotFound:
+      description: Resource not found
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Conflict:
+      description: Conflicts with current state
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }

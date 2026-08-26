@@ -1,0 +1,3 @@
+co.edu.konradlorenz.kapp.common.error.KappErrorAutoConfiguration
+co.edu.konradlorenz.kapp.common.security.KappSecurityAutoConfiguration
+co.edu.konradlorenz.kapp.common.feign.KappFeignAutoConfiguration

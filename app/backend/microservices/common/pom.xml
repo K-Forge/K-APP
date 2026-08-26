@@ -13,30 +13,50 @@
     <artifactId>common</artifactId>
     <packaging>jar</packaging>
     <name>Common Library</name>
-    <description>Biblioteca común con DTOs y utilidades compartidas</description>
+    <description>
+        Shared auto-configuration for every KApp service: resource-server security,
+        role mapping, the error envelope and cross-service value types.
+
+        This module contains NO service DTOs. Each service owns its own request and
+        response types. Shared DTOs would couple the services into a distributed
+        monolith and would make this file a merge-conflict hotspot across worktrees.
+    </description>
 
     <dependencies>
-        <!-- Web (provides Spring MVC, ResponseEntity, @RestControllerAdvice) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- Validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
-        <!-- Jackson -->
+        <!-- Resource-server security is configured here once for all services. -->
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
+        <!-- Feign interceptors. Optional: only services that use Feign pull it in. -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!--
+              This is a plain library, not an application. Repackaging would move its
+              classes under BOOT-INF/ where dependent services cannot see them.
+            -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

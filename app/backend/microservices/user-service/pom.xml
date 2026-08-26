@@ -12,24 +12,21 @@
 
     <artifactId>user-service</artifactId>
     <name>User Service</name>
-    <description>Servicio de gestión de usuarios (personas, miembros, estudiantes, empleados)</description>
+    <description>Owns user profiles. Credentials belong to auth-service.</description>
 
+    <!--
+      Versions come from the parent's dependencyManagement. Never add a <version>
+      here: that is what keeps parallel worktrees from fighting over the parent pom.
+    -->
     <dependencies>
-        <!-- Common module -->
         <dependency>
             <groupId>co.edu.konradlorenz.kapp</groupId>
             <artifactId>common</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
-        <!-- Spring Boot Starters -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -39,39 +36,55 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
 
-        <!-- Eureka Client -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
 
-        <!-- OpenFeign para comunicación entre servicios -->
         <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
 
-        <!-- PostgreSQL -->
+        <!-- Versioned MongoDB migrations, indexes and seed data. -->
         <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
+            <groupId>io.mongock</groupId>
+            <artifactId>mongock-springboot-v3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.mongock</groupId>
+            <artifactId>mongodb-springdata-v4-driver</artifactId>
         </dependency>
 
-        <!-- Security para encriptación de passwords -->
         <dependency>
             <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-crypto</artifactId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Provides @ServiceConnection, which wires the container's URI automatically. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mongodb</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 </project>

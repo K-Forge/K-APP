@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.0</version>
+        <version>3.5.16</version>
         <relativePath/>
     </parent>
 
@@ -16,25 +16,46 @@
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>KApp Microservices</name>
-    <description>Arquitectura de microservicios para KApp - Konrad Lorenz</description>
+    <description>Microservices backend for KApp - Konrad Lorenz</description>
 
+    <!--
+      MVP scope. course-service and assignment-service are frozen: their directories
+      remain in the tree but they are not built, not containerised and not in CI.
+      They target PostgreSQL/JPA and are not part of the MongoDB MVP.
+      See docs/PROGRESS.md.
+    -->
     <modules>
-        <module>discovery-server</module>
-        <module>api-gateway</module>
-        <module>auth-service</module>
-        <module>user-service</module>
-        <module>course-service</module>
-        <module>assignment-service</module>
         <module>common</module>
+        <module>user-service</module>
     </modules>
 
     <properties>
         <java.version>21</java.version>
-        <spring-cloud.version>2023.0.0</spring-cloud.version>
-        <jjwt.version>0.11.5</jjwt.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!--
+          Spring Cloud 2025.0.x is the release train for Boot 3.5.x.
+          Do not move to 2025.1.x: that train targets Boot 4.0 / Spring Framework 7.
+        -->
+        <spring-cloud.version>2025.0.3</spring-cloud.version>
+
+        <!-- springdoc 2.x is the Boot 3.x line; 3.x targets Boot 4. -->
+        <springdoc.version>2.9.0</springdoc.version>
+
+        <!--
+          Mongock provides versioned MongoDB migrations, distributed locking and an
+          audit trail - the equivalent of Flyway, which this project never had.
+          Artifact must be mongock-springboot-v3 (Spring Boot 3), not mongock-springboot.
+        -->
+        <mongock.version>5.5.1</mongock.version>
+
+        <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
 
+    <!--
+      Every version lives here so that parallel worktrees never edit this file.
+      Service modules declare dependencies WITHOUT a <version>.
+    -->
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -44,18 +65,49 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
+            <dependency>
+                <groupId>io.mongock</groupId>
+                <artifactId>mongock-bom</artifactId>
+                <version>${mongock.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>co.edu.konradlorenz.kapp</groupId>
+                <artifactId>common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <dependencies>
-        <!-- Lombok para todos los módulos -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
 
-        <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -65,6 +117,11 @@
 
     <build>
         <plugins>
+            <!--
+              Inherited by every module. `common` is a plain library and overrides
+              this with <skip>true</skip> so it is not repackaged into a fat jar,
+              which would hide its classes under BOOT-INF/ from the services.
+            -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

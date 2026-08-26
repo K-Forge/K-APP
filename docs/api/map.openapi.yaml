@@ -1,0 +1,1512 @@
+openapi: 3.1.0
+
+info:
+  title: KApp Map API
+  version: 1.0.0
+  summary: Static floor-plan campus map and space search for Fundacion Universitaria Konrad Lorenz.
+  description: |
+    Digital campus map for Fundacion Universitaria Konrad Lorenz (Bogota, Colombia).
+
+    ## What this service is (and is not)
+
+    This map is deliberately **not** geospatial. There is no basemap, no GPS, no external map
+    provider and no latitude/longitude anywhere in this contract. The map is a set of **static
+    floor plan images** plus a **space search**: the student searches for a room, and the app
+    shows the right floor plan with a pin on it.
+
+    Floor plan images are served as **static files by the reverse proxy, not by this service**.
+    `planImageUrl` is only a path (for example `/api/map/plans/bloque-a-p7.webp`); fetching it
+    does not go through this API and does not require a token.
+
+    ## Coordinate model
+
+    Every space carries `x` and `y` as a **percentage (0-100, float) of the floor plan image's
+    dimensions**, never as pixels, so the pin lands on the same spot at any screen size. Each
+    floor also carries the plan image's intrinsic `imageWidth` and `imageHeight` in pixels, so a
+    client can reserve the correct aspect ratio before the image finishes loading.
+
+    ## Room codes
+
+    Room codes such as `708`, `302` or `612` are the real codes printed on Konrad doors, and the
+    first digit is the floor number. They are the **same codes the KApp schedule service stores
+    for a class**, which is what makes `GET /api/map/spaces/{code}` the endpoint the schedule
+    screen calls when a student taps a class. `code` is the stable business key across this API:
+    every path parameter addresses a resource by code, never by `id`.
+
+    Space codes are unique **within a building**. Where the same code exists in more than one
+    building, pass the optional `buildingCode` query parameter to disambiguate; without it an
+    ambiguous code is answered with `409 Conflict`.
+
+    ## Aliases
+
+    Students search for "sala de sistemas" while the sign on the door says "Lab 302". Every space
+    therefore carries `aliases`, and `GET /api/map/spaces/search` matches against `name`, `code`
+    **and** `aliases`, case- and accent-insensitively.
+
+    ## Data model
+
+    Buildings and spaces are two separate collections, not one nested document. The primary
+    access pattern is "search a space by name across the whole campus", which a nested model
+    would force every client to flatten and filter for itself.
+
+    ## Campuses
+
+    The university's academic records carry a *Sede* field (for example "Sede Principal"), so
+    every building and space carries `campus` and the API supports more than one campus from the
+    start.
+
+    ## Access control
+
+    **This is the only KApp service `ROLE_GUEST` can read.** Guests are people without a
+    university account who signed up just to find their way around campus.
+
+    | Operations | Allowed roles |
+    | --- | --- |
+    | All read operations (`GET`) | `ROLE_GUEST`, `ROLE_STUDENT`, `ROLE_PROFESSOR`, `ROLE_ADMIN` |
+    | All write operations (`POST`, `PUT`, `DELETE`) | `ROLE_ADMIN` only |
+
+    Every request still needs a valid JWT: `ROLE_GUEST` is an authenticated role, not anonymous
+    access. A request without a token is answered with `401`; a token whose role is not allowed
+    for the operation is answered with `403`.
+
+servers:
+  - url: http://localhost:8080
+    description: Local API gateway
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Buildings
+    description: Campus buildings and the floors they contain.
+  - name: Spaces
+    description: Rooms, labs, offices and other locatable spaces, plus the campus-wide search.
+  - name: Campuses
+    description: The list of campuses (Sedes) known to the map.
+
+paths:
+
+  /api/map/buildings:
+
+    get:
+      operationId: listBuildings
+      summary: List buildings
+      description: |
+        Returns every building known to the map, each with the full list of its floors. Optionally
+        filtered to a single campus.
+
+        Allowed roles: `ROLE_GUEST`, `ROLE_STUDENT`, `ROLE_PROFESSOR`, `ROLE_ADMIN`.
+      tags:
+        - Buildings
+      parameters:
+        - $ref: '#/components/parameters/CampusQuery'
+      responses:
+        '200':
+          description: The list of buildings, ordered by code.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Building'
+              example:
+                - id: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                  code: A
+                  name: Bloque A
+                  campus: Sede Principal
+                  description: Main academic building. Classrooms, computer labs and faculty offices.
+                  floors:
+                    - level: 1
+                      name: Piso 1
+                      planImageUrl: /api/map/plans/bloque-a-p1.webp
+                      imageWidth: 2048
+                      imageHeight: 1536
+                    - level: 2
+                      name: Piso 2
+                      planImageUrl: /api/map/plans/bloque-a-p2.webp
+                      imageWidth: 2048
+                      imageHeight: 1536
+                    - level: 3
+                      name: Piso 3
+                      planImageUrl: /api/map/plans/bloque-a-p3.webp
+                      imageWidth: 2048
+                      imageHeight: 1536
+                    - level: 4
+                      name: Piso 4
+                      planImageUrl: /api/map/plans/bloque-a-p4.webp
+                      imageWidth: 2048
+                      imageHeight: 1536
+                    - level: 5
+                      name: Piso 5
+                      planImageUrl: /api/map/plans/bloque-a-p5.webp
+                      imageWidth: 2048
+                      imageHeight: 1536
+                    - level: 6
+                      name: Piso 6
+                      planImageUrl: /api/map/plans/bloque-a-p6.webp
+                      imageWidth: 2048
+                      imageHeight: 1536
+                    - level: 7
+                      name: Piso 7
+                      planImageUrl: /api/map/plans/bloque-a-p7.webp
+                      imageWidth: 2048
+                      imageHeight: 1536
+                - id: 7c4b0a18-5e93-4a6f-8b21-9d0c5e7f1a34
+                  code: B
+                  name: Bloque B
+                  campus: Sede Principal
+                  description: Psychology building. Research labs, library and student wellbeing services.
+                  floors:
+                    - level: 1
+                      name: Piso 1
+                      planImageUrl: /api/map/plans/bloque-b-p1.webp
+                      imageWidth: 1920
+                      imageHeight: 1440
+                    - level: 2
+                      name: Piso 2
+                      planImageUrl: /api/map/plans/bloque-b-p2.webp
+                      imageWidth: 1920
+                      imageHeight: 1440
+                    - level: 3
+                      name: Piso 3
+                      planImageUrl: /api/map/plans/bloque-b-p3.webp
+                      imageWidth: 1920
+                      imageHeight: 1440
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      operationId: createBuilding
+      summary: Create a building
+      description: |
+        Registers a new building together with its floors. The building `code` must be unique
+        across the whole map.
+
+        Allowed roles: `ROLE_ADMIN` only.
+      tags:
+        - Buildings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildingRequest'
+            example:
+              code: C
+              name: Bloque C
+              campus: Sede Principal
+              description: Postgraduate building. Seminar rooms and auditorium.
+              floors:
+                - level: 1
+                  name: Piso 1
+                  planImageUrl: /api/map/plans/bloque-c-p1.webp
+                  imageWidth: 1600
+                  imageHeight: 1200
+                - level: 2
+                  name: Piso 2
+                  planImageUrl: /api/map/plans/bloque-c-p2.webp
+                  imageWidth: 1600
+                  imageHeight: 1200
+      responses:
+        '201':
+          description: The building was created.
+          headers:
+            Location:
+              description: Path of the created building.
+              schema:
+                type: string
+              example: /api/map/buildings/C
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Building'
+              example:
+                id: b81f5d47-2c60-4e39-a5d8-6f3b7c9e0a12
+                code: C
+                name: Bloque C
+                campus: Sede Principal
+                description: Postgraduate building. Seminar rooms and auditorium.
+                floors:
+                  - level: 1
+                    name: Piso 1
+                    planImageUrl: /api/map/plans/bloque-c-p1.webp
+                    imageWidth: 1600
+                    imageHeight: 1200
+                  - level: 2
+                    name: Piso 2
+                    planImageUrl: /api/map/plans/bloque-c-p2.webp
+                    imageWidth: 1600
+                    imageHeight: 1200
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/map/buildings/{code}:
+
+    parameters:
+      - $ref: '#/components/parameters/BuildingCodePath'
+
+    get:
+      operationId: getBuildingByCode
+      summary: Get a building by code
+      description: |
+        Returns one building with all of its floors, including each floor plan's path and
+        intrinsic pixel dimensions.
+
+        Allowed roles: `ROLE_GUEST`, `ROLE_STUDENT`, `ROLE_PROFESSOR`, `ROLE_ADMIN`.
+      tags:
+        - Buildings
+      responses:
+        '200':
+          description: The building and all of its floors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Building'
+              example:
+                id: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                code: A
+                name: Bloque A
+                campus: Sede Principal
+                description: Main academic building. Classrooms, computer labs and faculty offices.
+                floors:
+                  - level: 1
+                    name: Piso 1
+                    planImageUrl: /api/map/plans/bloque-a-p1.webp
+                    imageWidth: 2048
+                    imageHeight: 1536
+                  - level: 2
+                    name: Piso 2
+                    planImageUrl: /api/map/plans/bloque-a-p2.webp
+                    imageWidth: 2048
+                    imageHeight: 1536
+                  - level: 3
+                    name: Piso 3
+                    planImageUrl: /api/map/plans/bloque-a-p3.webp
+                    imageWidth: 2048
+                    imageHeight: 1536
+                  - level: 4
+                    name: Piso 4
+                    planImageUrl: /api/map/plans/bloque-a-p4.webp
+                    imageWidth: 2048
+                    imageHeight: 1536
+                  - level: 5
+                    name: Piso 5
+                    planImageUrl: /api/map/plans/bloque-a-p5.webp
+                    imageWidth: 2048
+                    imageHeight: 1536
+                  - level: 6
+                    name: Piso 6
+                    planImageUrl: /api/map/plans/bloque-a-p6.webp
+                    imageWidth: 2048
+                    imageHeight: 1536
+                  - level: 7
+                    name: Piso 7
+                    planImageUrl: /api/map/plans/bloque-a-p7.webp
+                    imageWidth: 2048
+                    imageHeight: 1536
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      operationId: updateBuilding
+      summary: Update a building
+      description: |
+        Replaces the building addressed by `code`, including its list of floors. Removing a floor
+        that still has spaces on it is rejected with `409`.
+
+        Allowed roles: `ROLE_ADMIN` only.
+      tags:
+        - Buildings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildingRequest'
+            example:
+              code: B
+              name: Bloque B
+              campus: Sede Principal
+              description: Psychology building. Research labs, library and student wellbeing services.
+              floors:
+                - level: 1
+                  name: Piso 1
+                  planImageUrl: /api/map/plans/bloque-b-p1.webp
+                  imageWidth: 1920
+                  imageHeight: 1440
+                - level: 2
+                  name: Piso 2
+                  planImageUrl: /api/map/plans/bloque-b-p2.webp
+                  imageWidth: 1920
+                  imageHeight: 1440
+                - level: 3
+                  name: Piso 3
+                  planImageUrl: /api/map/plans/bloque-b-p3.webp
+                  imageWidth: 1920
+                  imageHeight: 1440
+      responses:
+        '200':
+          description: The updated building.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Building'
+              example:
+                id: 7c4b0a18-5e93-4a6f-8b21-9d0c5e7f1a34
+                code: B
+                name: Bloque B
+                campus: Sede Principal
+                description: Psychology building. Research labs, library and student wellbeing services.
+                floors:
+                  - level: 1
+                    name: Piso 1
+                    planImageUrl: /api/map/plans/bloque-b-p1.webp
+                    imageWidth: 1920
+                    imageHeight: 1440
+                  - level: 2
+                    name: Piso 2
+                    planImageUrl: /api/map/plans/bloque-b-p2.webp
+                    imageWidth: 1920
+                    imageHeight: 1440
+                  - level: 3
+                    name: Piso 3
+                    planImageUrl: /api/map/plans/bloque-b-p3.webp
+                    imageWidth: 1920
+                    imageHeight: 1440
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      operationId: deleteBuilding
+      summary: Delete a building
+      description: |
+        Deletes a building. The building must be empty: if any space still references it, the
+        request is rejected with `409` and nothing is deleted.
+
+        Allowed roles: `ROLE_ADMIN` only.
+      tags:
+        - Buildings
+      responses:
+        '204':
+          description: The building was deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/map/buildings/{code}/floors/{level}:
+
+    parameters:
+      - $ref: '#/components/parameters/BuildingCodePath'
+      - $ref: '#/components/parameters/FloorLevelPath'
+
+    get:
+      operationId: getFloor
+      summary: Get a floor and every space on it
+      description: |
+        Returns one floor of a building together with every space located on it. This is the call
+        that renders a floor plan screen: the client draws `planImageUrl` and then places one pin
+        per space using its `x`/`y` percentages.
+
+        Responds `404` when the building does not exist or when it has no floor at that level.
+
+        Allowed roles: `ROLE_GUEST`, `ROLE_STUDENT`, `ROLE_PROFESSOR`, `ROLE_ADMIN`.
+      tags:
+        - Buildings
+      responses:
+        '200':
+          description: The floor and all spaces on it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FloorDetail'
+              example:
+                level: 7
+                name: Piso 7
+                planImageUrl: /api/map/plans/bloque-a-p7.webp
+                imageWidth: 2048
+                imageHeight: 1536
+                buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                buildingCode: A
+                buildingName: Bloque A
+                campus: Sede Principal
+                spaces:
+                  - id: 5a2c7e10-9b3d-4f68-8c41-2e7a0d6b9f53
+                    code: '708'
+                    name: Aula 708
+                    type: CLASSROOM
+                    buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                    buildingCode: A
+                    campus: Sede Principal
+                    floorLevel: 7
+                    aliases:
+                      - sala 708
+                      - salon 708
+                    x: 42.5
+                    y: 63.1
+                    capacity: 30
+                  - id: 91d0b6a4-3f27-4c8e-b510-7a6d2e4c8b09
+                    code: '709'
+                    name: Aula 709
+                    type: CLASSROOM
+                    buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                    buildingCode: A
+                    campus: Sede Principal
+                    floorLevel: 7
+                    aliases:
+                      - sala 709
+                      - salon 709
+                    x: 52.8
+                    y: 63.1
+                    capacity: 30
+                  - id: c47e8b12-6d05-4a93-9f2c-1b8e5a7d3046
+                    code: '710'
+                    name: Aula 710
+                    type: CLASSROOM
+                    buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                    buildingCode: A
+                    campus: Sede Principal
+                    floorLevel: 7
+                    aliases:
+                      - sala 710
+                      - salon 710
+                    x: 63.0
+                    y: 63.1
+                    capacity: 28
+                  - id: 2b6f9c31-8e14-4d07-a92b-5c3f0e8a7d61
+                    code: '711'
+                    name: Aula 711
+                    type: CLASSROOM
+                    buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                    buildingCode: A
+                    campus: Sede Principal
+                    floorLevel: 7
+                    aliases:
+                      - sala 711
+                      - salon 711
+                    x: 73.4
+                    y: 63.1
+                    capacity: 28
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/map/spaces/search:
+
+    get:
+      operationId: searchSpaces
+      summary: Search spaces across the campus
+      description: |
+        Full-text search over spaces. The query `q` is matched against a space's `name`, its
+        `code` and every entry in its `aliases`, and a space is returned when any one of them
+        matches.
+
+        Matching is **case- and accent-insensitive**: searching `sala de sistemas` finds a space
+        whose alias is stored as `Sala de Sistemas`, and `psicologia` finds `Psicologia`
+        regardless of how either side is accented. Aliases are what make the search usable in
+        practice, because students search for the name they use ("sala de sistemas") rather than
+        the name on the door ("Laboratorio de Sistemas").
+
+        Results are paginated and ordered by descending match relevance, then by `code`.
+
+        Allowed roles: `ROLE_GUEST`, `ROLE_STUDENT`, `ROLE_PROFESSOR`, `ROLE_ADMIN`.
+      tags:
+        - Spaces
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: |
+            Search term, minimum 2 characters. Matched case- and accent-insensitively against
+            `name`, `code` and `aliases`.
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+          example: sala
+        - $ref: '#/components/parameters/CampusQuery'
+        - name: type
+          in: query
+          required: false
+          description: Restrict results to a single space type.
+          schema:
+            $ref: '#/components/schemas/SpaceType'
+          example: LAB
+        - name: buildingCode
+          in: query
+          required: false
+          description: Restrict results to a single building, addressed by its code.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 10
+          example: A
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: A page of matching spaces. An empty page is a normal result, not an error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse'
+              examples:
+                multipleResults:
+                  summary: q=sala - three spaces match on name, code or alias
+                  description: |
+                    Every result matched through `aliases` rather than through `name`: none of
+                    these spaces is actually called "sala".
+                  value:
+                    content:
+                      - id: e83a1f57-4b29-4c60-9d8e-3a5f7c2b6014
+                        code: '302'
+                        name: Laboratorio de Sistemas
+                        type: LAB
+                        buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                        buildingCode: A
+                        campus: Sede Principal
+                        floorLevel: 3
+                        aliases:
+                          - sala de sistemas
+                          - lab 302
+                          - laboratorio 302
+                        x: 27.4
+                        y: 55.8
+                        capacity: 25
+                      - id: 4d9c2e60-7a83-4f15-b6c9-0e2d8b4a7f31
+                        code: '612'
+                        name: Aula 612
+                        type: CLASSROOM
+                        buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                        buildingCode: A
+                        campus: Sede Principal
+                        floorLevel: 6
+                        aliases:
+                          - sala 612
+                          - salon 612
+                        x: 68.2
+                        y: 31.9
+                        capacity: 35
+                      - id: 5a2c7e10-9b3d-4f68-8c41-2e7a0d6b9f53
+                        code: '708'
+                        name: Aula 708
+                        type: CLASSROOM
+                        buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                        buildingCode: A
+                        campus: Sede Principal
+                        floorLevel: 7
+                        aliases:
+                          - sala 708
+                          - salon 708
+                        x: 42.5
+                        y: 63.1
+                        capacity: 30
+                    page: 0
+                    size: 20
+                    totalElements: 3
+                    totalPages: 1
+                    first: true
+                    last: true
+                aliasMatch:
+                  summary: q=sala de sistemas - accent- and case-insensitive alias hit
+                  description: |
+                    The student typed the name they use. Nothing in `name` or `code` contains
+                    "sala de sistemas"; the space is found only through its alias, and it is
+                    found even though the alias is stored capitalised as "Sala de Sistemas".
+                  value:
+                    content:
+                      - id: e83a1f57-4b29-4c60-9d8e-3a5f7c2b6014
+                        code: '302'
+                        name: Laboratorio de Sistemas
+                        type: LAB
+                        buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                        buildingCode: A
+                        campus: Sede Principal
+                        floorLevel: 3
+                        aliases:
+                          - sala de sistemas
+                          - lab 302
+                          - laboratorio 302
+                        x: 27.4
+                        y: 55.8
+                        capacity: 25
+                    page: 0
+                    size: 20
+                    totalElements: 1
+                    totalPages: 1
+                    first: true
+                    last: true
+                emptyResult:
+                  summary: No space matches the query
+                  value:
+                    content: []
+                    page: 0
+                    size: 20
+                    totalElements: 0
+                    totalPages: 0
+                    first: true
+                    last: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/map/spaces:
+
+    post:
+      operationId: createSpace
+      summary: Create a space
+      description: |
+        Registers a new space on an existing floor of an existing building. `code` must be unique
+        within that building; a duplicate is rejected with `409`. `x` and `y` are percentages of
+        the floor plan image, not pixels.
+
+        Responds `404` when `buildingCode` does not exist or the building has no floor at
+        `floorLevel`.
+
+        Allowed roles: `ROLE_ADMIN` only.
+      tags:
+        - Spaces
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceRequest'
+            example:
+              code: '302'
+              name: Laboratorio de Sistemas
+              type: LAB
+              buildingCode: A
+              floorLevel: 3
+              aliases:
+                - sala de sistemas
+                - lab 302
+                - laboratorio 302
+              x: 27.4
+              y: 55.8
+              capacity: 25
+      responses:
+        '201':
+          description: The space was created.
+          headers:
+            Location:
+              description: Path of the created space.
+              schema:
+                type: string
+              example: /api/map/spaces/302?buildingCode=A
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Space'
+              example:
+                id: e83a1f57-4b29-4c60-9d8e-3a5f7c2b6014
+                code: '302'
+                name: Laboratorio de Sistemas
+                type: LAB
+                buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                buildingCode: A
+                campus: Sede Principal
+                floorLevel: 3
+                aliases:
+                  - sala de sistemas
+                  - lab 302
+                  - laboratorio 302
+                x: 27.4
+                y: 55.8
+                capacity: 25
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/map/spaces/{code}:
+
+    parameters:
+      - $ref: '#/components/parameters/SpaceCodePath'
+      - $ref: '#/components/parameters/BuildingCodeDisambiguator'
+
+    get:
+      operationId: getSpaceByCode
+      summary: Resolve a room code to its space, floor and building
+      description: |
+        Resolves a room code straight to the space, the floor it sits on and the building that
+        contains it, in one round trip.
+
+        **This is the endpoint the schedule screen calls when a student taps a class.** The KApp
+        schedule service stores the same room code (`708`, `302`, `612`), so the client can hand
+        that code over unchanged and receive everything it needs to render the plan: the floor's
+        `planImageUrl` and pixel dimensions, and the space's `x`/`y` percentages for the pin.
+
+        Space codes are unique within a building. If the code exists in more than one building,
+        pass `buildingCode`; without it, an ambiguous code is answered with `409`.
+
+        Allowed roles: `ROLE_GUEST`, `ROLE_STUDENT`, `ROLE_PROFESSOR`, `ROLE_ADMIN`.
+      tags:
+        - Spaces
+      responses:
+        '200':
+          description: The space, plus the floor it is on and the building that contains it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpaceDetail'
+              example:
+                id: 5a2c7e10-9b3d-4f68-8c41-2e7a0d6b9f53
+                code: '708'
+                name: Aula 708
+                type: CLASSROOM
+                buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                buildingCode: A
+                campus: Sede Principal
+                floorLevel: 7
+                aliases:
+                  - sala 708
+                  - salon 708
+                x: 42.5
+                y: 63.1
+                capacity: 30
+                floor:
+                  level: 7
+                  name: Piso 7
+                  planImageUrl: /api/map/plans/bloque-a-p7.webp
+                  imageWidth: 2048
+                  imageHeight: 1536
+                building:
+                  id: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                  code: A
+                  name: Bloque A
+                  campus: Sede Principal
+                  description: Main academic building. Classrooms, computer labs and faculty offices.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    put:
+      operationId: updateSpace
+      summary: Update a space
+      description: |
+        Replaces the space addressed by `code`. Moving a pin is done here, by sending new `x`/`y`
+        percentages. Changing `code` to one already used inside the same building is rejected
+        with `409`.
+
+        If the code addresses more than one space, pass `buildingCode` to disambiguate.
+
+        Allowed roles: `ROLE_ADMIN` only.
+      tags:
+        - Spaces
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceRequest'
+            example:
+              code: '710'
+              name: Aula 710
+              type: CLASSROOM
+              buildingCode: A
+              floorLevel: 7
+              aliases:
+                - sala 710
+                - salon 710
+              x: 63.0
+              y: 63.1
+              capacity: 32
+      responses:
+        '200':
+          description: The updated space.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Space'
+              example:
+                id: c47e8b12-6d05-4a93-9f2c-1b8e5a7d3046
+                code: '710'
+                name: Aula 710
+                type: CLASSROOM
+                buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+                buildingCode: A
+                campus: Sede Principal
+                floorLevel: 7
+                aliases:
+                  - sala 710
+                  - salon 710
+                x: 63.0
+                y: 63.1
+                capacity: 32
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      operationId: deleteSpace
+      summary: Delete a space
+      description: |
+        Removes a space and its pin from the floor plan. If the code addresses more than one
+        space, pass `buildingCode` to disambiguate; an ambiguous code is answered with `409` and
+        nothing is deleted.
+
+        Allowed roles: `ROLE_ADMIN` only.
+      tags:
+        - Spaces
+      responses:
+        '204':
+          description: The space was deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/map/campuses:
+
+    get:
+      operationId: listCampuses
+      summary: List campuses
+      description: |
+        Returns every campus (Sede) that has at least one building, with the number of buildings
+        it contains. Clients use this to populate the campus selector before any other call.
+
+        Allowed roles: `ROLE_GUEST`, `ROLE_STUDENT`, `ROLE_PROFESSOR`, `ROLE_ADMIN`.
+      tags:
+        - Campuses
+      responses:
+        '200':
+          description: The list of campuses, ordered by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CampusSummary'
+              example:
+                - name: Sede Principal
+                  buildingCount: 3
+                - name: Sede Norte
+                  buildingCount: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApiError:
+      type: object
+      required: [timestamp, status, error, message, path]
+      properties:
+        timestamp: { type: string, format: date-time }
+        status: { type: integer, example: 400 }
+        error: { type: string, example: Bad Request }
+        message: { type: string }
+        path: { type: string }
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              issue: { type: string }
+
+    SpaceType:
+      type: string
+      description: |
+        The kind of space. Clients use this to pick the pin icon and to offer the `type` filter in
+        search. `WELLBEING` covers Bienestar Universitario services (counselling, sports, culture).
+      enum:
+        - CLASSROOM
+        - LAB
+        - AUDITORIUM
+        - OFFICE
+        - LIBRARY
+        - CAFETERIA
+        - RESTROOM
+        - WELLBEING
+        - OTHER
+      example: CLASSROOM
+
+    Floor:
+      type: object
+      description: |
+        One floor of a building, and the static plan image that represents it.
+      required: [level, name, planImageUrl, imageWidth, imageHeight]
+      properties:
+        level:
+          type: integer
+          description: |
+            Floor number. Matches the first digit of the room codes on this floor, so room `708`
+            is on level 7.
+          minimum: 0
+          maximum: 99
+          example: 7
+        name:
+          type: string
+          description: Display name of the floor, in Spanish as shown to students.
+          minLength: 1
+          maxLength: 60
+          example: Piso 7
+        planImageUrl:
+          type: string
+          description: |
+            Path to the floor plan image. Served as a static file by the reverse proxy, not by
+            this service. It is a path, never an absolute URL to an external map provider.
+          minLength: 1
+          maxLength: 255
+          example: /api/map/plans/bloque-a-p7.webp
+        imageWidth:
+          type: integer
+          description: |
+            Intrinsic width of the plan image in pixels. Present so a client can compute the
+            aspect ratio and reserve layout space before the image finishes loading.
+          minimum: 1
+          example: 2048
+        imageHeight:
+          type: integer
+          description: Intrinsic height of the plan image in pixels.
+          minimum: 1
+          example: 1536
+
+    Building:
+      type: object
+      description: A campus building, with the full list of its floors.
+      required: [id, code, name, campus, floors]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Server-generated identifier. Not used in paths; address buildings by `code`.
+          example: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+        code:
+          type: string
+          description: |
+            Short building code, unique across the map, and the stable business key used in every
+            path parameter.
+          minLength: 1
+          maxLength: 10
+          example: A
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: Bloque A
+        campus:
+          type: string
+          description: |
+            The campus (Sede) this building belongs to, matching the *Sede* field in the
+            university's academic records.
+          minLength: 1
+          maxLength: 120
+          example: Sede Principal
+        description:
+          type: string
+          description: Optional free-text description shown on the building screen.
+          maxLength: 500
+          example: Main academic building. Classrooms, computer labs and faculty offices.
+        floors:
+          type: array
+          description: Every floor of the building, ordered by ascending level.
+          items:
+            $ref: '#/components/schemas/Floor'
+
+    BuildingSummary:
+      type: object
+      description: |
+        A building without its floors. Returned inside `SpaceDetail`, where the one relevant floor
+        is already included and the rest would be dead weight.
+      required: [id, code, name, campus]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+        code:
+          type: string
+          minLength: 1
+          maxLength: 10
+          example: A
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: Bloque A
+        campus:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: Sede Principal
+        description:
+          type: string
+          maxLength: 500
+          example: Main academic building. Classrooms, computer labs and faculty offices.
+
+    BuildingRequest:
+      type: object
+      description: |
+        Payload for creating or replacing a building. `id` is server-generated and is never
+        accepted from the client.
+      required: [code, name, campus, floors]
+      properties:
+        code:
+          type: string
+          description: Building code, unique across the map.
+          minLength: 1
+          maxLength: 10
+          example: C
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: Bloque C
+        campus:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: Sede Principal
+        description:
+          type: string
+          maxLength: 500
+          example: Postgraduate building. Seminar rooms and auditorium.
+        floors:
+          type: array
+          description: |
+            The complete list of floors. On `PUT` this replaces the existing list, so a floor
+            omitted here is deleted; deleting a floor that still has spaces on it fails with `409`.
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Floor'
+
+    Space:
+      type: object
+      description: |
+        A locatable space: a classroom, lab, office, or any other place a student may need to
+        find. Denormalised on purpose - `buildingCode`, `campus` and `floorLevel` are carried on
+        the space itself so a search result can be rendered without a second call.
+      required: [id, code, name, type, buildingId, buildingCode, campus, floorLevel, aliases, x, y]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Server-generated identifier. Not used in paths; address spaces by `code`.
+          example: 5a2c7e10-9b3d-4f68-8c41-2e7a0d6b9f53
+        code:
+          type: string
+          description: |
+            Room code as printed on the door, unique within its building. The first digit is the
+            floor number. This is the same code the KApp schedule service stores for a class,
+            which is what lets a student jump from a class in their timetable to its classroom on
+            the plan.
+          minLength: 1
+          maxLength: 20
+          example: '708'
+        name:
+          type: string
+          description: Official name of the space, as signposted.
+          minLength: 1
+          maxLength: 120
+          example: Aula 708
+        type:
+          $ref: '#/components/schemas/SpaceType'
+        buildingId:
+          type: string
+          format: uuid
+          example: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+        buildingCode:
+          type: string
+          description: Code of the containing building, denormalised for display and filtering.
+          minLength: 1
+          maxLength: 10
+          example: A
+        campus:
+          type: string
+          description: |
+            Campus (Sede) of the containing building, denormalised so a campus-wide search does
+            not have to join.
+          minLength: 1
+          maxLength: 120
+          example: Sede Principal
+        floorLevel:
+          type: integer
+          description: Level of the floor this space sits on. Matches a `level` in the building's floors.
+          minimum: 0
+          maximum: 99
+          example: 7
+        aliases:
+          type: array
+          description: |
+            Alternative names students actually use, and the reason the search feels right rather
+            than broken. Students search "sala de sistemas" while the sign on the door says
+            "Lab 302", so every alias is matched by `GET /api/map/spaces/search`, case- and
+            accent-insensitively. May be empty, but the field is always present.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 120
+          example:
+            - sala 708
+            - salon 708
+        x:
+          type: number
+          format: float
+          description: |
+            Horizontal position of the pin as a **percentage of the floor plan image's width**
+            (0 = left edge, 100 = right edge). A percentage rather than a pixel offset so the pin
+            lands on the same spot at any screen size and for any rendered image scale.
+          minimum: 0
+          maximum: 100
+          example: 42.5
+        y:
+          type: number
+          format: float
+          description: |
+            Vertical position of the pin as a **percentage of the floor plan image's height**
+            (0 = top edge, 100 = bottom edge).
+          minimum: 0
+          maximum: 100
+          example: 63.1
+        capacity:
+          type: integer
+          description: Seating capacity, where it is known. Absent for spaces where it is meaningless.
+          minimum: 0
+          example: 30
+
+    SpaceDetail:
+      description: |
+        A space together with the floor it sits on and a summary of its building - everything the
+        schedule screen needs to render a plan with a pin in a single round trip.
+      allOf:
+        - $ref: '#/components/schemas/Space'
+        - type: object
+          required: [floor, building]
+          properties:
+            floor:
+              $ref: '#/components/schemas/Floor'
+            building:
+              $ref: '#/components/schemas/BuildingSummary'
+
+    FloorDetail:
+      description: A floor together with every space located on it.
+      allOf:
+        - $ref: '#/components/schemas/Floor'
+        - type: object
+          required: [buildingId, buildingCode, buildingName, campus, spaces]
+          properties:
+            buildingId:
+              type: string
+              format: uuid
+              example: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
+            buildingCode:
+              type: string
+              minLength: 1
+              maxLength: 10
+              example: A
+            buildingName:
+              type: string
+              minLength: 1
+              maxLength: 120
+              example: Bloque A
+            campus:
+              type: string
+              minLength: 1
+              maxLength: 120
+              example: Sede Principal
+            spaces:
+              type: array
+              description: Every space on this floor, ordered by code. May be empty.
+              items:
+                $ref: '#/components/schemas/Space'
+
+    SpaceRequest:
+      type: object
+      description: |
+        Payload for creating or replacing a space. `id`, `buildingId` and `campus` are derived
+        server-side from `buildingCode` and are never accepted from the client.
+      required: [code, name, type, buildingCode, floorLevel, x, y]
+      properties:
+        code:
+          type: string
+          description: Room code, unique within the building identified by `buildingCode`.
+          minLength: 1
+          maxLength: 20
+          example: '302'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: Laboratorio de Sistemas
+        type:
+          $ref: '#/components/schemas/SpaceType'
+        buildingCode:
+          type: string
+          description: Code of the building that contains this space. Must already exist.
+          minLength: 1
+          maxLength: 10
+          example: A
+        floorLevel:
+          type: integer
+          description: |
+            Level of the floor this space sits on. The building must already have a floor at this
+            level, otherwise the request fails with `404`.
+          minimum: 0
+          maximum: 99
+          example: 3
+        aliases:
+          type: array
+          description: |
+            Alternative names students search for. Omit or send an empty array when there are
+            none, but prefer supplying them: a lab with no aliases is effectively unsearchable by
+            the words students actually type.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 120
+          example:
+            - sala de sistemas
+            - lab 302
+            - laboratorio 302
+        x:
+          type: number
+          format: float
+          description: Pin position as a percentage of the floor plan image's width.
+          minimum: 0
+          maximum: 100
+          example: 27.4
+        y:
+          type: number
+          format: float
+          description: Pin position as a percentage of the floor plan image's height.
+          minimum: 0
+          maximum: 100
+          example: 55.8
+        capacity:
+          type: integer
+          description: Seating capacity, where it is known.
+          minimum: 0
+          example: 25
+
+    CampusSummary:
+      type: object
+      description: A campus (Sede) and how many buildings the map holds for it.
+      required: [name, buildingCount]
+      properties:
+        name:
+          type: string
+          description: Campus name, matching the *Sede* field in the university's academic records.
+          minLength: 1
+          maxLength: 120
+          example: Sede Principal
+        buildingCount:
+          type: integer
+          description: Number of buildings registered on this campus.
+          minimum: 0
+          example: 3
+
+    PageResponse:
+      type: object
+      description: |
+        A page of search results. `content` holds `Space` objects; this is the only paginated
+        collection in this API.
+      required: [content, page, size, totalElements, totalPages, first, last]
+      properties:
+        content:
+          type: array
+          description: The spaces on this page, ordered by descending match relevance, then by code.
+          items:
+            $ref: '#/components/schemas/Space'
+        page:
+          type: integer
+          description: Zero-based index of the page returned.
+          minimum: 0
+          example: 0
+        size:
+          type: integer
+          description: Requested page size.
+          minimum: 1
+          maximum: 100
+          example: 20
+        totalElements:
+          type: integer
+          description: Total number of spaces matching the query across all pages.
+          minimum: 0
+          example: 3
+        totalPages:
+          type: integer
+          description: Total number of pages available. `0` when nothing matched.
+          minimum: 0
+          example: 1
+        first:
+          type: boolean
+          description: True when this is the first page.
+          example: true
+        last:
+          type: boolean
+          description: True when this is the last page.
+          example: true
+
+  parameters:
+
+    CampusQuery:
+      name: campus
+      in: query
+      required: false
+      description: |
+        Restrict results to a single campus (Sede). Matched exactly against the `campus` field.
+        Omit to search every campus.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 120
+      example: Sede Principal
+
+    BuildingCodePath:
+      name: code
+      in: path
+      required: true
+      description: Building code, for example `A` for Bloque A.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 10
+      example: A
+
+    FloorLevelPath:
+      name: level
+      in: path
+      required: true
+      description: |
+        Floor level, matching the first digit of the room codes on that floor. Level `7` holds
+        rooms `708` to `711`.
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 99
+      example: 7
+
+    SpaceCodePath:
+      name: code
+      in: path
+      required: true
+      description: |
+        Room code as printed on the door, for example `708`. This is the same code the KApp
+        schedule service stores for a class.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 20
+      example: '708'
+
+    BuildingCodeDisambiguator:
+      name: buildingCode
+      in: query
+      required: false
+      description: |
+        Building code, needed **only** when the same room code exists in more than one building.
+        Space codes are unique within a building, not across the map. When the code is ambiguous
+        and this parameter is absent, the request is answered with `409 Conflict` listing the
+        candidate buildings in `details`.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 10
+      example: A
+
+    PageQuery:
+      name: page
+      in: query
+      required: false
+      description: Zero-based page index.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 0
+
+    SizeQuery:
+      name: size
+      in: query
+      required: false
+      description: Page size. Capped at 100.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+
+  responses:
+    BadRequest:
+      description: Validation failed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Unauthorized:
+      description: Missing or invalid token
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Forbidden:
+      description: Authenticated but not allowed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    NotFound:
+      description: Resource not found
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Conflict:
+      description: Conflicts with current state
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
