@@ -168,6 +168,25 @@ services:
       # need no setup at all. An obviously-invalid placeholder is the compromise: it is
       # unmistakable in a log or a deployed config. Set the real value in .env.
       KAPP_INTERNAL_TOKEN: ${KAPP_INTERNAL_TOKEN:-CHANGE_ME_UNSET_INTERNAL_TOKEN}
+
+      # Registration gating. Only this domain may use /auth/register; guests are
+      # unrestricted and land on ROLE_GUEST.
+      KAPP_ALLOWED_EMAIL_DOMAIN: ${KAPP_ALLOWED_EMAIL_DOMAIN:-konradlorenz.edu.co}
+
+      # Off by default because there is no SMTP relay yet, and registration is the front
+      # door of the product: requiring an e-mail nobody can send would block the four
+      # mobile developers and every tester. Accounts are created ACTIVE, while
+      # emailVerified stays false because nothing was actually verified.
+      # Turn this on the moment mail works.
+      KAPP_REQUIRE_EMAIL_VERIFICATION: ${KAPP_REQUIRE_EMAIL_VERIFICATION:-false}
+      KAPP_VERIFICATION_LINK_BASE: ${KAPP_VERIFICATION_LINK_BASE:-http://localhost:8080/auth/verify}
+
+      # Leave SPRING_MAIL_HOST blank and verification e-mails are written to the log
+      # instead of sent, which is what makes the flag above safe to turn on locally.
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
     depends_on:
       mongo:
         # Not service_started: Spring Data opens a connection during context refresh,

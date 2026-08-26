@@ -59,7 +59,29 @@ Note it in the API documentation so the mobile clients set expectations in the U
 
 ---
 
-## 4. Contract fixes already applied
+## 4. Seeded invitation codes must be revoked before anything is public
+
+`auth-service` seeds two working invitation codes through a Mongock change unit so the MVP can be
+demonstrated without an admin UI:
+
+| Code | Uses | Role |
+|---|---|---|
+| `KL-20262-STUDENT` | 200 | student |
+| `KL-20262-STAFF` | 20 | professor |
+
+**They are in source control, so treat them as public.** Anyone who reads the repository can create
+an account. That is acceptable while nothing is deployed and the whole thing runs on a laptop; it
+stops being acceptable the moment the service is reachable from outside.
+
+Before any public deployment: deactivate both in a new change unit and issue fresh codes out of
+band. Add it to the pre-deployment checklist rather than trusting anyone to remember.
+
+The better long-term answer is admin endpoints for issuing codes, which the contract does not
+currently define. Worth adding to the spec when the admin UI is designed.
+
+---
+
+## 5. Contract fixes already applied
 
 - `user.openapi.yaml`: `phone` was `maxLength: 15`, but E.164 permits 15 *digits* plus the leading
   `+`, so a fully qualified number reaches 16 characters. Raised to 16 and given an explicit
@@ -67,7 +89,7 @@ Note it in the API documentation so the mobile clients set expectations in the U
 
 ---
 
-## 5. Merge order
+## 6. Merge order
 
 `common` is untouched by every track, so the four branches should merge cleanly. Merge in
 dependency order and run the full reactor after each one rather than at the end, so a failure is
