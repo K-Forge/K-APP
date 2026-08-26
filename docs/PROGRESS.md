@@ -1,216 +1,135 @@
-# KApp · Implementation Status
+# Implementation Status
 
-> Last updated: July 2026
+> Read this before proposing large changes. Last updated: August 2026.
 
-Delivery is sequenced **backend first, web second, mobile third**. The web client is the surface used to test the
-API and to settle the interface design; the Kotlin and Swift clients inherit that design afterwards. Their low
-position in the priority list below is that sequencing, not a change of target: the mobile apps are the product.
+KApp is in the thesis pre-proposal phase (_anteproyecto_). The scope was deliberately narrowed in
+August 2026: because the university's academic data is not available, the product cannot depend on
+it. Accounts are created from scratch, and the MVP covers **users, campus map, a customisable
+preloaded schedule and a customisable preloaded career semaforo**. Everything else is deferred.
+
+The backend runs on the lead developer's machine until university hardware exists. There is no
+production deployment.
 
 ---
 
 ## Summary
 
-| Area                          | Status       | Progress |
-|-------------------------------|--------------|----------|
-| Infrastructure                | [X] Complete | 100%     |
-| Backend services              | [X] Complete | 100%     |
-| Web frontend (test surface)   | [Med] Partial | 30%     |
-| Android frontend (product)    | [ ] Not started | 0%    |
-| iOS frontend (product)        | [ ] Not started | 0%    |
-| DevOps                        | [Med] Partial | 50%     |
-| Documentation                 | [Med] Partial | 70%     |
+| Area | Status | Notes |
+|---|---|---|
+| Platform foundation | Complete | Boot 3.5, MongoDB, RS256/JWKS, Mongock, Testcontainers |
+| API contract | Complete | Five OpenAPI 3.1 specs, linted in CI, served as mocks |
+| Service skeletons | Complete | Seven services build; 27 integration tests green |
+| Auth: sign-in | Complete | RS256 issuance verified against the published JWKS |
+| Auth: registration | Not started | Institutional, guest, verification, invitation codes |
+| User profiles | Not started | Skeleton only |
+| Catalogue and semaforo | Not started | Skeleton and indexes only |
+| Timetables | Not started | Skeleton and indexes only |
+| Campus map | Not started | Skeleton and indexes only |
+| Android (Kotlin) | Not started | The product. Unblocked by the mocks |
+| iOS (Swift) | Not started | The product. Unblocked by the mocks |
+| Admin web (Angular) | Not started | Off the critical path: seed data ships via Mongock |
+| Deployment | Not started | Runs locally; university hardware pending |
 
 ---
 
-## Microservices
+## What exists
 
-| Service               | Port   | Status         | Notes                              |
-|-----------------------|--------|----------------|------------------------------------|
-| Discovery Server      | 8761   | [X] Operational | Eureka dashboard working           |
-| API Gateway           | 8080   | [X] Operational | JWT validation + routing           |
-| Auth Service          | 8081   | [X] Operational | Login + JWT generation             |
-| User Service          | 8082   | [X] Operational | Full CRUD + internal endpoints     |
-| Course Service        | 8083   | [X] Operational | Courses, groups, enrollment        |
-| Assignment Service    | 8084   | [X] Operational | Assignments, submissions, grading  |
-| Common Library        | —      | [X] Operational | Shared DTOs + exceptions           |
+**Platform.** Spring Boot 3.5.16 and Spring Cloud 2025.0.3, on the 3.x line deliberately: Mongock
+publishes no Boot 4 artifact and Spring Cloud 2025.1.x targets Boot 4. All versions are centralised
+in the parent POM so parallel branches never edit it.
 
----
+**Security.** Every service is an OAuth2 resource server validating RS256 against auth-service's
+JWKS. This is what closes S1: identity comes from a signed token, not a header the gateway sets,
+so reaching a service port directly gains nothing. Service ports are unpublished; only the gateway
+is reachable. RS256 rather than a shared secret because a symmetric key given to seven services is
+seven places that can mint an administrator token — and because Entra ID signs RS256 with a JWKS,
+making that migration a change of property value.
 
-## Features
+**Contract first.** `docs/api/*.openapi.yaml` are hand-written and served by Prism containers, so
+the mobile team works without waiting for the backend. CI lints them on every push.
 
-### Authentication
-- [x] Login with email and password
-- [x] JWT with roles (STUDENT, PROFESSOR, ADMIN)
-- [x] Centralized validation at the Gateway
-- [x] BCrypt password hashing
-- [ ] Refresh tokens
-- [ ] Logout / token invalidation
-- [ ] Role-based authorization enforcement (see `SECURITY-AUDIT.md`, finding S2)
-
-### Users
-- [x] Person CRUD
-- [x] Member CRUD
-- [x] Student CRUD
-- [x] Employee CRUD
-- [x] Internal endpoints (Feign)
-- [ ] Editable user profile
-
-### Courses
-- [x] Course and group CRUD
-- [x] Student enrollment
-- [x] Student course list
-- [x] Professor course list
-- [x] Students per group
-- [ ] Schedules
-- [ ] Detailed academic programs
-
-### Assignments
-- [x] Create assignments (professor)
-- [x] Pending assignments (student)
-- [x] Submit assignments
-- [x] Grade submissions
-- [ ] File attachments
-- [ ] Notifications
-
-### Infrastructure
-- [x] Eureka service discovery
-- [x] API Gateway (Spring Cloud)
-- [x] Circuit breaker (Resilience4j)
-- [x] Docker Compose
-- [x] Per-service Dockerfiles
-- [ ] Config Server
-- [ ] Distributed tracing
-- [x] CI build pipeline (GitHub Actions)
-- [ ] Continuous deployment
-- [ ] Rate limiting
-
-### Frontend
-
-Web screens double as the design reference for the mobile clients.
-
-- [x] Login page
-- [x] Dashboard
-- [x] Courses view
-- [x] Assignments view
-- [x] Grades view
-- [x] Schedule view
-- [x] Demo mode with sample data for backend-less static deployments (`js/demo.js`)
-- [ ] Angular migration
-- [ ] Android app (Kotlin)
-- [ ] iOS app (Swift)
-
-### DevOps
-- [x] Docker Compose orchestration
-- [x] Bash startup scripts
-- [x] Technical documentation
-- [x] CI build pipeline (GitHub Actions, `mvn verify` on JDK 21)
-- [ ] CD / automated deployment
-- [ ] Kubernetes manifests
-- [ ] Monitoring (Prometheus/Grafana)
+**Tests.** 27 integration tests on Testcontainers, from a repository that had none. They cover
+anonymous rejection, valid-token acceptance with role mapping, the shared error envelope, Mongock
+migrations, and — most importantly — that an issued token verifies against the published public key
+with no shared secret anywhere.
 
 ---
 
-## Next Steps (by priority)
+## Security findings
 
-1. [High] **Authorization** — Enforce roles at the gateway and close the header-trust gap (`SECURITY-AUDIT.md` S1, S2)
-2. [High] **Config Server** — Centralize configuration
-3. [High] **Angular web** — Migrate the web frontend to Angular
-4. [Med] **Refresh tokens** — Improve the authentication flow
-5. [Med] **Rate limiting** — Protect the Gateway
-6. [Low] **Kotlin app** — Build the Android client from the settled web design (low by sequence, not by value)
-7. [Low] **Swift app** — Build the iOS client
-8. [Low] **CD** — Extend the GitHub Actions pipeline to automated deployment
+Tracked in `docs/SECURITY-AUDIT.md`.
+
+| ID | Severity | Status |
+|---|---|---|
+| S1 | Critical | Resolved. Per-service token validation; service ports unpublished |
+| S2 | High | Partially resolved. Enforcement mechanism in place; the per-endpoint matrix lands with the domain logic |
+| S3 | Moderate | Resolved. CORS allow-list replaces the wildcard |
+| S4 | Moderate | Resolved. Eureka discovery locator off; `/internal/**` has no route |
+| S5 | Moderate | Resolved. Actuator exposes health and info only, without details |
+| S6 | Low | Resolved. Debug logging off by default |
+| S7 | Low | Open. Refresh tokens and revocation are deferred; tokens expire in one hour |
+| H1 | High | Open. Two development credentials remain readable in git history |
 
 ---
 
-## Pending Work
+## Next
 
-Everything below is known and deliberately deferred: the project is a prototype in the thesis pre-proposal phase and
-nothing is deployed. Recorded so it reads as a decision rather than an oversight. Security details and evidence live
-in [SECURITY-AUDIT.md](SECURITY-AUDIT.md).
+1. Registration and verification. **Blocked on an SMTP relay** — without e-mail there is no
+   verification and therefore no registration, which is the front door of the product. The
+   verification step sits behind a flag so the rest of the work is not blocked meanwhile.
+2. Academic catalogue and curricula, seeded from the published Ingenieria de Sistemas pensum
+   (~51 courses, 9 levels, 4 areas, full prerequisite graph).
+3. Student progress and prerequisite-aware eligibility.
+4. Timetables.
+5. Campus map. **The floor plan images are the longest-lead item**: obtaining them is human
+   latency, not engineering, and it is the likeliest thing to slip. Development proceeds against
+   placeholder plans.
+6. Mobile clients.
 
-### Repository governance
+---
 
-| Item | Current state | What to do |
-| ---- | ------------- | ---------- |
-| Branch protection ruleset | Active on `main` and `develop`, but soft: zero required approvals, code owner review enabled with no `CODEOWNERS` file, no required status check, and organization admins bypass it. | Require one approval and make the CI workflow a required status check, so a red build blocks the merge. |
-| Ruleset merge conflict | The ruleset requires linear history **and** allows merge commits only. Those are mutually exclusive: a pull request that is not fast-forward cannot be merged. | Switch the allowed merge method to squash, which also leaves one commit per pull request in `main`. |
-| `CODEOWNERS` | Missing. It is a per-repository file and is **not** inherited from `K-Forge/.github`, unlike `CONTRIBUTING.md`, `SECURITY.md` and `CODE_OF_CONDUCT.md`. | Add `* @K-Forge/kapp-team`. Ownership must be the team, not a single person: GitHub does not accept a code owner approving their own pull request, so a sole owner blocks their own work. |
-| Secret scanning | Disabled | Enable it: GitHub scans the tree and history for known credential formats and reports what it finds. Free on public repositories. |
-| Push protection | Disabled | Enable it: rejects a push carrying a recognizable secret before it reaches the history. This is the control that would have prevented both credentials recorded as H1. |
-| Dependabot | Alerts disabled, no `.github/dependabot.yml` | Enable the alerts, then add the configuration so Maven updates arrive as pull requests. Spring Boot 3.2.0 and Spring Cloud 2023.0.0 both have newer patch releases. |
+## Deferred work
 
-### Presentation
+Everything below is known and deliberately postponed. Recorded so it reads as a decision rather
+than an oversight.
 
-| Item | Current state | What to do |
-| ---- | ------------- | ---------- |
-| Social preview image | Not set, so shared links render the generic GitHub card. | Upload `portfolio-cover.png` (already 1200 x 630, the exact size) under Settings, General, Social preview. There is no API for this; it has to be done from the interface. |
-| Placeholder screens | `notas`, `horario`, `chat`, `clubes`, `pqr` and `inscribir` are empty shells. They are unreachable from the dashboard — the corresponding tiles are disabled and point at `#` — so the demo never lands on one. | Build them, or keep them unreachable until they exist. Do not link them from the navigation while empty. |
+### Product
+
+| Item | Note |
+|---|---|
+| `course-service`, `assignment-service` | Frozen. Still in the tree, out of the reactor, compose and CI. They target PostgreSQL/JPA |
+| Enrollment, assignments, grading | Out of MVP scope |
+| The 17 services in `MICROSERVICES-IDEAS.md` | Out of MVP scope |
+| Web client | Frozen. It was a prototype of the mobile layout, not a product surface |
 
 ### Engineering
 
-| Item | Current state | What to do |
-| ---- | ------------- | ---------- |
-| Test coverage | Zero across the six microservices. Deleting the monolith removed the only test file in the repository. | Cover the authorization path first: it is what the audit flags as critical (S1, S2) and what must not regress silently. |
-| Authorization (S1, S2) | The gateway can be bypassed and no role is enforced anywhere. | Keep service ports off the host, make the propagated identity verifiable, and map `/api/admin/**`, `/api/professor/**` and `/api/student/**` to their roles. Tests first. |
-| CI action versions | `actions/checkout@v4` and `actions/setup-java@v4` target Node 20, deprecated; the runner forces them onto Node 24 and annotates every run with a warning. | Bump both to `v5`. |
-| Drawer identity field | `dashboard.html` declares `drawerCodeDrawer` while the other eight pages use `drawerCode`, which is the id `app.js` hydrates. The drawer therefore never shows the user code. Same class of defect as the two already fixed in the header. | Rename the id to `drawerCode`. |
+| Item | Note |
+|---|---|
+| Refresh tokens, logout, revocation | Tokens simply expire (S7) |
+| Distributed rate limiting | The gateway limits credential endpoints in memory. Correct for one instance; **revisit before running a second** |
+| Spring Cloud Config Server | Configuration is per-service environment variables |
+| Distributed tracing | No Zipkin |
+| Database per service | Already one database per service, on one MongoDB instance |
+| `app/database/init.sql` | Legacy PostgreSQL schema, reference only |
 
-### External and manual
+### Deployment
 
-| Item | Current state | What to do |
-| ---- | ------------- | ---------- |
-| Credential rotation (H1) | Two development credentials remain readable in the git history. | Confirm neither is reused anywhere and change them if they are. Rotation is the fix: the repository has been public since it was created, so any existing clone keeps the values regardless of what the history is rewritten to. |
+| Item | Note |
+|---|---|
+| University hardware | Needs 8 GB RAM minimum, 16 GB recommended, 4 vCPU |
+| TLS | Required, not optional: iOS blocks plaintext HTTP and Android has since API 28 |
+| Multi-architecture images | Built on Apple Silicon; a typical x86 server needs `docker buildx` |
+| Backups | Neon did this invisibly. On-premise needs `mongodump` on a schedule, copied off the host |
+| Entra ID | Needs an application registration from the university |
 
----
+### Repository governance
 
-## Project Structure
-
-```
-KApp/
-├── app/
-│   ├── backend/
-│   │   ├── microservices/          # Backend — the only application code
-│   │   │   ├── discovery-server/
-│   │   │   ├── api-gateway/
-│   │   │   ├── auth-service/
-│   │   │   ├── user-service/
-│   │   │   ├── course-service/
-│   │   │   ├── assignment-service/
-│   │   │   ├── common/
-│   │   │   ├── docker-compose.yml
-│   │   │   └── pom.xml
-│   │   └── postman/                # Testing collections
-│   ├── frontend/
-│   │   ├── web/                    # Web client (HTML/JS to Angular)
-│   │   └── mobile/
-│   │       ├── kotlin/             # Android (planned)
-│   │       └── swift/              # iOS (planned)
-│   └── database/
-│       ├── init.sql
-│       ├── test_data.sql
-│       └── delete_all_data.sql
-├── docs/
-│   ├── SRS.md
-│   ├── REQUIREMENTS.md
-│   ├── DESIGN.md
-│   ├── DOCKER-GUIDE.md
-│   ├── MICROSERVICES-IDEAS.md
-│   ├── SECURITY-AUDIT.md
-│   ├── K-COLORS.md
-│   ├── researches/                 # Academic article reviews (PDF)
-│   └── PROGRESS.md                 # This file
-├── scripts/
-│   ├── start-frontend.sh
-│   └── start-microservices.sh
-├── .github/
-│   └── workflows/ci.yml
-├── AGENTS.md
-├── CONTRIBUTORS.md
-├── LICENSE
-└── README.md
-```
-
----
-
-*Update this file after every completed milestone.*
+| Item | Note |
+|---|---|
+| Branch protection | Ruleset requires linear history and allows merge commits, which are mutually exclusive. Fix: squash |
+| `CODEOWNERS` | Missing. Ownership must be the team: GitHub does not accept a code owner approving their own pull request |
+| Secret scanning, push protection | Disabled |
+| Dependabot | Disabled, no `.github/dependabot.yml` |
+| Social preview | `portfolio-cover.png` is already 1200x630 but must be uploaded through the GitHub UI |
+| Credential rotation (H1) | Two development credentials readable in git history |
