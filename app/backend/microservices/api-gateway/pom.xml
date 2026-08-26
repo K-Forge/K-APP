@@ -12,59 +12,51 @@
 
     <artifactId>api-gateway</artifactId>
     <name>API Gateway</name>
-    <description>API Gateway para KApp - Punto de entrada único</description>
+    <description>
+        Single entry point. Routing, CORS and rate limiting only.
+
+        It deliberately performs NO authentication. Each downstream service is an
+        independent OAuth2 resource server that validates the RS256 token itself, so
+        putting a second copy of the rule here would mean two implementations that drift
+        apart - and a PUBLIC_PATHS list maintained in a different file from the endpoints
+        it governs. It also means bypassing the gateway gains an attacker nothing, which
+        is what closes finding S1 in docs/SECURITY-AUDIT.md.
+
+        Deliberately does NOT depend on the `common` module: that module's
+        auto-configuration is servlet-based and this is a reactive application.
+    </description>
 
     <dependencies>
-        <!-- Spring Cloud Gateway -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-gateway</artifactId>
+            <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
         </dependency>
 
-        <!-- Eureka Client -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
 
-        <!-- Circuit Breaker -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
         </dependency>
 
-        <!-- Actuator -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- JWT para validación -->
+        <!-- Aggregates the five services' OpenAPI documents behind one Swagger UI. -->
         <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-api</artifactId>
-            <version>${jjwt.version}</version>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
         </dependency>
+
         <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-            <version>${jjwt.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
-            <version>${jjwt.version}</version>
-            <scope>runtime</scope>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 </project>

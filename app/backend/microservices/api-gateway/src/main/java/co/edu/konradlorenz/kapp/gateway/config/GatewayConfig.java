@@ -6,42 +6,75 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Configuración de rutas del API Gateway.
- * Define el enrutamiento hacia los diferentes microservicios.
+ * The complete routing table.
+ *
+ * <p>Routes are declared explicitly rather than discovered. Eureka's discovery locator
+ * would auto-expose every registered service at {@code /{service-id}/**}, including the
+ * internal endpoints below, and would quietly grow a new public surface every time
+ * somebody registers a service. That was finding S4; it stays off.
+ *
+ * <p>Note what is absent: there is no route for {@code /internal/**}. Those endpoints -
+ * user-service's profile creation, called by auth-service during registration - are
+ * reachable only from inside the compose network, and only with the shared internal
+ * token. Nothing outside can reach them at all.
  */
 @Configuration
 public class GatewayConfig {
 
-        @Bean
-        public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
-                return builder.routes()
-                                // Auth Service - Rutas públicas de autenticación
-                                .route("auth-service", r -> r
-                                                .path("/auth/**")
-                                                .uri("lb://auth-service"))
+    @Bean
+    public RouteLocator routes(RouteLocatorBuilder builder) {
+        return builder.routes()
 
-                                // User Service - Gestión de usuarios
-                                .route("user-service", r -> r
-                                                .path("/api/users/**", "/api/admin/people/**", "/api/admin/members/**",
-                                                                "/api/admin/students/**", "/api/admin/employees/**")
-                                                .uri("lb://user-service"))
+                // Public: login, registration, verification.
+                .route("auth-service", r -> r
+                        .path("/auth/**")
+                        .uri("lb://auth-service"))
 
-                                // Course Service - Gestión de cursos
-                                .route("course-service", r -> r
-                                                .path("/api/courses/**", "/api/admin/courses/**",
-                                                                "/api/admin/groups/**",
-                                                                "/api/admin/programs/**", "/api/student/courses/**",
-                                                                "/api/professor/courses/**")
-                                                .uri("lb://course-service"))
+                // Public and required: every other service fetches this to verify tokens.
+                .route("auth-jwks", r -> r
+                        .path("/.well-known/jwks.json")
+                        .uri("lb://auth-service"))
 
-                                // Assignment Service - Gestión de tareas
-                                .route("assignment-service", r -> r
-                                                .path("/api/assignments/**", "/api/admin/assignments/**",
-                                                                "/api/student/assignments/**",
-                                                                "/api/professor/assignments/**",
-                                                                "/api/professor/submissions/**")
-                                                .uri("lb://assignment-service"))
+                .route("user-service", r -> r
+                        .path("/api/users/**")
+                        .uri("lb://user-service"))
 
-                                .build();
-        }
+                // semaphore-service owns the academic catalogue as well as student
+                // progress, because the curriculum is what the semaforo displays.
+                .route("semaphore-service", r -> r
+                        .path("/api/semaphore/**", "/api/catalog/**")
+                        .uri("lb://semaphore-service"))
+
+                .route("schedule-service", r -> r
+                        .path("/api/schedule/**")
+                        .uri("lb://schedule-service"))
+
+                .route("map-service", r -> r
+                        .path("/api/map/**")
+                        .uri("lb://map-service"))
+
+                // Aggregated OpenAPI documents, one per service, for the Swagger UI.
+                .route("auth-docs", r -> r
+                        .path("/auth/v3/api-docs")
+                        .filters(f -> f.setPath("/v3/api-docs"))
+                        .uri("lb://auth-service"))
+                .route("user-docs", r -> r
+                        .path("/users/v3/api-docs")
+                        .filters(f -> f.setPath("/v3/api-docs"))
+                        .uri("lb://user-service"))
+                .route("semaphore-docs", r -> r
+                        .path("/semaphore/v3/api-docs")
+                        .filters(f -> f.setPath("/v3/api-docs"))
+                        .uri("lb://semaphore-service"))
+                .route("schedule-docs", r -> r
+                        .path("/schedule/v3/api-docs")
+                        .filters(f -> f.setPath("/v3/api-docs"))
+                        .uri("lb://schedule-service"))
+                .route("map-docs", r -> r
+                        .path("/map/v3/api-docs")
+                        .filters(f -> f.setPath("/v3/api-docs"))
+                        .uri("lb://map-service"))
+
+                .build();
+    }
 }
