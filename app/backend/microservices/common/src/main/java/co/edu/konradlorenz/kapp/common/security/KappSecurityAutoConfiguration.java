@@ -6,6 +6,8 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -112,14 +114,37 @@ public class KappSecurityAutoConfiguration {
     }
 
     /**
-     * The default chain: everything requires a valid token except health and the API
-     * docs. A service needing public endpoints - auth-service, with login and
-     * registration - declares its own {@code SecurityFilterChain} bean and this one
-     * backs off.
+     * The catch-all chain: everything requires a valid token except health and the API
+     * docs.
+     *
+     * <p>Ordered last on purpose, and deliberately NOT {@code @ConditionalOnMissingBean}.
+     * It used to be conditional, which meant a service declaring any chain of its own -
+     * even one that only covered {@code /internal/**} - silently switched this one off
+     * and left every other route unauthenticated, with nothing failing loudly. That is a
+     * security hole produced by an ordinary-looking edit, so the mechanism is gone.
+     *
+     * <p>A service that needs different rules for some paths adds its own chain with a
+     * {@code securityMatcher} limiting it to those paths, and an explicit
+     * {@code @Order} ahead of this one:
+     *
+     * <pre>
+     * &#64;Bean
+     * &#64;Order(10)
+     * SecurityFilterChain internalChain(HttpSecurity http) throws Exception {
+     *     return http.securityMatcher("/internal/**")
+     *                ...
+     *                .build();
+     * }
+     * </pre>
+     *
+     * Spring Security tries each chain in order and uses the first whose matcher accepts
+     * the request, so anything the narrow chain does not claim still lands here and stays
+     * protected. An explicit {@code @Order} is required: a chain without one also defaults
+     * to {@code LOWEST_PRECEDENCE} and ties with this bean.
      */
     @Bean
-    @ConditionalOnMissingBean
-    public SecurityFilterChain kappDefaultSecurityFilterChain(
+    @Order(Ordered.LOWEST_PRECEDENCE)
+    public SecurityFilterChain kappCatchAllSecurityFilterChain(
             HttpSecurity http,
             JwtAuthenticationConverter jwtAuthenticationConverter,
             AuthenticationEntryPoint entryPoint,

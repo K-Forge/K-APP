@@ -3,6 +3,7 @@ package co.edu.konradlorenz.kapp.auth.config;
 import co.edu.konradlorenz.kapp.common.security.KappSecurityAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -14,9 +15,14 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 
 /**
- * auth-service is the one service with genuinely public endpoints, so it replaces the
- * default chain from {@code common} rather than inheriting it. Declaring this bean makes
- * the shared {@code @ConditionalOnMissingBean} chain back off.
+ * auth-service is the one service with genuinely public endpoints - login, registration,
+ * verification and the JWKS document - so it declares its own chain.
+ *
+ * <p>This chain has no {@code securityMatcher}, so it claims every request and the
+ * catch-all in {@code common} never runs. That is intentional here, and it is why the
+ * {@code anyRequest().authenticated()} line below matters: it has to keep the rest of the
+ * service protected on its own. The explicit {@code @Order} is required, since a chain
+ * without one ties with the catch-all rather than preceding it.
  *
  * <p>It is still a resource server as well: once signed in, a caller uses the same token
  * here as everywhere else.
@@ -40,6 +46,7 @@ public class AuthSecurityConfig {
     };
 
     @Bean
+    @Order(10)
     public SecurityFilterChain authSecurityFilterChain(
             HttpSecurity http,
             JwtAuthenticationConverter jwtAuthenticationConverter,
@@ -47,12 +54,20 @@ public class AuthSecurityConfig {
             AccessDeniedHandler accessDeniedHandler) throws Exception {
 
         return http
+                // Claims only the paths this service actually owns. Without a matcher
+                // this chain would swallow every request and make the catch-all in
+                // `common` unreachable - which Spring Security rejects outright with
+                // UnreachableFilterChainException rather than letting it slide.
+                // Everything outside these prefixes falls through to the catch-all and
+                // stays protected.
+                .securityMatcher("/auth/**", "/.well-known/jwks.json")
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(KappSecurityAutoConfiguration.PUBLIC_PATHS).permitAll()
                         .requestMatchers(PUBLIC_AUTH_PATHS).permitAll()
+                        // Anything else under /auth/** still needs a token, so adding an
+                        // endpoint there does not accidentally make it public.
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
