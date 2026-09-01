@@ -1,104 +1,152 @@
-# Integration notes
+# Phase 1 rebuild brief
 
-Working notes for merging the four parallel Phase 1 tracks back into `feature/mvp-backend`.
-Delete this file once the merge is done and the items below are resolved.
+Phase 1 was built once and lost before it was committed. This file carries forward everything that
+was learned, so the rebuild is a transcription rather than a rediscovery. Delete it once Phase 1 is
+merged and the items below are resolved.
+
+## What happened, so it does not happen again
+
+The four tracks ran in git worktrees placed under a session scratchpad in `/private/tmp`, and the
+agents were instructed not to commit. macOS purged the directory days later. The branches survived
+but were empty: they still pointed at the commit they were created from.
+
+**Rule for every future parallel run:** worktrees go somewhere persistent, and each track commits to
+its own branch as it goes. A branch is the durable artifact; an uncommitted worktree is not. "Do not
+commit" is only safe advice for work inside the main checkout.
+
+Nothing from Phase 0 was affected — it was committed.
 
 ---
 
-## 1. The shared security chain backs off too easily — fix in `common` after the merge
+## 1. The shared security chain backs off too easily
 
 `KappSecurityAutoConfiguration` declares its default `SecurityFilterChain` with
-`@ConditionalOnMissingBean`. That means **any** chain a service declares silently disables the
-shared one, including a chain that was only ever meant to cover one path.
+`@ConditionalOnMissingBean`. **Any** chain a service declares silently disables the shared one,
+including a chain meant to cover a single path.
 
-Track B hit this in `user-service`: adding a chain for `/internal/**` disabled the default, and
-every `/api/users/**` route would have been left unauthenticated with nothing failing loudly. They
-worked around it by restating the default chain inside their own config. That workaround is
-correct but it is a trap waiting for the next person, and it duplicates the rule in two places.
+This was found the expensive way in `user-service`: adding a chain for `/internal/**` disabled the
+default, and every `/api/users/**` route would have been left unauthenticated with nothing failing
+loudly.
 
-**The fix**, once all four tracks are merged and `common` is safe to edit:
+**Fix this in `common` first, before the tracks restart** — it is the one change that is cheaper to
+make now than to work around four times:
 
-- Give the shared chain `@Order(Ordered.LOWEST_PRECEDENCE)` and drop `@ConditionalOnMissingBean`,
-  so it acts as a catch-all.
-- Services add narrower chains with a `securityMatcher` and a higher precedence for the paths they
-  own — `/internal/**`, the public auth endpoints — and nothing else.
-- Then remove the restated default from `user-service` and check `auth-service`'s
-  `AuthSecurityConfig` still covers every path rather than only the public ones.
-
-Spring Security supports several `SecurityFilterChain` beans; the first whose matcher accepts the
-request wins. That is the intended pattern and it removes the footgun entirely.
-
-Add a test that a service declaring its own narrow chain still rejects an anonymous request to an
-unrelated path. That is the failure mode this is guarding against, and it is invisible otherwise.
+- Give the shared chain `@Order(Ordered.LOWEST_PRECEDENCE)` and drop `@ConditionalOnMissingBean`, so
+  it acts as a catch-all.
+- Services add narrower chains with a `securityMatcher` and higher precedence for only the paths
+  they own.
+- Add a test that a service declaring its own narrow chain still rejects an anonymous request to an
+  unrelated path. That failure mode is invisible otherwise.
 
 ---
 
-## 2. E-mail normalisation must agree across auth and user
+## 2. auth-service — decisions worth reproducing exactly
 
-`user-service` lowercases the e-mail before upserting on `POST /internal/users`, because a retry
-differing only in capitalisation would otherwise slip past the unique index and create the exact
-duplicate the upsert exists to prevent.
+**`IdentityProviderPort`.** This shape was validated as Entra-compatible; reproduce it.
 
-`auth-service` must normalise the same way, both before calling user-service and before writing the
-credential. If the two disagree, the profile and the credential drift apart for anyone who types
-their e-mail with a capital letter. Confirm both sides at merge time.
+```java
+String providerId();
+boolean supports(IdentityAssertion assertion);
+AuthenticatedIdentity authenticate(IdentityAssertion assertion);
+```
+
+`IdentityAssertion` sealed over `Password` and `AuthorizationCode` (the latter unimplemented, present
+to prove the shape holds). `AuthenticatedIdentity` is `(subject, email, roles, emailVerified)` —
+every field has an Entra equivalent (`oid`, `preferred_username`, app-role assignment, implicit).
+No password hash, no Mongo type, no create/update method in the signature. `AuthService` must not
+know that BCrypt or MongoDB exist.
+
+**`emailVerified` and `status` are different facts.** Registration always sets
+`emailVerified = false`, because nothing was proven. `status` decides whether the account can sign
+in: `ACTIVE` when verification is not required, `PENDING_VERIFICATION` when it is. Login gates on
+`status`, never on `emailVerified`. Conflating them makes an account claim a verification that never
+happened, and once the flag is switched on those accounts are indistinguishable from genuinely
+verified ones.
+
+**Invitation codes.** Redemption is a single `findAndModify` with an
+`$expr: {$lt: ["$timesUsed", "$maxUses"]}` guard, plus a guarded `release()` returning a use when the
+registration it was claimed for fails. Proven with a 10-thread stampede on a single-use code:
+exactly one success. Never read-then-write.
+
+**Verification tokens.** 32 random bytes from `SecureRandom`, URL-safe base64. Store only a SHA-256
+**hash**, so the collection holds nothing replayable if it leaks. Single use. `/verify/resend`
+always returns 202 regardless of whether the account exists.
+
+**Registration ordering.** Create the profile in user-service *before* writing the credential. A
+failure then leaves a retryable orphan profile; the reverse leaves a credential that authenticates
+into a void. 409 comes from the unique index, not from the pre-check.
+
+**Seeded invitation codes are public.** `KL-20262-STUDENT` (200 uses) and `KL-20262-STAFF` (20 uses)
+ship in a change unit so the MVP demos without an admin UI. Anyone who reads the repository can
+create an account. Acceptable on a laptop, not acceptable once reachable — **revoke before any
+public deployment** and put it on the pre-deployment checklist.
+
+**Feign to user-service.** `InternalTokenInterceptor` wired in a non-`@Configuration` client config,
+so the secret reaches exactly one downstream endpoint. 3s connect, 5s read, no retries, every Feign
+failure surfaced as a 503 with a retry-safe message.
 
 ---
 
-## 3. Search matches word prefixes, not infixes
+## 3. user-service — decisions worth reproducing exactly
 
-`user-service` search folds accents at write time into an indexed `searchTokens` array and queries
-it with anchored, flagless regexes, so the query can actually use the index. The consequence is
-that `varg` finds Vargas but `unoz` does not.
+**Accent-insensitive search that actually uses an index.** Store a derived `searchTokens` array:
+every word of first name, last name and e-mail, NFD-decomposed with combining marks stripped, then
+lowercased (`Muñoz` → `munoz`). Fold the query the same way and query with **anchored, flagless**
+regexes (`/^munoz/`) against a multikey index.
 
-This is the right trade for a type-ahead and it is worth keeping. Infix matching cannot be served
-from an index, so if a real need for it appears, it needs a different mechanism (Atlas Search, or
-a separate n-gram field), not a relaxed regex.
+Anchored and flagless is load-bearing: MongoDB can only turn a regex into an index range when it is
+anchored at the start and carries no `i` flag. Both sides are already folded at write time, so no
+flag is needed. `/muñoz/i` would use no index *and* still fail to match "munoz".
 
-Note it in the API documentation so the mobile clients set expectations in the UI.
+Recompute `searchTokens` in the document's compact constructor so the indexed field cannot drift from
+the fields it indexes, including on documents read back from Mongo.
+
+Prove it rather than asserting it: seed ~60 profiles, run MongoDB's `explain` over the exact filter
+the service builds, assert the winning plan is an `IXSCAN` with few documents examined.
+
+**Consequence to keep:** this matches word prefixes, not infixes. `varg` finds Vargas; `unoz` does
+not. Correct for a type-ahead; infix matching cannot be served from an index. Tell the mobile team so
+the UI does not promise otherwise.
+
+**PATCH binds a raw `JsonNode`, not a record.** A record collapses "field absent" and "field sent as
+null" into the same value, and the contract needs those to mean *leave alone* versus *clear*.
+
+**Internal token comparison** hashes both sides to SHA-256 before `MessageDigest.isEqual`, so the
+fixed-length digest hides the length of the supplied value as well as its content. An unset
+`KAPP_INTERNAL_TOKEN` fails closed with a startup warning.
+
+**E-mail is lowercased on the internal upsert**, and auth-service must agree on both sides. Without
+it, a retry differing only in capitalisation slips past the unique index and creates the duplicate
+the upsert exists to prevent.
+
+**Test gotcha:** BSON stores instants at millisecond precision, so a seeded object never equals the
+one read back. Truncate at the seam.
 
 ---
 
-## 4. Seeded invitation codes must be revoked before anything is public
+## 4. Contract divergences already settled
 
-`auth-service` seeds two working invitation codes through a Mongock change unit so the MVP can be
-demonstrated without an admin UI:
+- `page`/`size` above the cap: the spec **rejects with 400**; do not clamp. Clamping tells a client
+  asking for 5000 that it got everything when it got 100.
+- `currentLevel` is 1–12 per the spec, not 1–20.
+- `identification.number` is 5–20 characters per the spec.
+- PATCH `/me` also rejects `active` and `id`, and rejects unknown fields, per `additionalProperties: false`.
+- Login returns 403 for a valid password against an unverified address. A narrow account oracle, but
+  it is in the contract and knowing the password is already the harder half.
+- `phone` was `maxLength: 15`; E.164 permits 15 *digits* plus the leading `+`. Already fixed in the
+  spec to 16 with an explicit `^\+[1-9]\d{1,14}$` pattern.
 
-| Code | Uses | Role |
+---
+
+## 5. Track status at the time of loss
+
+| Track | Service | State |
 |---|---|---|
-| `KL-20262-STUDENT` | 200 | student |
-| `KL-20262-STAFF` | 20 | professor |
+| A | auth-service | Complete, 30 tests green, minus the `emailVerified`/`status` split in section 2 |
+| B | user-service | Complete, 38 tests green |
+| C | semaphore-service | Partial — 7 seed tests green, integration tests not written |
+| D | map-service | Partial — service built, tests and the pin editor not written |
 
-**They are in source control, so treat them as public.** Anyone who reads the repository can create
-an account. That is acceptable while nothing is deployed and the whole thing runs on a laptop; it
-stops being acceptable the moment the service is reachable from outside.
-
-Before any public deployment: deactivate both in a new change unit and issue fresh codes out of
-band. Add it to the pre-deployment checklist rather than trusting anyone to remember.
-
-The better long-term answer is admin endpoints for issuing codes, which the contract does not
-currently define. Worth adding to the spec when the admin UI is designed.
-
----
-
-## 5. Contract fixes already applied
-
-- `user.openapi.yaml`: `phone` was `maxLength: 15`, but E.164 permits 15 *digits* plus the leading
-  `+`, so a fully qualified number reaches 16 characters. Raised to 16 and given an explicit
-  `^\+[1-9]\d{1,14}$` pattern. Found by Track B.
-
----
-
-## 6. Merge order
-
-`common` is untouched by every track, so the four branches should merge cleanly. Merge in
-dependency order and run the full reactor after each one rather than at the end, so a failure is
-attributable:
-
-```
-feature/mvp-user  ->  feature/mvp-auth  ->  feature/mvp-semaphore  ->  feature/mvp-map
-```
-
-After all four: apply fix 1 above, re-run `./mvnw -B verify`, then bring up
-`docker compose --profile full` and re-check the Phase 0 exit criteria, which are the only end to
-end proof that the services still agree with each other.
+Phase 0 is untouched and verified: full reactor builds, 27 integration tests, and the end-to-end
+flow through the gateway (login → RS256 token → four services validating it independently against
+the JWKS) was confirmed against the running stack.
