@@ -21,8 +21,14 @@ spring:
 kapp:
   cors:
     # Explicit allow-list, replacing the previous wildcard (finding S3).
-    # 4200 is Angular, 5173 is Vite. Native mobile clients are not subject to CORS.
-    allowed-origins: ${KAPP_CORS_ORIGINS:http://localhost:4200,http://localhost:5173}
+    # 4300 is the admin portal's container (compose `dev` profile), 4200 is that same
+    # app under `pnpm start`, 5173 is Vite. Native mobile clients are not browsers and
+    # are not subject to CORS at all, so this list only ever grows for web surfaces.
+    #
+    # A missing entry here fails in a way that looks like the backend is down: the
+    # browser blocks the request before it is sent, so the client reports a network
+    # error rather than a status code.
+    allowed-origins: ${KAPP_CORS_ORIGINS:http://localhost:4300,http://localhost:4200,http://localhost:5173}
   rate-limit:
     # In-memory, single instance. See AuthRateLimitFilter before adding a second one.
     auth-attempts-per-minute: ${KAPP_AUTH_RATE_LIMIT:10}
