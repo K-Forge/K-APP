@@ -42,6 +42,15 @@ export const routes: Routes = [
         path: 'data/curricula',
         loadComponent: () => import('./features/data/curricula/curricula.page').then((m) => m.CurriculaPage),
       },
+      {
+        path: 'data/invitation-codes',
+        loadComponent: () =>
+          import('./features/data/invitation-codes/invitation-codes.page').then((m) => m.InvitationCodesPage),
+      },
+      {
+        path: 'roles',
+        loadComponent: () => import('./features/roles/role-inspector.page').then((m) => m.RoleInspectorPage),
+      },
     ],
   },
   { path: '**', redirectTo: 'login' },

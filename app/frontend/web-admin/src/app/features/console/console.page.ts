@@ -29,18 +29,20 @@ function operationKey(op: Pick<ConsoleOperation, 'method' | 'path'>): string {
         <div class="card stack">
           <div class="field">
             <label for="service">Service</label>
-            <select id="service" [value]="selectedServiceId()" (change)="onServiceChange($event)">
+            <select id="service" (change)="onServiceChange($event)">
               @for (service of services; track service.id) {
-                <option [value]="service.id">{{ service.label }}</option>
+                <option [value]="service.id" [selected]="service.id === selectedServiceId()">{{ service.label }}</option>
               }
             </select>
           </div>
 
           <div class="field">
             <label for="operation">Endpoint</label>
-            <select id="operation" [value]="selectedOpKey()" (change)="onOperationChange($event)">
+            <select id="operation" (change)="onOperationChange($event)">
               @for (op of operations(); track operationKey(op)) {
-                <option [value]="operationKey(op)">{{ op.method.toUpperCase() }} {{ op.path }} — {{ op.summary }}</option>
+                <option [value]="operationKey(op)" [selected]="operationKey(op) === selectedOpKey()">
+                  {{ op.method.toUpperCase() }} {{ op.path }} — {{ op.summary }}
+                </option>
               }
             </select>
           </div>
@@ -61,10 +63,10 @@ function operationKey(op: Pick<ConsoleOperation, 'method' | 'path'>): string {
                     }
                   </label>
                   @if (param.schema.enum?.length) {
-                    <select [id]="'path-' + param.name" [value]="paramValue(param)" (change)="onParamChange(param, $event)">
-                      <option value="" disabled>choose…</option>
+                    <select [id]="'path-' + param.name" (change)="onParamChange(param, $event)">
+                      <option value="" disabled [selected]="!paramValue(param)">choose…</option>
                       @for (opt of param.schema.enum; track opt) {
-                        <option [value]="opt">{{ opt }}</option>
+                        <option [value]="opt" [selected]="opt === paramValue(param)">{{ opt }}</option>
                       }
                     </select>
                   } @else {
@@ -88,10 +90,10 @@ function operationKey(op: Pick<ConsoleOperation, 'method' | 'path'>): string {
                     }
                   </label>
                   @if (param.schema.enum?.length) {
-                    <select [id]="'query-' + param.name" [value]="paramValue(param)" (change)="onParamChange(param, $event)">
-                      <option value="">(omit)</option>
+                    <select [id]="'query-' + param.name" (change)="onParamChange(param, $event)">
+                      <option value="" [selected]="!paramValue(param)">(omit)</option>
                       @for (opt of param.schema.enum; track opt) {
-                        <option [value]="opt">{{ opt }}</option>
+                        <option [value]="opt" [selected]="opt === paramValue(param)">{{ opt }}</option>
                       }
                     </select>
                   } @else {
