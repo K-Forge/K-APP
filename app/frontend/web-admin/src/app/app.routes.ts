@@ -18,6 +18,10 @@ export const routes: Routes = [
         path: 'identity',
         loadComponent: () => import('./features/identity/identity.page').then((m) => m.IdentityPage),
       },
+      {
+        path: 'console',
+        loadComponent: () => import('./features/console/console.page').then((m) => m.ConsolePage),
+      },
     ],
   },
   { path: '**', redirectTo: 'login' },

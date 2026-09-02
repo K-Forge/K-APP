@@ -58,8 +58,8 @@ function flattenOperations(service: ServiceDescriptor): ConsoleOperation[] {
         summary: operation.summary ?? '',
         description: operation.description ?? '',
         tags: operation.tags ?? [],
-        pathParams: allParams.filter((p) => p.in === 'path').map(toConsoleParam),
-        queryParams: allParams.filter((p) => p.in === 'query').map(toConsoleParam),
+        pathParams: allParams.filter((p) => p.in === 'path').map((p) => toConsoleParam(doc, p)),
+        queryParams: allParams.filter((p) => p.in === 'query').map((p) => toConsoleParam(doc, p)),
         requestBodySchema: bodySchema,
         requestBodyExample: jsonBody ? firstExample(doc, jsonBody, bodySchema) : undefined,
         security: operation.security,
@@ -79,12 +79,18 @@ function mergeParams(pathLevel: ParameterObject[], ownLevel: ParameterObject[]):
   return [...merged.values()];
 }
 
-function toConsoleParam(param: ParameterObject): ConsoleParam {
+/**
+ * A parameter's own `schema` can itself be a $ref (SpaceType is - it's shared with the Space
+ * response schema), so this resolves it the same way a request/response body schema is resolved.
+ * Missing this was the difference between the `type` filter rendering as a dropdown of the four
+ * real SpaceType values and rendering as a free-text box that would 400 on a typo.
+ */
+function toConsoleParam(doc: OpenApiDocument, param: ParameterObject): ConsoleParam {
   return {
     name: param.name,
     in: param.in as 'path' | 'query',
     required: Boolean(param.required),
-    schema: param.schema ?? {},
+    schema: resolveSchema(doc, param.schema) ?? {},
     description: param.description,
   };
 }
