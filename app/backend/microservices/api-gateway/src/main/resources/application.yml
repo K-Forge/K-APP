@@ -66,7 +66,11 @@ management:
 
 springdoc:
   api-docs:
-    enabled: false      # the gateway has no API of its own
+    # Left ENABLED even though the gateway exposes no API of its own. Turning it off also
+    # removes /v3/api-docs/swagger-config, which is where the Swagger UI reads the list of
+    # services below - the page then loads its shell and shows nothing, with no error.
+    # The gateway's own generated document is empty and harmless.
+    enabled: true
   swagger-ui:
     path: /swagger-ui.html
     # One dropdown entry per service. Declared explicitly rather than using springdoc's

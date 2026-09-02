@@ -25,6 +25,35 @@ public class GatewayConfig {
     public RouteLocator routes(RouteLocatorBuilder builder) {
         return builder.routes()
 
+                // Declared FIRST, deliberately. The gateway takes the first matching
+                // route, so /auth/** would otherwise swallow /auth/v3/api-docs before the
+                // rewrite could strip the prefix - the request would reach auth-service as
+                // /auth/v3/api-docs, which its own security chain claims and refuses
+                // without a token. A 401 on a documentation URL is a confusing way to
+                // discover a route-ordering bug.
+                //
+                // Aggregated OpenAPI documents, one per service, for the Swagger UI.
+                .route("auth-docs", r -> r
+                        .path("/auth/v3/api-docs")
+                        .filters(f -> f.setPath("/v3/api-docs"))
+                        .uri("lb://auth-service"))
+                .route("user-docs", r -> r
+                        .path("/users/v3/api-docs")
+                        .filters(f -> f.setPath("/v3/api-docs"))
+                        .uri("lb://user-service"))
+                .route("semaphore-docs", r -> r
+                        .path("/semaphore/v3/api-docs")
+                        .filters(f -> f.setPath("/v3/api-docs"))
+                        .uri("lb://semaphore-service"))
+                .route("schedule-docs", r -> r
+                        .path("/schedule/v3/api-docs")
+                        .filters(f -> f.setPath("/v3/api-docs"))
+                        .uri("lb://schedule-service"))
+                .route("map-docs", r -> r
+                        .path("/map/v3/api-docs")
+                        .filters(f -> f.setPath("/v3/api-docs"))
+                        .uri("lb://map-service"))
+
                 // Public: login, registration, verification.
                 .route("auth-service", r -> r
                         .path("/auth/**")
@@ -51,28 +80,6 @@ public class GatewayConfig {
 
                 .route("map-service", r -> r
                         .path("/api/map/**")
-                        .uri("lb://map-service"))
-
-                // Aggregated OpenAPI documents, one per service, for the Swagger UI.
-                .route("auth-docs", r -> r
-                        .path("/auth/v3/api-docs")
-                        .filters(f -> f.setPath("/v3/api-docs"))
-                        .uri("lb://auth-service"))
-                .route("user-docs", r -> r
-                        .path("/users/v3/api-docs")
-                        .filters(f -> f.setPath("/v3/api-docs"))
-                        .uri("lb://user-service"))
-                .route("semaphore-docs", r -> r
-                        .path("/semaphore/v3/api-docs")
-                        .filters(f -> f.setPath("/v3/api-docs"))
-                        .uri("lb://semaphore-service"))
-                .route("schedule-docs", r -> r
-                        .path("/schedule/v3/api-docs")
-                        .filters(f -> f.setPath("/v3/api-docs"))
-                        .uri("lb://schedule-service"))
-                .route("map-docs", r -> r
-                        .path("/map/v3/api-docs")
-                        .filters(f -> f.setPath("/v3/api-docs"))
                         .uri("lb://map-service"))
 
                 .build();

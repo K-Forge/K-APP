@@ -1,6 +1,10 @@
 # KApp · Containerization Guide with Docker Desktop
 
-> Step-by-step guide to containerize and run the microservices on Docker Desktop.
+> **Superseded by [RUNBOOK.md](RUNBOOK.md) for anything you actually want to run.**
+> That file covers starting, stopping, profiles, accounts and troubleshooting against the
+> current stack. This one predates the move to MongoDB and still describes PostgreSQL
+> environment variables that no longer exist. It is kept for the Dockerfile and image
+> optimisation background, which is still accurate.
 
 ---
 

@@ -114,6 +114,9 @@ KApp/
 
 ## Dev Commands
 
+Full guide, including profiles, local accounts and troubleshooting:
+**[docs/RUNBOOK.md](docs/RUNBOOK.md)**.
+
 Requires JDK 21 and Docker. The repository pins the JDK with `.java-version` (jenv) and ships a
 Maven wrapper, so use `./mvnw` rather than a system Maven.
 
