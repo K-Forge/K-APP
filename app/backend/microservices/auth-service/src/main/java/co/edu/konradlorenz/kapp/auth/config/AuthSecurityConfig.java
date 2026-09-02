@@ -18,14 +18,39 @@ import org.springframework.security.web.access.AccessDeniedHandler;
  * auth-service is the one service with genuinely public endpoints - login, registration,
  * verification and the JWKS document - so it declares its own chain.
  *
- * <p>This chain has no {@code securityMatcher}, so it claims every request and the
- * catch-all in {@code common} never runs. That is intentional here, and it is why the
- * {@code anyRequest().authenticated()} line below matters: it has to keep the rest of the
- * service protected on its own. The explicit {@code @Order} is required, since a chain
- * without one ties with the catch-all rather than preceding it.
+ * <p>The chain claims {@code /auth/**} and the JWKS document through a
+ * {@code securityMatcher} and nothing else. Everything outside those prefixes falls
+ * through to the catch-all in {@code common} and stays protected. The explicit
+ * {@code @Order} is required, since a chain without one ties with the catch-all rather
+ * than preceding it.
  *
  * <p>It is still a resource server as well: once signed in, a caller uses the same token
  * here as everywhere else.
+ *
+ * <h2>Trusting a second issuer later</h2>
+ * Today every token this service accepts was minted by this service, so a single
+ * {@code jwk-set-uri} is enough. When Entra ID starts issuing tokens as well, KApp has to
+ * accept both for as long as the migration runs - its own and the tenant's - and the way
+ * to do that is not a second filter chain.
+ *
+ * <p>Spring Security already models it:
+ * {@code JwtIssuerAuthenticationManagerResolver} reads the {@code iss} claim of the
+ * incoming token and picks the matching {@code AuthenticationManager}, each with its own
+ * {@code JwtDecoder} pointed at a different JWKS. Wiring it is roughly:
+ *
+ * <pre>
+ * var resolver = JwtIssuerAuthenticationManagerResolver.fromTrustedIssuers(
+ *         kappIssuer, entraIssuer);
+ * http.oauth2ResourceServer(oauth -&gt; oauth.authenticationManagerResolver(resolver));
+ * </pre>
+ *
+ * <p>Use {@code fromTrustedIssuers} and never the predicate-free variant: resolving an
+ * arbitrary issuer means any OIDC provider on the internet can mint a token KApp accepts.
+ *
+ * <p>It is not wired now because the second issuer does not exist yet - there is no tenant
+ * id and no discovery document - and a resolver with one entry is strictly more machinery
+ * than {@code jwk-set-uri} for identical behaviour. What matters is that adding the second
+ * issuer is a change to this bean, not a redesign of how five services validate tokens.
  */
 @Configuration
 public class AuthSecurityConfig {
@@ -35,7 +60,7 @@ public class AuthSecurityConfig {
      * door. The JWKS endpoint has to be here: a service cannot authenticate in order to
      * discover how to authenticate.
      */
-    private static final String[] PUBLIC_AUTH_PATHS = {
+    static final String[] PUBLIC_AUTH_PATHS = {
             "/auth/login",
             "/auth/register",
             "/auth/register/guest",

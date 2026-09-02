@@ -22,6 +22,21 @@ spring:
           # auth-service were already up - a boot-order deadlock under docker compose.
           jwk-set-uri: ${KAPP_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
 
+  # Blank host is the local-dev default: VerificationMailer switches to logging the
+  # link instead of sending it, which is what makes KAPP_REQUIRE_EMAIL_VERIFICATION=true
+  # safe to turn on before an SMTP relay exists.
+  mail:
+    host: ${SPRING_MAIL_HOST:}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 mongock:
   migration-scan-package: co.edu.konradlorenz.kapp.auth.migration
   # Left off deliberately: the change units only create indexes, which are idempotent,
@@ -60,6 +75,11 @@ logging:
     co.edu.konradlorenz.kapp: ${KAPP_LOG_LEVEL:INFO}
 
 kapp:
+  # Shared secret for the one Feign call this service makes: POST /internal/users on
+  # user-service, during registration. See InternalUserClientConfig.
+  internal:
+    token: ${KAPP_INTERNAL_TOKEN:}
+
   auth:
     jwt:
       # Base64-encoded PEM. Leave blank locally and an ephemeral pair is generated,
@@ -69,3 +89,19 @@ kapp:
       key-id: ${KAPP_JWT_KEY_ID:kapp-signing-key}
       ttl: ${KAPP_JWT_TTL:1h}
       issuer: ${KAPP_JWT_ISSUER:https://kapp.konradlorenz.edu.co}
+
+    # Blank means "resolve user-service through Eureka", the production path. A test
+    # or a local run can point this at a stub instead.
+    user-service-url: ${KAPP_USER_SERVICE_URL:}
+
+    # Registration and e-mail verification. See RegistrationProperties.
+    allowed-email-domain: ${KAPP_ALLOWED_EMAIL_DOMAIN:konradlorenz.edu.co}
+    # Off by default: there is no SMTP relay yet, and registration is the front door
+    # of the product. Accounts are then created ACTIVE while emailVerified stays
+    # false, because nothing was actually verified. Turn this on the moment mail works.
+    require-email-verification: ${KAPP_REQUIRE_EMAIL_VERIFICATION:false}
+    verification-link-base: ${KAPP_VERIFICATION_LINK_BASE:http://localhost:8080/auth/verify}
+    verification-ttl: ${KAPP_VERIFICATION_TTL:24h}
+    mail-from: ${KAPP_MAIL_FROM:no-reply@konradlorenz.edu.co}
+    default-pensum-code: ${KAPP_DEFAULT_PENSUM_CODE:1015}
+    default-current-level: ${KAPP_DEFAULT_CURRENT_LEVEL:1}

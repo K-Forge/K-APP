@@ -1,26 +1,13 @@
 package co.edu.konradlorenz.kapp.auth;
 
 import co.edu.konradlorenz.kapp.auth.domain.Credential;
-import co.edu.konradlorenz.kapp.auth.domain.CredentialRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jwt.SignedJWT;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.MongoDBContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Instant;
 import java.util.List;
@@ -37,52 +24,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code /.well-known/jwks.json}. If this passes, the four resource servers can trust
  * tokens without any shared secret, which is what closes finding S1.
  */
-@SpringBootTest
-@AutoConfigureMockMvc
-@Testcontainers
-@TestPropertySource(properties = {
-        "eureka.client.enabled=false",
-        "spring.cloud.discovery.enabled=false"
-})
-class AuthServiceIntegrationTest {
-
-    @Container
-    @ServiceConnection
-    static final MongoDBContainer MONGO = new MongoDBContainer("mongo:7.0");
+class AuthServiceIntegrationTest extends AbstractAuthIntegrationTest {
 
     private static final String EMAIL = "brian@konradlorenz.edu.co";
     private static final String PASSWORD = "una-clave-larga-y-segura";
 
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private CredentialRepository credentials;
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @BeforeEach
-    void seed() {
-        credentials.deleteAll();
-        credentials.save(new Credential(
-                null, "507f1f77bcf86cd799439011", EMAIL,
-                passwordEncoder.encode(PASSWORD),
-                List.of("ROLE_STUDENT"),
-                Credential.Status.ACTIVE, true, Credential.Provider.LOCAL,
-                Instant.now(), Instant.now()));
-    }
-
     @Test
     @DisplayName("issues a token that verifies against the published JWKS")
     void issuesVerifiableToken() throws Exception {
+        Credential seeded = seedCredential(EMAIL, PASSWORD, List.of("ROLE_STUDENT"),
+                Credential.Status.ACTIVE, true);
+
         String body = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"%s","password":"%s"}""".formatted(EMAIL, PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.userId").value("507f1f77bcf86cd799439011"))
+                .andExpect(jsonPath("$.userId").value(seeded.userId()))
                 .andExpect(jsonPath("$.roles[0]").value("ROLE_STUDENT"))
                 .andReturn().getResponse().getContentAsString();
 
@@ -99,7 +58,7 @@ class AuthServiceIntegrationTest {
 
         assertThat(jwt.verify(new RSASSAVerifier(publicKey))).isTrue();
         assertThat(jwt.getHeader().getAlgorithm().getName()).isEqualTo("RS256");
-        assertThat(jwt.getJWTClaimsSet().getSubject()).isEqualTo("507f1f77bcf86cd799439011");
+        assertThat(jwt.getJWTClaimsSet().getSubject()).isEqualTo(seeded.userId());
         assertThat(jwt.getJWTClaimsSet().getStringListClaim("roles")).containsExactly("ROLE_STUDENT");
         assertThat(jwt.getJWTClaimsSet().getExpirationTime()).isAfter(java.util.Date.from(Instant.now()));
     }
@@ -122,6 +81,8 @@ class AuthServiceIntegrationTest {
     @Test
     @DisplayName("rejects a wrong password")
     void rejectsWrongPassword() throws Exception {
+        seedCredential(EMAIL, PASSWORD, List.of("ROLE_STUDENT"), Credential.Status.ACTIVE, true);
+
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -133,6 +94,8 @@ class AuthServiceIntegrationTest {
     @Test
     @DisplayName("does not reveal whether an account exists")
     void doesNotLeakAccountExistence() throws Exception {
+        seedCredential(EMAIL, PASSWORD, List.of("ROLE_STUDENT"), Credential.Status.ACTIVE, true);
+
         String unknown = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -155,11 +118,7 @@ class AuthServiceIntegrationTest {
     @Test
     @DisplayName("refuses a suspended account even with the right password")
     void refusesSuspendedAccount() throws Exception {
-        credentials.deleteAll();
-        credentials.save(new Credential(
-                null, "u-suspended", EMAIL, passwordEncoder.encode(PASSWORD),
-                List.of("ROLE_STUDENT"), Credential.Status.SUSPENDED, true,
-                Credential.Provider.LOCAL, Instant.now(), Instant.now()));
+        seedCredential(EMAIL, PASSWORD, List.of("ROLE_STUDENT"), Credential.Status.SUSPENDED, true);
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

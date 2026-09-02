@@ -1,26 +1,32 @@
 package co.edu.konradlorenz.kapp.auth.web;
 
 import co.edu.konradlorenz.kapp.auth.service.AuthService;
+import co.edu.konradlorenz.kapp.auth.service.RegistrationService;
+import co.edu.konradlorenz.kapp.auth.service.VerificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
 
 /**
- * Public authentication endpoints.
+ * Public authentication endpoints, implementing {@code docs/api/auth.openapi.yaml}.
  *
- * <p>Registration, e-mail verification and invitation codes are Phase 1 work and are
- * specified in {@code docs/api/auth.openapi.yaml}, which the mobile clients already
- * build against through the Prism mock.
+ * <p>Every method here is reachable without a token, and every one of them is listed in
+ * {@code AuthSecurityConfig.PUBLIC_AUTH_PATHS}. Those two facts have to stay in step:
+ * anything added under {@code /auth/**} and not listed there requires a token, which is
+ * the safe direction for the mistake to go.
  */
 @RestController
 @RequestMapping("/auth")
@@ -28,9 +34,31 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final RegistrationService registrationService;
+    private final VerificationService verificationService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService,
+                          RegistrationService registrationService,
+                          VerificationService verificationService) {
         this.authService = authService;
+        this.registrationService = registrationService;
+        this.verificationService = verificationService;
+    }
+
+    @PostMapping("/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Register an institutional account",
+            description = "The invitation code decides the role. ROLE_ADMIN is never granted here.")
+    public RegistrationResponse register(@Valid @RequestBody RegistrationRequest request) {
+        return registrationService.register(request);
+    }
+
+    @PostMapping("/register/guest")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Register a guest account",
+            description = "Any e-mail domain, no invitation code, always ROLE_GUEST.")
+    public RegistrationResponse registerGuest(@Valid @RequestBody GuestRegistrationRequest request) {
+        return registrationService.registerGuest(request);
     }
 
     @PostMapping("/login")
@@ -42,6 +70,32 @@ public class AuthController {
                 issued.userId(), issued.roles());
     }
 
+    /**
+     * 204 with no body. There is nothing useful to return: the client already knows which
+     * address it was confirming, and echoing the account back would make a token that
+     * leaked into a browser history worth replaying for the information alone.
+     */
+    @PostMapping("/verify")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Confirm an e-mail address",
+            description = "Single use. A replayed, expired or unknown token is a 400.")
+    public void verify(@Valid @RequestBody VerificationRequest request) {
+        verificationService.verify(request.token());
+    }
+
+    /**
+     * Always 202, whatever happened. Existing address, unknown address, already confirmed:
+     * one status and one message. Anything else would let a caller enumerate accounts.
+     */
+    @PostMapping("/verify/resend")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Request a new verification e-mail",
+            description = "Always 202, and always the same message, whether or not the account exists.")
+    public AcceptedResponse resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
+        verificationService.resend(request.email());
+        return new AcceptedResponse(VerificationService.NEUTRAL_RESEND_MESSAGE);
+    }
+
     @GetMapping("/health")
     @Operation(summary = "Liveness probe")
     public Map<String, String> health() {
@@ -49,8 +103,8 @@ public class AuthController {
     }
 
     public record LoginRequest(
-            @NotBlank @Email String email,
-            @NotBlank String password) {
+            @NotBlank @Email @Size(max = 100) String email,
+            @NotBlank @Size(min = 10, max = 72) String password) {
     }
 
     public record TokenResponse(
