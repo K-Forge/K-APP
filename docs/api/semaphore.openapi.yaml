@@ -988,10 +988,12 @@ components:
       required: [userId, studentCode, programCode, pensumCode, currentLevel, courses, updatedAt]
       properties:
         userId:
-          type: integer
-          format: int64
-          description: Identifier of the KApp user who owns this semáforo.
-          example: 1042
+          type: string
+          description: >-
+            Identifier of the KApp user, taken from the JWT `sub` claim. An opaque
+            string, not a number: it is a MongoDB ObjectId and must never be parsed
+            as an integer.
+          example: '507f1f77bcf86cd799439011'
         studentCode:
           type: string
           description: Institutional student code.
@@ -1358,7 +1360,7 @@ components:
         and Metodología de la Investigación was added to the curriculum after this document was
         created — hence `inSync: false`.
       value:
-        userId: 1042
+        userId: '507f1f77bcf86cd799439011'
         studentCode: "506232730"
         programCode: "506"
         pensumCode: "1015"
@@ -1453,7 +1455,7 @@ components:
         Identical document without the `reconciliation` block, which only `GET /api/semaphore/me`
         computes.
       value:
-        userId: 1042
+        userId: '507f1f77bcf86cd799439011'
         studentCode: "506232730"
         programCode: "506"
         pensumCode: "1015"

@@ -201,7 +201,7 @@ paths:
                   summary: Freshly created, still empty
                   value:
                     id: 3f2a9c14-7b5e-4d81-9a63-0c1e5f8b2d47
-                    userId: 1042
+                    userId: '507f1f77bcf86cd799439011'
                     period: '20262'
                     programCode: '506'
                     pensumCode: '1015'
@@ -1157,11 +1157,12 @@ components:
           description: Server-assigned identifier of the schedule.
           example: 3f2a9c14-7b5e-4d81-9a63-0c1e5f8b2d47
         userId:
-          type: integer
-          format: int64
-          readOnly: true
-          description: Identifier of the student the schedule belongs to, as issued by the user service.
-          example: 1042
+          type: string
+          description: >-
+            Identifier of the KApp user, taken from the JWT `sub` claim. An opaque
+            string, not a number: it is a MongoDB ObjectId and must never be parsed
+            as an integer.
+          example: '507f1f77bcf86cd799439011'
         period:
           $ref: '#/components/schemas/AcademicPeriod'
         programCode:
@@ -1640,7 +1641,7 @@ components:
         including the 2026-09-21 to 2026-09-28 stretch that has no room assigned.
       value:
         id: 3f2a9c14-7b5e-4d81-9a63-0c1e5f8b2d47
-        userId: 1042
+        userId: '507f1f77bcf86cd799439011'
         period: '20262'
         programCode: '506'
         pensumCode: '1015'
