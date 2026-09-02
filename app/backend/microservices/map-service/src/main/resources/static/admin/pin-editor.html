@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KApp Map Pin Editor</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --border: #d7dbe1;
+    --text: #1c2128;
+    --text-muted: #5b6270;
+    --accent: #2f5fd6;
+    --accent-contrast: #ffffff;
+    --danger: #c0392b;
+    --danger-contrast: #ffffff;
+    --focus-ring: #ff9f1c;
+    --marker-ring: #ffffff;
+    --stage-bg: #2b2f36;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --panel: #1d2025;
+      --border: #33383f;
+      --text: #e7e9ec;
+      --text-muted: #9aa1ab;
+      --accent: #6d94ff;
+      --accent-contrast: #0b1020;
+      --danger: #ff6b5e;
+      --danger-contrast: #2a0b08;
+      --marker-ring: #14161a;
+      --stage-bg: #0c0e11;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+  }
+
+  /* A visible focus ring everywhere, on top of whatever the browser already does -
+     this is a tool a teammate lives in for hours, and "where is my keyboard focus"
+     should never be a guessing game. */
+  :focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  button, input, select, textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  h1, h2, h3 { margin: 0 0 8px; }
+
+  header.app-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header.app-header h1 { font-size: 16px; }
+  header.app-header p { margin: 0; color: var(--text-muted); font-size: 12px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    height: calc(100% - 49px);
+    min-height: 0;
+  }
+
+  .sidebar {
+    border-right: 1px solid var(--border);
+    background: var(--panel);
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  section.panel {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  section.panel h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .field:last-child { margin-bottom: 0; }
+  .field label { font-size: 12px; color: var(--text-muted); }
+  .field input, .field select, .field textarea {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  button {
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 6px;
+    padding: 7px 12px;
+  }
+  button:hover { filter: brightness(0.97); }
+  @media (prefers-color-scheme: dark) {
+    button:hover { filter: brightness(1.15); }
+  }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-contrast);
+    font-weight: 600;
+  }
+  button.danger {
+    background: transparent;
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.block { width: 100%; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .hint { font-size: 11.5px; color: var(--text-muted); line-height: 1.4; }
+
+  .canvas-wrap {
+    position: relative;
+    overflow: auto;
+    background: var(--stage-bg);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .dropzone {
+    align-self: center;
+    color: #cfd3da;
+    border: 2px dashed #545a63;
+    border-radius: 12px;
+    padding: 48px;
+    text-align: center;
+    max-width: 420px;
+  }
+  .dropzone h2 { color: #eef0f3; }
+  .dropzone.dragover { border-color: var(--accent); color: #eef0f3; }
+
+  .stage {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+    cursor: crosshair;
+  }
+  /* The [hidden] attribute is how JS toggles this element, but the plain
+     "display: inline-block" above has equal specificity to the browser's own
+     "[hidden] { display: none }" rule and comes later in the cascade, so it
+     would otherwise win and leave the stage visible. */
+  .stage[hidden] {
+    display: none;
+  }
+  .stage img {
+    display: block;
+    max-width: min(1400px, 82vw);
+    height: auto;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+
+  .pin {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    margin-left: -11px;
+    margin-top: -22px; /* tip of the pin points at the exact coordinate */
+    padding: 0;
+    border: none;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    background: var(--pin-color, #2f5fd6);
+    box-shadow: 0 0 0 2px var(--marker-ring), 0 1px 3px rgba(0,0,0,0.5);
+    cursor: grab;
+  }
+  .pin:active { cursor: grabbing; }
+  .pin.selected {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  .pin .pin-label {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--marker-ring);
+    color: #111;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    transform: rotate(45deg);
+  }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 11px; }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  table.pin-list { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.pin-list th, table.pin-list td {
+    text-align: left;
+    padding: 5px 4px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  table.pin-list td.actions { white-space: nowrap; text-align: right; }
+  table.pin-list td.actions button { padding: 3px 6px; font-size: 11px; }
+  table.pin-list tbody tr:hover { background: rgba(127,127,127,0.08); }
+  .empty-note { color: var(--text-muted); font-style: italic; padding: 6px 2px; }
+
+  dialog {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0;
+    color: var(--text);
+    background: var(--panel);
+    max-width: 440px;
+    width: 92vw;
+  }
+  dialog::backdrop { background: rgba(0,0,0,0.45); }
+  dialog .dialog-body { padding: 16px; }
+  dialog .dialog-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+  }
+  dialog .dialog-actions .right { display: flex; gap: 8px; }
+  dialog textarea#exportOutput {
+    width: 100%;
+    height: 260px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    resize: vertical;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1c2128;
+    color: #fff;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    z-index: 50;
+  }
+
+  .kbd {
+    font-family: ui-monospace, monospace;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0 4px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    font-size: 10.5px;
+    color: var(--text-muted);
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>Map Pin Editor</h1>
+  <p>Offline tool for placing space pins on a floor plan image. Nothing here is uploaded anywhere.</p>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+
+    <section class="panel">
+      <h2>Floor plan</h2>
+      <div class="field">
+        <label for="imageInput">Plan image (local file, never uploaded)</label>
+        <input type="file" id="imageInput" accept="image/*">
+      </div>
+      <p class="hint" id="imageMeta">No image loaded yet.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Floor metadata</h2>
+      <p class="hint">Stamped onto every exported space. Matches the fields <code>map-service</code>
+        expects on <code>SpaceRequest</code>.</p>
+      <div class="row-2">
+        <div class="field">
+          <label for="buildingCode">Building code</label>
+          <input type="text" id="buildingCode" placeholder="A" maxlength="10">
+        </div>
+        <div class="field">
+          <label for="floorLevel">Floor level</label>
+          <input type="number" id="floorLevel" min="0" max="99" placeholder="7">
+        </div>
+      </div>
+      <div class="field">
+        <label for="planImageUrl">planImageUrl (for your own notes; not exported per-pin)</label>
+        <input type="text" id="planImageUrl" placeholder="/api/map/plans/bloque-a-p7.webp">
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Pins <span class="badge" id="pinCount">0</span></h2>
+      <p class="hint">Click anywhere on the plan to drop a pin. Drag an existing pin to move it,
+        or click/press <span class="kbd">Enter</span> on it to edit. <span class="kbd">Delete</span>
+        removes the focused pin. <span class="kbd">Ctrl+Z</span> undoes the last change.</p>
+      <div class="btn-row">
+        <button id="undoBtn" type="button" title="Undo last change (Ctrl+Z)">&#8630; Undo</button>
+        <button id="clearBtn" type="button" class="danger" title="Delete every pin">Clear all pins</button>
+      </div>
+    </section>
+
+    <section class="panel" style="flex: 1; min-height: 160px; display: flex; flex-direction: column;">
+      <h2>Pin list</h2>
+      <div style="overflow-y: auto; flex: 1;">
+        <table class="pin-list">
+          <thead>
+            <tr><th>Code</th><th>Name</th><th>x%</th><th>y%</th><th></th></tr>
+          </thead>
+          <tbody id="pinTableBody"></tbody>
+        </table>
+        <p class="empty-note" id="emptyNote">No pins yet.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Legend</h2>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Import / export</h2>
+      <div class="field">
+        <label for="importInput">Import a previous export (JSON)</label>
+        <input type="file" id="importInput" accept="application/json,.json">
+      </div>
+      <button id="exportBtn" type="button" class="primary block">Export JSON&hellip;</button>
+    </section>
+
+  </aside>
+
+  <main class="canvas-wrap" id="canvasWrap">
+    <div class="dropzone" id="dropzone">
+      <h2>No plan image loaded</h2>
+      <p>Choose a file on the left, or drag an image here.</p>
+    </div>
+    <div class="stage" id="stage" hidden>
+      <img id="planImage" alt="Floor plan">
+    </div>
+  </main>
+</div>
+
+<dialog id="pinDialog">
+  <form method="dialog" id="pinForm">
+    <div class="dialog-body">
+      <h3 id="pinDialogTitle">New space</h3>
+      <div class="field">
+        <label for="pinCode">Code *</label>
+        <input type="text" id="pinCode" required maxlength="20" placeholder="302">
+      </div>
+      <div class="field">
+        <label for="pinName">Name *</label>
+        <input type="text" id="pinName" required maxlength="120" placeholder="Laboratorio de Sistemas">
+      </div>
+      <div class="field">
+        <label for="pinType">Type *</label>
+        <select id="pinType" required>
+          <option value="CLASSROOM">CLASSROOM</option>
+          <option value="LAB">LAB</option>
+          <option value="AUDITORIUM">AUDITORIUM</option>
+          <option value="OFFICE">OFFICE</option>
+          <option value="LIBRARY">LIBRARY</option>
+          <option value="CAFETERIA">CAFETERIA</option>
+          <option value="RESTROOM">RESTROOM</option>
+          <option value="WELLBEING">WELLBEING</option>
+          <option value="OTHER">OTHER</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="pinAliases">Aliases (comma separated)</label>
+        <input type="text" id="pinAliases" placeholder="sala de sistemas, lab 302, laboratorio 302">
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label for="pinX">x %</label>
+          <input type="number" id="pinX" min="0" max="100" step="0.1">
+        </div>
+        <div class="field">
+          <label for="pinY">y %</label>
+          <input type="number" id="pinY" min="0" max="100" step="0.1">
+        </div>
+      </div>
+      <div class="field">
+        <label for="pinCapacity">Capacity (optional)</label>
+        <input type="number" id="pinCapacity" min="0" step="1">
+      </div>
+      <p class="hint" id="pinDialogError" style="color: var(--danger); display: none;"></p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" id="pinDeleteBtn" class="danger">Delete pin</button>
+      <div class="right">
+        <button type="button" id="pinCancelBtn">Cancel</button>
+        <button type="submit" class="primary" id="pinSaveBtn">Save</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="exportDialog">
+  <div class="dialog-body">
+    <h3>Export</h3>
+    <p class="hint">One JSON object per space, in the same shape <code>POST /api/map/spaces</code>
+      accepts and the placeholder seed migration uses.</p>
+    <textarea id="exportOutput" readonly></textarea>
+  </div>
+  <div class="dialog-actions">
+    <button type="button" id="exportCloseBtn">Close</button>
+    <div class="right">
+      <button type="button" id="exportCopyBtn" class="primary">Copy to clipboard</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /** SpaceType -> marker color. Purely a visual aid; not part of the exported data. */
+  const TYPE_COLORS = {
+    CLASSROOM: "#2f5fd6",
+    LAB:       "#8e44ad",
+    AUDITORIUM:"#d35400",
+    OFFICE:    "#16a085",
+    LIBRARY:   "#2c3e50",
+    CAFETERIA: "#c0392b",
+    RESTROOM:  "#7f8c8d",
+    WELLBEING: "#27ae60",
+    OTHER:     "#b8860b"
+  };
+
+  // ---- State -------------------------------------------------------------
+  // A "pin" mirrors SpaceRequest minus the fields that are stamped on at
+  // export time (buildingCode, floorLevel). id is editor-only bookkeeping,
+  // never exported.
+  let pins = [];
+  let nextLocalId = 1;
+  let selectedPinId = null;
+  let undoStack = [];
+  const UNDO_LIMIT = 50;
+
+  let pendingClickX = null;
+  let pendingClickY = null;
+
+  // ---- DOM refs ------------------------------------------------------------
+  const imageInput = document.getElementById("imageInput");
+  const importInput = document.getElementById("importInput");
+  const dropzone = document.getElementById("dropzone");
+  const stage = document.getElementById("stage");
+  const planImage = document.getElementById("planImage");
+  const canvasWrap = document.getElementById("canvasWrap");
+  const imageMeta = document.getElementById("imageMeta");
+
+  const buildingCodeInput = document.getElementById("buildingCode");
+  const floorLevelInput = document.getElementById("floorLevel");
+  const planImageUrlInput = document.getElementById("planImageUrl");
+
+  const pinCountBadge = document.getElementById("pinCount");
+  const pinTableBody = document.getElementById("pinTableBody");
+  const emptyNote = document.getElementById("emptyNote");
+  const legend = document.getElementById("legend");
+
+  const undoBtn = document.getElementById("undoBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const exportBtn = document.getElementById("exportBtn");
+
+  const pinDialog = document.getElementById("pinDialog");
+  const pinForm = document.getElementById("pinForm");
+  const pinDialogTitle = document.getElementById("pinDialogTitle");
+  const pinCode = document.getElementById("pinCode");
+  const pinName = document.getElementById("pinName");
+  const pinType = document.getElementById("pinType");
+  const pinAliases = document.getElementById("pinAliases");
+  const pinX = document.getElementById("pinX");
+  const pinY = document.getElementById("pinY");
+  const pinCapacity = document.getElementById("pinCapacity");
+  const pinDialogError = document.getElementById("pinDialogError");
+  const pinDeleteBtn = document.getElementById("pinDeleteBtn");
+  const pinCancelBtn = document.getElementById("pinCancelBtn");
+
+  const exportDialog = document.getElementById("exportDialog");
+  const exportOutput = document.getElementById("exportOutput");
+  const exportCopyBtn = document.getElementById("exportCopyBtn");
+  const exportCloseBtn = document.getElementById("exportCloseBtn");
+
+  const toastEl = document.getElementById("toast");
+  let toastTimer = null;
+
+  // ---- Small helpers ---------------------------------------------------
+
+  function toast(message) {
+    toastEl.textContent = message;
+    toastEl.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastEl.hidden = true; }, 2600);
+  }
+
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function round1(n) {
+    return Math.round(n * 10) / 10;
+  }
+
+  function clampPercent(n) {
+    return Math.min(100, Math.max(0, n));
+  }
+
+  function findPin(id) {
+    return pins.find(p => p.id === id) || null;
+  }
+
+  // ---- Undo ---------------------------------------------------------------
+  // A plain snapshot stack. Every mutation that a person did not explicitly
+  // ask to be permanent (add, move, delete, clear, import) pushes the
+  // pre-mutation state first, so "I dropped that pin in the wrong spot" is
+  // always one click or Ctrl+Z away from fixed.
+
+  function pushUndo() {
+    undoStack.push(clone(pins));
+    if (undoStack.length > UNDO_LIMIT) {
+      undoStack.shift();
+    }
+    updateUndoButton();
+  }
+
+  function undo() {
+    if (undoStack.length === 0) {
+      toast("Nothing to undo");
+      return;
+    }
+    pins = undoStack.pop();
+    selectedPinId = null;
+    renderAll();
+    updateUndoButton();
+    toast("Undid last change");
+  }
+
+  function updateUndoButton() {
+    undoBtn.disabled = undoStack.length === 0;
+  }
+
+  // ---- Image loading --------------------------------------------------
+
+  function loadImageFile(file) {
+    if (!file || !file.type.startsWith("image/")) {
+      toast("That is not an image file");
+      return;
+    }
+    if (pins.length > 0) {
+      const proceed = confirm(
+        "Loading a new plan image keeps your current pins in place (they stay at the same " +
+        "x/y percentages). Continue?"
+      );
+      if (!proceed) return;
+    }
+    const url = URL.createObjectURL(file);
+    planImage.onload = () => {
+      dropzone.hidden = true;
+      stage.hidden = false;
+      imageMeta.textContent = file.name + " - " + planImage.naturalWidth + "x" +
+        planImage.naturalHeight + " px";
+      renderPins();
+    };
+    planImage.src = url;
+  }
+
+  imageInput.addEventListener("change", () => {
+    if (imageInput.files[0]) loadImageFile(imageInput.files[0]);
+  });
+
+  ["dragenter", "dragover"].forEach(evt =>
+    canvasWrap.addEventListener(evt, e => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    })
+  );
+  ["dragleave", "drop"].forEach(evt =>
+    canvasWrap.addEventListener(evt, e => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+    })
+  );
+  canvasWrap.addEventListener("drop", e => {
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) loadImageFile(file);
+  });
+
+  // ---- Placing / editing pins -------------------------------------------
+
+  stage.addEventListener("click", e => {
+    // A click that lands on a pin is handled by the pin's own listener and
+    // stops propagation before it gets here.
+    const rect = stage.getBoundingClientRect();
+    pendingClickX = round1(clampPercent(((e.clientX - rect.left) / rect.width) * 100));
+    pendingClickY = round1(clampPercent(((e.clientY - rect.top) / rect.height) * 100));
+    openPinDialog(null);
+  });
+
+  function openPinDialog(pinId) {
+    selectedPinId = pinId;
+    const editing = pinId !== null;
+    const pin = editing ? findPin(pinId) : null;
+
+    pinDialogTitle.textContent = editing ? ("Edit space " + pin.code) : "New space";
+    pinDeleteBtn.hidden = !editing;
+    pinDialogError.style.display = "none";
+
+    pinCode.value = editing ? pin.code : "";
+    pinName.value = editing ? pin.name : "";
+    pinType.value = editing ? pin.type : "CLASSROOM";
+    pinAliases.value = editing ? pin.aliases.join(", ") : "";
+    pinX.value = editing ? pin.x : pendingClickX;
+    pinY.value = editing ? pin.y : pendingClickY;
+    pinCapacity.value = editing && pin.capacity !== null && pin.capacity !== undefined
+      ? pin.capacity : "";
+
+    pinDialog.showModal();
+    pinCode.focus();
+  }
+
+  pinCancelBtn.addEventListener("click", () => pinDialog.close());
+
+  pinForm.addEventListener("submit", e => {
+    e.preventDefault();
+    const code = pinCode.value.trim();
+    const name = pinName.value.trim();
+    const x = clampPercent(parseFloat(pinX.value));
+    const y = clampPercent(parseFloat(pinY.value));
+
+    if (!code || !name) {
+      pinDialogError.textContent = "Code and name are required.";
+      pinDialogError.style.display = "block";
+      return;
+    }
+    if (Number.isNaN(x) || Number.isNaN(y)) {
+      pinDialogError.textContent = "x and y must be numbers between 0 and 100.";
+      pinDialogError.style.display = "block";
+      return;
+    }
+    const duplicate = pins.find(p => p.code === code && p.id !== selectedPinId);
+    if (duplicate) {
+      pinDialogError.textContent =
+        "Another pin already uses code \"" + code + "\" on this floor.";
+      pinDialogError.style.display = "block";
+      return;
+    }
+
+    const aliases = pinAliases.value
+      .split(",")
+      .map(a => a.trim())
+      .filter(a => a.length > 0);
+    const capacityRaw = pinCapacity.value.trim();
+    const capacity = capacityRaw === "" ? null : Math.max(0, parseInt(capacityRaw, 10));
+
+    pushUndo();
+
+    if (selectedPinId !== null) {
+      const pin = findPin(selectedPinId);
+      Object.assign(pin, {
+        code, name, type: pinType.value, aliases,
+        x: round1(x), y: round1(y), capacity
+      });
+    } else {
+      pins.push({
+        id: nextLocalId++,
+        code, name, type: pinType.value, aliases,
+        x: round1(x), y: round1(y), capacity
+      });
+    }
+
+    pinDialog.close();
+    renderAll();
+    toast("Saved " + code);
+  });
+
+  pinDeleteBtn.addEventListener("click", () => {
+    if (selectedPinId === null) return;
+    const pin = findPin(selectedPinId);
+    if (!confirm("Delete pin \"" + pin.code + " - " + pin.name + "\"?")) return;
+    pushUndo();
+    pins = pins.filter(p => p.id !== selectedPinId);
+    pinDialog.close();
+    renderAll();
+    toast("Deleted " + pin.code);
+  });
+
+  // Esc is handled natively by <dialog> (fires "cancel"); make sure our undo
+  // stack stays consistent either way, and that closing loses no data.
+  pinDialog.addEventListener("cancel", () => { selectedPinId = null; });
+  pinDialog.addEventListener("close", () => { selectedPinId = null; });
+
+  clearBtn.addEventListener("click", () => {
+    if (pins.length === 0) return;
+    if (!confirm("Delete all " + pins.length + " pin(s)? This can be undone with Ctrl+Z.")) return;
+    pushUndo();
+    pins = [];
+    renderAll();
+    toast("Cleared all pins");
+  });
+
+  undoBtn.addEventListener("click", undo);
+  document.addEventListener("keydown", e => {
+    const ctrlOrCmd = e.ctrlKey || e.metaKey;
+    if (ctrlOrCmd && e.key.toLowerCase() === "z" && pinDialog.open === false &&
+        exportDialog.open === false) {
+      e.preventDefault();
+      undo();
+    }
+  });
+
+  // ---- Rendering ------------------------------------------------------
+
+  function renderAll() {
+    renderPins();
+    renderTable();
+    renderLegend();
+  }
+
+  function renderPins() {
+    stage.querySelectorAll(".pin").forEach(el => el.remove());
+
+    pins.forEach(pin => {
+      const marker = document.createElement("button");
+      marker.type = "button";
+      marker.className = "pin";
+      marker.style.setProperty("--pin-color", TYPE_COLORS[pin.type] || "#2f5fd6");
+      marker.style.left = pin.x + "%";
+      marker.style.top = pin.y + "%";
+      marker.setAttribute("aria-label", pin.code + " - " + pin.name);
+      marker.title = pin.code + " - " + pin.name + " (" + pin.x + "%, " + pin.y + "%)";
+
+      const label = document.createElement("span");
+      label.className = "pin-label";
+      label.textContent = (pin.code || "?").slice(-2);
+      marker.appendChild(label);
+
+      let dragging = false;
+      let moved = false;
+      let preDragSnapshot = null;
+
+      marker.addEventListener("pointerdown", e => {
+        e.stopPropagation();
+        e.preventDefault();
+        dragging = true;
+        moved = false;
+        preDragSnapshot = clone(pins);
+        marker.setPointerCapture(e.pointerId);
+      });
+
+      marker.addEventListener("pointermove", e => {
+        if (!dragging) return;
+        moved = true;
+        const rect = stage.getBoundingClientRect();
+        pin.x = round1(clampPercent(((e.clientX - rect.left) / rect.width) * 100));
+        pin.y = round1(clampPercent(((e.clientY - rect.top) / rect.height) * 100));
+        marker.style.left = pin.x + "%";
+        marker.style.top = pin.y + "%";
+        marker.title = pin.code + " - " + pin.name + " (" + pin.x + "%, " + pin.y + "%)";
+        updateTableRow(pin.id);
+      });
+
+      function endDrag(e) {
+        if (!dragging) return;
+        dragging = false;
+        try { marker.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+        if (moved) {
+          undoStack.push(preDragSnapshot);
+          if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+          updateUndoButton();
+        }
+      }
+      marker.addEventListener("pointerup", endDrag);
+      marker.addEventListener("pointercancel", endDrag);
+
+      marker.addEventListener("click", e => {
+        e.stopPropagation();
+        if (moved) { moved = false; return; } // this click ended a drag, not a tap
+        openPinDialog(pin.id);
+      });
+
+      // Arrow-key nudging so precise placement never strictly requires a mouse.
+      marker.addEventListener("keydown", e => {
+        const step = e.shiftKey ? 1 : 0.1;
+        let dx = 0, dy = 0;
+        if (e.key === "ArrowLeft") dx = -step;
+        else if (e.key === "ArrowRight") dx = step;
+        else if (e.key === "ArrowUp") dy = -step;
+        else if (e.key === "ArrowDown") dy = step;
+        else if (e.key === "Delete" || e.key === "Backspace") {
+          e.preventDefault();
+          if (!confirm("Delete pin \"" + pin.code + "\"?")) return;
+          pushUndo();
+          pins = pins.filter(p => p.id !== pin.id);
+          renderAll();
+          toast("Deleted " + pin.code);
+          return;
+        } else {
+          return;
+        }
+        e.preventDefault();
+        pushUndo();
+        pin.x = round1(clampPercent(pin.x + dx));
+        pin.y = round1(clampPercent(pin.y + dy));
+        marker.style.left = pin.x + "%";
+        marker.style.top = pin.y + "%";
+        updateTableRow(pin.id);
+      });
+
+      stage.appendChild(marker);
+    });
+
+    pinCountBadge.textContent = String(pins.length);
+  }
+
+  function renderTable() {
+    pinTableBody.innerHTML = "";
+    emptyNote.hidden = pins.length > 0;
+
+    pins
+      .slice()
+      .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }))
+      .forEach(pin => {
+        const tr = document.createElement("tr");
+        tr.dataset.pinId = pin.id;
+        tr.innerHTML =
+          "<td>" + escapeHtml(pin.code) + "</td>" +
+          "<td>" + escapeHtml(pin.name) + "</td>" +
+          "<td>" + pin.x + "</td>" +
+          "<td>" + pin.y + "</td>" +
+          "<td class='actions'>" +
+            "<button type='button' data-action='edit'>Edit</button> " +
+            "<button type='button' data-action='delete' class='danger'>Delete</button>" +
+          "</td>";
+        tr.querySelector("[data-action='edit']").addEventListener("click", () => openPinDialog(pin.id));
+        tr.querySelector("[data-action='delete']").addEventListener("click", () => {
+          if (!confirm("Delete pin \"" + pin.code + "\"?")) return;
+          pushUndo();
+          pins = pins.filter(p => p.id !== pin.id);
+          renderAll();
+          toast("Deleted " + pin.code);
+        });
+        pinTableBody.appendChild(tr);
+      });
+  }
+
+  function updateTableRow(pinId) {
+    const pin = findPin(pinId);
+    if (!pin) return;
+    const tr = pinTableBody.querySelector('tr[data-pin-id="' + pinId + '"]');
+    if (!tr) return;
+    tr.children[2].textContent = pin.x;
+    tr.children[3].textContent = pin.y;
+  }
+
+  function renderLegend() {
+    legend.innerHTML = "";
+    Object.keys(TYPE_COLORS).forEach(type => {
+      const span = document.createElement("span");
+      const dot = document.createElement("i");
+      dot.style.background = TYPE_COLORS[type];
+      span.appendChild(dot);
+      span.appendChild(document.createTextNode(type));
+      legend.appendChild(span);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  // ---- Export / import --------------------------------------------------
+
+  function toExportShape() {
+    const buildingCode = buildingCodeInput.value.trim();
+    const floorLevel = floorLevelInput.value.trim() === ""
+      ? null : parseInt(floorLevelInput.value, 10);
+
+    return pins
+      .slice()
+      .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }))
+      .map(p => ({
+        code: p.code,
+        name: p.name,
+        type: p.type,
+        buildingCode: buildingCode || null,
+        floorLevel: floorLevel,
+        aliases: p.aliases,
+        x: p.x,
+        y: p.y,
+        capacity: p.capacity === undefined ? null : p.capacity
+      }));
+  }
+
+  exportBtn.addEventListener("click", () => {
+    if (pins.length === 0) {
+      toast("Nothing to export yet");
+      return;
+    }
+    exportOutput.value = JSON.stringify(toExportShape(), null, 2);
+    exportDialog.showModal();
+    exportOutput.focus();
+    exportOutput.select();
+  });
+
+  exportCloseBtn.addEventListener("click", () => exportDialog.close());
+
+  exportCopyBtn.addEventListener("click", async () => {
+    exportOutput.select();
+    try {
+      await navigator.clipboard.writeText(exportOutput.value);
+      toast("Copied to clipboard");
+    } catch (err) {
+      // Clipboard API is sometimes blocked from a file:// origin; the
+      // execCommand fallback still works there because the text is already
+      // selected in the textarea.
+      const ok = document.execCommand("copy");
+      toast(ok ? "Copied to clipboard" : "Copy failed - select the text and press Ctrl+C");
+    }
+  });
+
+  importInput.addEventListener("change", () => {
+    const file = importInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let data;
+      try {
+        data = JSON.parse(reader.result);
+      } catch (err) {
+        toast("That file is not valid JSON");
+        importInput.value = "";
+        return;
+      }
+      if (!Array.isArray(data)) {
+        toast("Expected a JSON array of spaces");
+        importInput.value = "";
+        return;
+      }
+
+      const imported = [];
+      for (const item of data) {
+        if (!item || typeof item.code !== "string" || typeof item.name !== "string") {
+          toast("Every entry needs at least a code and a name - import aborted");
+          importInput.value = "";
+          return;
+        }
+        imported.push({
+          id: nextLocalId++,
+          code: item.code,
+          name: item.name,
+          type: TYPE_COLORS[item.type] ? item.type : "CLASSROOM",
+          aliases: Array.isArray(item.aliases) ? item.aliases : [],
+          x: round1(clampPercent(Number(item.x) || 0)),
+          y: round1(clampPercent(Number(item.y) || 0)),
+          capacity: (item.capacity === undefined || item.capacity === null)
+            ? null : Number(item.capacity)
+        });
+      }
+
+      if (pins.length > 0 &&
+          !confirm("Importing will replace the " + pins.length + " pin(s) currently loaded. Continue?")) {
+        importInput.value = "";
+        return;
+      }
+
+      pushUndo();
+      pins = imported;
+
+      const first = data.find(d => d && (d.buildingCode || d.floorLevel !== undefined));
+      if (first) {
+        if (first.buildingCode) buildingCodeInput.value = first.buildingCode;
+        if (first.floorLevel !== undefined && first.floorLevel !== null) {
+          floorLevelInput.value = first.floorLevel;
+        }
+      }
+
+      renderAll();
+      toast("Imported " + imported.length + " pin(s)");
+      importInput.value = "";
+    };
+    reader.readAsText(file);
+  });
+
+  // ---- Init ---------------------------------------------------------------
+  renderLegend();
+  updateUndoButton();
+})();
+</script>
+
+</body>
+</html>
