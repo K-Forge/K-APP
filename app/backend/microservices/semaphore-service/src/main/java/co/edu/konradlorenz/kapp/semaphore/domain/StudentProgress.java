@@ -83,6 +83,18 @@ public record StudentProgress(
         return index;
     }
 
+    /**
+     * @return entries keyed by course {@code code}, skipping elective slots, which have
+     *         none even once resolved. This is how {@code PrerequisiteWalker} looks up
+     *         whether a prerequisite - always a course {@code code}, never a
+     *         {@code pensumItemCode} - has been passed.
+     */
+    public Map<String, StudentProgressCourse> byCourseCode() {
+        Map<String, StudentProgressCourse> index = new LinkedHashMap<>();
+        courses.stream().filter(c -> c.code() != null).forEach(c -> index.put(c.code(), c));
+        return index;
+    }
+
     /** @return a copy with {@code replacement} substituted for the entry it shares a pensum item with */
     public StudentProgress withCourse(StudentProgressCourse replacement) {
         List<StudentProgressCourse> updated = new ArrayList<>(courses.size());
