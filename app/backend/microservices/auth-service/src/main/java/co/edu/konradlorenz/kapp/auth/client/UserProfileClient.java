@@ -1,0 +1,33 @@
+package co.edu.konradlorenz.kapp.auth.client;
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
+/**
+ * The one Feign edge out of auth-service: creating the profile that matches a new
+ * credential.
+ *
+ * <p>Resolved through Eureka by service name. {@code url} is left bindable so a test or a
+ * local run can point it at a stub; blank means "use discovery", which is the production
+ * path.
+ *
+ * <p>Authenticated with {@code X-Internal-Token}, not a bearer token, because at
+ * registration time the account does not exist yet and there is no user token to forward.
+ * See {@link InternalUserClientConfig}.
+ */
+@FeignClient(
+        name = "user-service",
+        url = "${kapp.auth.user-service-url:}",
+        configuration = InternalUserClientConfig.class)
+public interface UserProfileClient {
+
+    /**
+     * Idempotent upsert keyed by e-mail: a first call creates the profile, a repeated call
+     * updates it. Always 200, never 201 and never 409, so replaying a registration after a
+     * network timeout is safe.
+     */
+    @PostMapping(value = "/internal/users", consumes = MediaType.APPLICATION_JSON_VALUE)
+    UserProfileView upsert(@RequestBody InternalUserUpsert body);
+}
