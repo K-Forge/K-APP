@@ -1,1 +1,469 @@
-/* You can add global styles to this file, and also import other style files */
+/*
+ * Design tokens anchored on docs/K-COLORS.md (institutional teal #539392, pink #D51A65,
+ * green #C9D329). The raw brand hues are used for accents and fills; text/icon variants are
+ * darkened versions of the same hue so body text clears WCAG AA (4.5:1) on both themes - the
+ * pure brand green in particular is far too light to read as text on a light background.
+ *
+ * Light is the default palette on :root. Dark overrides apply either when the OS prefers dark
+ * and the user has not made an explicit choice, or when the user explicitly picked dark via the
+ * theme toggle (ThemeService sets [data-theme] on <html>).
+ */
+:root {
+  color-scheme: light;
+
+  --bg: #f5f7f6;
+  --bg-elevated: #ffffff;
+  --bg-inset: #eef1f0;
+  --bg-hover: #e7ebea;
+  --border: #d7dedc;
+  --border-strong: #b7c2bf;
+
+  --text: #16211f;
+  --text-muted: #52625e;
+  --text-faint: #7c8b87;
+  --text-on-accent: #ffffff;
+
+  --primary: #3a6f6e;
+  --primary-strong: #285352;
+  --primary-bg: #e2efee;
+  --primary-brand: #539392;
+
+  --danger: #b8115a;
+  --danger-strong: #8f0d46;
+  --danger-bg: #fbe7ee;
+
+  --success: #55620f;
+  --success-strong: #3d4a05;
+  --success-bg: #eef3cf;
+
+  --warning: #92620a;
+  --warning-bg: #faedd3;
+
+  --focus-ring: #539392;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.10);
+
+  --transition-fast: 120ms ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --bg: #101615;
+    --bg-elevated: #182120;
+    --bg-inset: #1e2928;
+    --bg-hover: #263231;
+    --border: #2e3b39;
+    --border-strong: #445250;
+
+    --text: #eaf1ef;
+    --text-muted: #a8b8b4;
+    --text-faint: #7c8b87;
+    --text-on-accent: #ffffff;
+
+    --primary: #7fc2c0;
+    --primary-strong: #a6dad8;
+    --primary-bg: #1d3634;
+    --primary-brand: #6fb0ae;
+
+    --danger: #f286b1;
+    --danger-strong: #f8b3cd;
+    --danger-bg: #3a1626;
+
+    --success: #d3dd80;
+    --success-strong: #eaf0c0;
+    --success-bg: #2b3212;
+
+    --warning: #f0c169;
+    --warning-bg: #3a2c0d;
+
+    --focus-ring: #7fc2c0;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #101615;
+  --bg-elevated: #182120;
+  --bg-inset: #1e2928;
+  --bg-hover: #263231;
+  --border: #2e3b39;
+  --border-strong: #445250;
+
+  --text: #eaf1ef;
+  --text-muted: #a8b8b4;
+  --text-faint: #7c8b87;
+  --text-on-accent: #ffffff;
+
+  --primary: #7fc2c0;
+  --primary-strong: #a6dad8;
+  --primary-bg: #1d3634;
+  --primary-brand: #6fb0ae;
+
+  --danger: #f286b1;
+  --danger-strong: #f8b3cd;
+  --danger-bg: #3a1626;
+
+  --success: #d3dd80;
+  --success-strong: #eaf0c0;
+  --success-bg: #2b3212;
+
+  --warning: #f0c169;
+  --warning-bg: #3a2c0d;
+
+  --focus-ring: #7fc2c0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0 0 0.5em;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+p {
+  margin: 0 0 1em;
+}
+
+a {
+  color: var(--primary);
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+/* Visible keyboard focus everywhere, mouse clicks stay quiet. */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .transition {
+    transition: background-color var(--transition-fast), border-color var(--transition-fast),
+      color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  }
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * Form controls - shared by every reactive form in the app so validation states look identical
+ * whether the field belongs to the login form or a building editor.
+ * ------------------------------------------------------------------------------------------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.field label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.field .hint {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+
+.field .error {
+  font-size: 0.75rem;
+  color: var(--danger);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.625rem;
+  width: 100%;
+}
+
+textarea {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  resize: vertical;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.field.invalid input,
+.field.invalid select,
+.field.invalid textarea {
+  border-color: var(--danger);
+}
+
+input[type='checkbox'] {
+  width: auto;
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------------------------------------- */
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.875rem;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  background: var(--bg-inset);
+  color: var(--text);
+}
+
+.btn:hover {
+  background: var(--bg-hover);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--text-on-accent);
+}
+
+.btn-primary:hover {
+  background: var(--primary-strong);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: var(--danger-bg);
+}
+
+.btn-ghost {
+  background: transparent;
+}
+
+.btn-sm {
+  padding: 0.3rem 0.625rem;
+  font-size: 0.75rem;
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * Layout primitives
+ * ------------------------------------------------------------------------------------------- */
+.card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  flex-wrap: wrap;
+}
+
+.spread {
+  flex-wrap: wrap;
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * Badges / status chips
+ * ------------------------------------------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badge-primary {
+  background: var(--primary-bg);
+  color: var(--primary);
+}
+
+.badge-success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.badge-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.badge-warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.badge-neutral {
+  background: var(--bg-inset);
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * Tables (DataTableComponent)
+ * ------------------------------------------------------------------------------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8125rem;
+}
+
+th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+tbody tr:hover {
+  background: var(--bg-inset);
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * Native <dialog> modal
+ * ------------------------------------------------------------------------------------------- */
+dialog {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0;
+  background: var(--bg-elevated);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+  max-width: min(640px, 92vw);
+  width: 100%;
+}
+
+dialog::backdrop {
+  background: rgb(10 15 14 / 0.45);
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * Utility
+ * ------------------------------------------------------------------------------------------- */
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-faint {
+  color: var(--text-faint);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2.5rem 1rem;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.scroll-x {
+  overflow-x: auto;
+}

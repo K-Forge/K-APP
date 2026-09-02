@@ -29,6 +29,10 @@ yarn-error.log
 !.vscode/mcp.json
 .history/*
 
+# Generated from docs/api/*.openapi.yaml by scripts/generate-openapi.mjs - regenerated on every
+# start/build/test, never hand-edited. See src/app/core/openapi/README for why this isn't checked in.
+/src/app/core/openapi/generated
+
 # Miscellaneous
 /.angular/cache
 .sass-cache/
