@@ -12,7 +12,7 @@
 
     <artifactId>map-service</artifactId>
     <name>Map Service</name>
-    <description>Owns user profiles. Credentials belong to auth-service.</description>
+    <description>Static digital campus map: buildings, floor plans and space search.</description>
 
     <!--
       Versions come from the parent's dependencyManagement. Never add a <version>

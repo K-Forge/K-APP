@@ -6,16 +6,16 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
 /**
- * Owns user profiles: name, identification, contact details and, for members of the
- * university, their academic placement.
+ * Owns the digital campus map: buildings, their floors and static plan images, and the
+ * flat collection of spaces a student searches to find a room.
  *
- * <p>It deliberately does NOT own credentials. Passwords, roles and e-mail verification
- * live in auth-service. Splitting them this way keeps authentication behind a single
- * seam, which is the piece that Microsoft Entra ID will replace once the university
- * grants an application registration.
+ * <p>Deliberately not geospatial - no basemap, no GPS, no external map provider. It is the
+ * only KApp service {@code ROLE_GUEST} can read, since finding your way around campus is
+ * useful before you have a university account.
  *
- * <p>Security is configured by {@code common}'s auto-configuration: no annotation or
- * component scan is required here.
+ * <p>Security is configured by {@code common}'s auto-configuration plus
+ * {@code MapSecurityConfig}, which adds the guest-readable rule on top of it: no other
+ * annotation or component scan is required here.
  *
  * <p>{@code @EnableMongock} is NOT optional. Mongock 5.5.1 ships neither
  * {@code AutoConfiguration.imports} nor {@code spring.factories}, so nothing registers
