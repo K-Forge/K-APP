@@ -107,20 +107,27 @@ class DirectorySearchIndexTest extends AbstractUserServiceTest {
     }
 
     @Test
-    @DisplayName("the naive case-insensitive regex scans everything and still finds nothing")
+    @DisplayName("the naive case-insensitive regex examines every document and still finds nothing")
     void theNaiveAlternativeScansEverythingAndFindsNothing() {
         // The implementation this design exists to avoid: match the raw text with an "i"
         // flag instead of folding both sides.
         Query naive = new Query(Criteria.where("searchTokens").regex("muñoz", "i"));
 
         Document explained = explain(naive);
+        Document plan = winningPlanOf(explained);
+        Document stats = executionStatsOf(explained);
 
-        assertThat(winningPlanOf(explained).toJson()).contains("COLLSCAN");
-        assertThat(executionStatsOf(explained).getInteger("totalDocsExamined"))
-                .isEqualTo(SEEDED_PROFILES);
+        // Whether the planner labels this stage IXSCAN or COLLSCAN is a version and
+        // heuristic detail - on this index shape MongoDB 7 still reports IXSCAN, but over
+        // the degenerate, unbounded range ["MinKey", "MaxKey") rather than a prefix bound,
+        // because an unanchored, case-insensitive regex carries no usable start or end.
+        // Whichever label it picks, the bound is not narrowed, so every document is still
+        // examined - the whole reason the anchored, flagless form exists.
+        assertThat(plan.toJson()).doesNotContain("\"^munoz\"");
+        assertThat(stats.getInteger("totalDocsExamined")).isEqualTo(SEEDED_PROFILES);
         // Wrong twice over: it read every document and matched none of them, because the
         // stored token is "munoz" and no case flag will bridge the tilde.
-        assertThat(executionStatsOf(explained).getInteger("nReturned")).isZero();
+        assertThat(stats.getInteger("nReturned")).isZero();
     }
 
     // ---------------------------------------------------------------------------------
