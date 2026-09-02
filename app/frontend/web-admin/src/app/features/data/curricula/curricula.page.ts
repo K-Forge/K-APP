@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ViewChild, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewChild, effect, inject, input, signal } from '@angular/core';
 import { AppHttpError } from '../../../core/http/api-http-error';
 import type { ApiError } from '../../../core/http/api-error.model';
 import { ApiErrorBannerComponent } from '../../../shared/ui/api-error-banner/api-error-banner.component';
@@ -186,11 +186,19 @@ export class CurriculaPage {
   @ViewChild('formModal') private formModal?: ModalComponent;
 
   constructor() {
-    const initial = this.pensum();
-    if (initial) {
-      this.searchCode.set(initial);
-      this.load();
-    }
+    // A signal input set by withComponentInputBinding (see app.config.ts) is not populated yet
+    // when the constructor body runs - the router calls setInput() on the component instance
+    // right after construction, not before it. Reading this.pensum() here once would silently
+    // see only the default '', which is exactly the kind of bug that only shows up on a deep
+    // link (Programs' "View curriculum" button) and never in a normal click-through. An effect
+    // re-reads the signal once the router actually sets it.
+    effect(() => {
+      const code = this.pensum();
+      if (code) {
+        this.searchCode.set(code);
+        this.fetchCurriculum(code);
+      }
+    });
   }
 
   onSearchInput(event: Event): void {
@@ -198,7 +206,15 @@ export class CurriculaPage {
   }
 
   load(): void {
-    const code = this.searchCode().trim();
+    this.fetchCurriculum(this.searchCode().trim());
+  }
+
+  /**
+   * Takes the code as a parameter rather than reading this.searchCode() internally, so the
+   * effect above can call it without also making the effect re-run on every keystroke in the
+   * search box (an effect tracks every signal it reads during its callback, transitively).
+   */
+  private fetchCurriculum(code: string): void {
     if (!code) {
       return;
     }
