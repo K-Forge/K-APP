@@ -22,6 +22,14 @@ export const routes: Routes = [
         path: 'console',
         loadComponent: () => import('./features/console/console.page').then((m) => m.ConsolePage),
       },
+      {
+        path: 'data/users',
+        loadComponent: () => import('./features/data/users/users.page').then((m) => m.UsersPage),
+      },
+      {
+        path: 'data/buildings',
+        loadComponent: () => import('./features/data/buildings/buildings.page').then((m) => m.BuildingsPage),
+      },
     ],
   },
   { path: '**', redirectTo: 'login' },

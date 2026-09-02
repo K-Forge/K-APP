@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { TokenStore } from '../../core/auth/token.store';
-import { roleLabel } from '../../core/auth/auth.model';
 import { ClockService } from '../../core/clock/clock.service';
 import { JsonViewComponent } from '../../shared/ui/json-view/json-view.component';
+import { RoleBadgeComponent } from '../../shared/ui/role-badge/role-badge.component';
 import { TokenCountdownComponent } from '../../shared/ui/token-countdown/token-countdown.component';
 
 /**
@@ -12,7 +12,7 @@ import { TokenCountdownComponent } from '../../shared/ui/token-countdown/token-c
  */
 @Component({
   selector: 'app-identity-page',
-  imports: [JsonViewComponent, TokenCountdownComponent],
+  imports: [JsonViewComponent, TokenCountdownComponent, RoleBadgeComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack">
@@ -42,7 +42,7 @@ import { TokenCountdownComponent } from '../../shared/ui/token-countdown/token-c
             <dd>
               <div class="row spread">
                 @for (role of roles(); track role) {
-                  <span class="badge badge-primary">{{ roleLabel(role) }}</span>
+                  <app-role-badge [role]="role" />
                 } @empty {
                   <span class="text-faint">none</span>
                 }
@@ -98,7 +98,6 @@ export class IdentityPage {
 
   readonly decoded = this.tokenStore.decoded;
   readonly roles = this.tokenStore.roles;
-  readonly roleLabel = roleLabel;
 
   readonly isExpired = computed(() => {
     this.clock.now();
