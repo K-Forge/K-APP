@@ -22,6 +22,23 @@ spring:
           # auth-service were already up - a boot-order deadlock under docker compose.
           jwk-set-uri: ${KAPP_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
 
+  # The catalogue is near-static reference data - a pensum does not change mid-semester -
+  # so an hour-old answer is as good as a fresh one, and it means a briefly-down
+  # semaphore-service never blocks a student from entering their own timetable by hand.
+  cache:
+    cache-names: curriculumCourses
+    caffeine:
+      spec: expireAfterWrite=1h,maximumSize=1000
+
+# Feign timeouts for the semaphore-service catalogue lookup: fail fast rather than let a
+# slow dependency stall an enrollment write, matching auth-service's client to user-service.
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 3000
+        read-timeout: 5000
+
 mongock:
   migration-scan-package: co.edu.konradlorenz.kapp.schedule.migration
   # Left off deliberately: the change units only create indexes, which are idempotent,
