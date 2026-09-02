@@ -79,6 +79,29 @@ public class SpaceSearch {
             return new Result(List.of(), 0);
         }
 
+        TextQuery query = buildFilter(term, campus, type, buildingCode);
+
+        // Counted before skip and limit are set: MongoTemplate folds both into the count's
+        // options, so counting afterwards would return at most one page's worth.
+        long total = mongo.count(query, SpaceDocument.class);
+
+        query.sortByScore();
+        query.with(Sort.by(Sort.Direction.ASC, "code"));
+        query.skip((long) page * size).limit(size);
+
+        return new Result(mongo.find(query, SpaceDocument.class), total);
+    }
+
+    /**
+     * The one place the search filter is assembled, shared by {@link #search} and by
+     * {@code SpaceSearchIndexTest}, which hands this exact filter to MongoDB's
+     * {@code explain} to prove it is served from {@code tx_spaces_search} rather than a
+     * collection scan. A second, hand-copied query in the test would only prove that the
+     * test's own idea of the filter uses the index, not that the service's does.
+     *
+     * @param term already sanitized by {@link #sanitize(String)}; not the raw {@code q}
+     */
+    static TextQuery buildFilter(String term, String campus, SpaceType type, String buildingCode) {
         TextQuery query = new TextQuery(TextCriteria.forLanguage(LANGUAGE).matching(term));
 
         if (StringUtils.hasText(campus)) {
@@ -90,16 +113,7 @@ public class SpaceSearch {
         if (StringUtils.hasText(buildingCode)) {
             query.addCriteria(Criteria.where("buildingCode").is(buildingCode));
         }
-
-        // Counted before skip and limit are set: MongoTemplate folds both into the count's
-        // options, so counting afterwards would return at most one page's worth.
-        long total = mongo.count(query, SpaceDocument.class);
-
-        query.sortByScore();
-        query.with(Sort.by(Sort.Direction.ASC, "code"));
-        query.skip((long) page * size).limit(size);
-
-        return new Result(mongo.find(query, SpaceDocument.class), total);
+        return query;
     }
 
     /**
