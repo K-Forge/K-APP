@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -51,6 +52,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request, List.of());
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiError> handleConflict(ConflictException ex,
+                                                   HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request, ex.getDetails());
+    }
+
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ApiError> handleBusinessRule(BusinessRuleException ex,
                                                        HttpServletRequest request) {
@@ -80,6 +87,21 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException ex,
                                                      HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, "Malformed request body", request, List.of());
+    }
+
+    /**
+     * A required query parameter was not sent.
+     *
+     * <p>Without this, Spring's own exception reaches the catch-all below and the caller
+     * gets a 500 for what is plainly their mistake — and the server logs a stack trace
+     * for a routine bad request. Found when {@code schedule-service} added endpoints
+     * with required parameters and had to work around its absence.
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiError> handleMissingParameter(MissingServletRequestParameterException ex,
+                                                           HttpServletRequest request) {
+        var issue = new ApiError.FieldIssue(ex.getParameterName(), "is required");
+        return build(HttpStatus.BAD_REQUEST, "Missing required parameter", request, List.of(issue));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
