@@ -84,9 +84,14 @@ public class RegistrationService {
         requireAvailable(email);
 
         InvitationCode code = invitationCodes.redeem(request.invitationCode());
-        String role = roleFrom(code);
 
+        // roleFrom is deliberately inside this try, not between redeem and it: a code
+        // whose role is rejected - a rogue ROLE_ADMIN entry, say - has still claimed a
+        // slot by this point, and that slot must come back just like any other failure
+        // past this line. Checking the role before redeeming would be safer-looking but
+        // reopens the read-then-write race redeem() exists to close.
         try {
+            String role = roleFrom(code);
             InternalUserUpsert.AcademicInfo academic = academicFor(role, request);
             Credential credential = createAccount(email, request.password(),
                     request.firstName(), request.lastName(), role, academic);
