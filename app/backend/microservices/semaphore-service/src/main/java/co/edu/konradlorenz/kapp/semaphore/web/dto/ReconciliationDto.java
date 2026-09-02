@@ -26,7 +26,8 @@ public record ReconciliationDto(
                 added.isEmpty() && removed.isEmpty());
     }
 
-    public static ReconciliationDto inSync() {
+    /** @return a block reporting no divergence at all. Named to avoid clashing with the accessor. */
+    public static ReconciliationDto noDivergence() {
         return new ReconciliationDto(List.of(), List.of(), true);
     }
 }
