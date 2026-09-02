@@ -38,6 +38,12 @@ make now than to work around four times:
 - Add a test that a service declaring its own narrow chain still rejects an anonymous request to an
   unrelated path. That failure mode is invisible otherwise.
 
+**Done, with one correction worth keeping.** `CatchAllSecurityChainTest` in `user-service` is that
+guard. Its first version declared its synthetic chain on `/internal/**`, which later collided with
+the service's real `InternalApiSecurityConfig` and stopped the context from starting at all. A
+regression guard must not claim a path the service might legitimately want, so it now uses
+`/test-scoped/**` and stays independent of whatever concrete chains a service adds.
+
 ---
 
 ## 2. auth-service — decisions worth reproducing exactly
@@ -107,6 +113,22 @@ the service builds, assert the winning plan is an `IXSCAN` with few documents ex
 **Consequence to keep:** this matches word prefixes, not infixes. `varg` finds Vargas; `unoz` does
 not. Correct for a type-ahead; infix matching cannot be served from an index. Tell the mobile team so
 the UI does not promise otherwise.
+
+**`IXSCAN` in the plan does NOT prove the query is efficient — MongoDB 7 will mislead you here.**
+An unanchored, case-insensitive regex reports a winning plan of `IXSCAN`, not `COLLSCAN`: the server
+walks the index over its **full unbounded key range**, which costs the same as a collection scan but
+carries a reassuring stage name. A test asserting only "the plan contains IXSCAN" therefore passes
+on exactly the query it was written to catch.
+
+Assert the two things that actually distinguish them:
+
+- the index bounds are **narrowed** rather than spanning `MinKey` to `MaxKey`
+- `totalDocsExamined` is close to `nReturned` — for a search matching one profile out of sixty, both
+  should be 1
+
+`DirectorySearchIndexTest` in `user-service` does this and is the model to copy. Any future
+performance assertion — `map-service`'s text search especially — should follow it rather than
+checking the stage name.
 
 **PATCH binds a raw `JsonNode`, not a record.** A record collapses "field absent" and "field sent as
 null" into the same value, and the contract needs those to mean *leave alone* versus *clear*.
