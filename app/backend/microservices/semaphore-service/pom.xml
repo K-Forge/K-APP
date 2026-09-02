@@ -12,7 +12,7 @@
 
     <artifactId>semaphore-service</artifactId>
     <name>Semaphore Service</name>
-    <description>Owns user profiles. Credentials belong to auth-service.</description>
+    <description>Academic catalog and student curriculum progress (semaforo).</description>
 
     <!--
       Versions come from the parent's dependencyManagement. Never add a <version>
@@ -48,6 +48,18 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+
+        <!--
+          Lazy creation of GET /api/semaphore/me needs the caller's programCode, which
+          this service does not own. user-service is the source of truth
+          (GET /api/users/me); common's KappFeignAutoConfiguration forwards the caller's
+          own bearer token on every Feign call, so the downstream request is authorised
+          as the same student, never as a service account.
+        -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
 
         <dependency>
