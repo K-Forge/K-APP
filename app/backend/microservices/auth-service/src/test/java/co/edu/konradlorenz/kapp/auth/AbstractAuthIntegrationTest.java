@@ -6,6 +6,7 @@ import co.edu.konradlorenz.kapp.auth.client.UserProfileView;
 import co.edu.konradlorenz.kapp.auth.domain.Credential;
 import co.edu.konradlorenz.kapp.auth.domain.CredentialRepository;
 import co.edu.konradlorenz.kapp.auth.jwt.JwtIssuer;
+import co.edu.konradlorenz.kapp.auth.jwt.RsaKeyProvider;
 import co.edu.konradlorenz.kapp.auth.service.VerificationMailer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bson.Document;
@@ -13,9 +14,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -23,6 +29,7 @@ import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -53,11 +60,56 @@ import static org.mockito.Mockito.when;
         // to start.
         "kapp.internal.token=test-internal-token"
 })
+@Import(AbstractAuthIntegrationTest.InProcessJwtDecoderConfig.class)
 abstract class AbstractAuthIntegrationTest {
 
+    /**
+     * Replaces the auto-configured {@code JwtDecoder}, which validates a token by
+     * fetching {@code jwk-set-uri} over a real HTTP connection.
+     *
+     * <p>{@code @AutoConfigureMockMvc} dispatches straight into the {@code DispatcherServlet}
+     * with no socket listening on {@code localhost:8081}, so that fetch would always fail
+     * with connection refused - not a security failure, just an artifact of how MockMvc
+     * runs. Deriving the decoder from the same {@link RsaKeyProvider} bean the running
+     * application signs with proves the same thing the real jwk-set-uri fetch would, without
+     * requiring a live server.
+     */
+    @TestConfiguration
+    static class InProcessJwtDecoderConfig {
+        @Bean
+        JwtDecoder jwtDecoder(RsaKeyProvider keys) {
+            try {
+                RSAPublicKey publicKey = keys.signingKey().toRSAPublicKey();
+                return NimbusJwtDecoder.withPublicKey(publicKey).build();
+            } catch (com.nimbusds.jose.JOSEException e) {
+                throw new IllegalStateException("Could not derive a public key for the test JwtDecoder", e);
+            }
+        }
+    }
+
+    /**
+     * Singleton-container pattern: {@code stop()} is overridden to a no-op.
+     *
+     * <p>This field lives here, in the shared abstract base, precisely so every subclass
+     * reuses one running container instead of paying Mongo startup cost five times over.
+     * But {@code @Testcontainers} calls {@code stop()} in each test <em>class's</em>
+     * {@code afterAll} - it has no way to know sibling classes still hold a reference to
+     * the same field - and the Spring context Testcontainers wired this container into is
+     * independently cached and reused across those same classes by the Spring TestContext
+     * framework whenever their configuration matches. Left un-overridden, the first test
+     * class to finish stops the container out from under every class that runs after it,
+     * which is exactly what happened before this override existed: every test in every
+     * class but the first failed with "Connection refused". Ryuk reaps the real container
+     * when the JVM exits, so nothing here leaks between test runs.
+     */
     @Container
     @ServiceConnection
-    static final MongoDBContainer MONGO = new MongoDBContainer("mongo:7.0");
+    static final MongoDBContainer MONGO = new MongoDBContainer("mongo:7.0") {
+        @Override
+        public void stop() {
+            // Intentionally does nothing. See the field javadoc.
+        }
+    };
 
     protected static final String INSTITUTIONAL_DOMAIN = "@konradlorenz.edu.co";
 
@@ -95,8 +147,15 @@ abstract class AbstractAuthIntegrationTest {
                 .deleteMany(new Document("code", new Document("$regex", "^KL-TEST-")));
 
         when(userProfileClient.upsert(any())).thenAnswer(invocation -> {
+            // Mockito re-priming a mock that already has a default answer - a test
+            // calling when(userProfileClient.upsert(any())).thenThrow(...) to override
+            // this for one case - invokes the CURRENT answer once with a null argument
+            // to identify which method it is stubbing. Null-safe on purpose: that priming
+            // call's return value is discarded, but a real invocation from
+            // RegistrationService never passes null.
             InternalUserUpsert body = invocation.getArgument(0, InternalUserUpsert.class);
-            return new UserProfileView(UUID.randomUUID().toString(), body.email());
+            String email = body == null ? "priming@example.invalid" : body.email();
+            return new UserProfileView(UUID.randomUUID().toString(), email);
         });
     }
 
