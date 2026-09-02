@@ -34,6 +34,14 @@ export const routes: Routes = [
         path: 'data/spaces',
         loadComponent: () => import('./features/data/spaces/spaces.page').then((m) => m.SpacesPage),
       },
+      {
+        path: 'data/programs',
+        loadComponent: () => import('./features/data/programs/programs.page').then((m) => m.ProgramsPage),
+      },
+      {
+        path: 'data/curricula',
+        loadComponent: () => import('./features/data/curricula/curricula.page').then((m) => m.CurriculaPage),
+      },
     ],
   },
   { path: '**', redirectTo: 'login' },
