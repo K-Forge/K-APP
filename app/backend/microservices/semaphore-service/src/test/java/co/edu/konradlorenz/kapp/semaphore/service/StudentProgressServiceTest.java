@@ -15,11 +15,13 @@ import co.edu.konradlorenz.kapp.semaphore.repository.CurriculumRepository;
 import co.edu.konradlorenz.kapp.semaphore.repository.StudentProgressRepository;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.CourseProgressUpdateRequest;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumCourseDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.ElectiveResolutionRequest;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.ProgressSummaryDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
@@ -31,6 +33,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -238,11 +241,111 @@ class StudentProgressServiceTest {
         assertThat(eligible).extracting(CurriculumCourseDto::code).doesNotContain("C5");
     }
 
+    // ---- elective resolution -------------------------------------------------------
+
+    @Test
+    @DisplayName("resolving an item that is not an elective slot is rejected")
+    void resolvingANonElectiveItemIsRejected() {
+        stubElectiveFixture();
+        var request = new ElectiveResolutionRequest(
+                "EXTERNAL-1", "External Course");
+
+        assertThatThrownBy(() -> service.resolveElective(USER_ID, "F1", request))
+                .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    @DisplayName("resolving to a course already accounted for elsewhere on the semaforo is rejected")
+    void resolvingToAnAlreadyUsedCourseIsRejected() {
+        stubElectiveFixture();
+        // F1 is already a fixed item of this same pensum under code "F1".
+        var request = new ElectiveResolutionRequest(
+                "F1", "Duplicate of F1");
+
+        assertThatThrownBy(() -> service.resolveElective(USER_ID, "ELEC1", request))
+                .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    @DisplayName("resolving an elective slot records the real course without touching its status")
+    void resolvingAnElectiveSlotRecordsTheCourse() {
+        stubElectiveFixture();
+        when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        var request = new ElectiveResolutionRequest(
+                "EXTERNAL-1", "External Course");
+
+        var updated = service.resolveElective(USER_ID, "ELEC1", request);
+
+        assertThat(updated.resolvedCode()).isEqualTo("EXTERNAL-1");
+        assertThat(updated.resolvedName()).isEqualTo("External Course");
+        assertThat(updated.status()).isEqualTo(CourseStatus.PENDING);
+        assertThat(updated.code()).isNull();
+    }
+
+    @Test
+    @DisplayName("clearing a resolved elective slot returns it to empty")
+    void clearingAResolvedElectiveSlotEmptiesIt() {
+        stubElectiveFixture(true);
+        when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.clearElective(USER_ID, "ELEC1");
+
+        var saved = ArgumentCaptor.forClass(StudentProgress.class);
+        verify(progressRepository).save(saved.capture());
+        assertThat(saved.getValue().findByPensumItemCode("ELEC1"))
+                .hasValueSatisfying(entry -> {
+                    assertThat(entry.resolvedCode()).isNull();
+                    assertThat(entry.resolvedName()).isNull();
+                });
+    }
+
+    @Test
+    @DisplayName("clearing an already-empty elective slot is a no-op, not an error")
+    void clearingAnAlreadyEmptyElectiveSlotIsANoOp() {
+        stubElectiveFixture(false);
+
+        service.clearElective(USER_ID, "ELEC1");
+
+        verify(progressRepository, never()).save(any());
+    }
+
     // ---- fixtures -------------------------------------------------------------------
 
     private void stubExistingProgress() {
         when(progressRepository.findByUserId(USER_ID)).thenReturn(Optional.of(fixtureProgress()));
         when(curriculumRepository.findById(PENSUM_CODE)).thenReturn(Optional.of(curriculum));
+    }
+
+    /**
+     * A second, deliberately separate fixture for elective-resolution tests: one fixed
+     * course "F1" and one elective slot "ELEC1", independent of the C1..C5 fixture above
+     * so those arithmetic/eligibility tests are never at risk of an unrelated edit here.
+     */
+    private void stubElectiveFixture() {
+        stubElectiveFixture(false);
+    }
+
+    private void stubElectiveFixture(boolean electiveAlreadyResolved) {
+        CurriculumCourse fixed = new CurriculumCourse("F1", "F1", "Fixed Course", 1, 3, 4, "CB",
+                false, List.of(), null);
+        CurriculumCourse elective = new CurriculumCourse(null, "ELEC1", "Elective Slot", 1, 3, 3,
+                "CB", true, List.of(), null);
+        Curriculum electiveCurriculum = new Curriculum(PENSUM_CODE, "506", "Ingenieria de Sistemas",
+                "Facultad", "Reforma test", CurriculumStatus.ACTIVE, 6, 7, 1,
+                List.of(new CurriculumArea("CB", "Ciencias Basicas", "#539392", 6, 7)),
+                List.of(fixed, elective));
+
+        StudentProgressCourse fixedEntry = new StudentProgressCourse(
+                "F1", "F1", CourseStatus.PENDING, null, null, null, null);
+        StudentProgressCourse electiveEntry = electiveAlreadyResolved
+                ? new StudentProgressCourse(null, "ELEC1", CourseStatus.PENDING, null, null,
+                        "PRIOR-CODE", "Prior Course")
+                : new StudentProgressCourse(null, "ELEC1", CourseStatus.PENDING, null, null, null, null);
+        StudentProgress progress = new StudentProgress("doc-elec", USER_ID, "506232730", "506",
+                PENSUM_CODE, 1, List.of(fixedEntry, electiveEntry), Instant.now());
+
+        when(progressRepository.findByUserId(USER_ID)).thenReturn(Optional.of(progress));
+        when(curriculumRepository.findById(PENSUM_CODE)).thenReturn(Optional.of(electiveCurriculum));
     }
 
     private static Curriculum fixtureCurriculum() {
