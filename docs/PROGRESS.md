@@ -14,21 +14,23 @@ production deployment.
 
 ## Summary
 
-| Area | Status | Notes |
-|---|---|---|
-| Platform foundation | Complete | Boot 3.5, MongoDB, RS256/JWKS, Mongock, Testcontainers |
-| API contract | Complete | Five OpenAPI 3.1 specs, linted in CI, served as mocks |
-| Service skeletons | Complete | Seven services build; 27 integration tests green |
-| Auth: sign-in | Complete | RS256 issuance verified against the published JWKS |
-| Auth: registration | Not started | Institutional, guest, verification, invitation codes |
-| User profiles | Not started | Skeleton only |
-| Catalogue and semaforo | Not started | Skeleton and indexes only |
-| Timetables | Not started | Skeleton and indexes only |
-| Campus map | Not started | Skeleton and indexes only |
-| Android (Kotlin) | Not started | The product. Unblocked by the mocks |
-| iOS (Swift) | Not started | The product. Unblocked by the mocks |
-| Admin web (Angular) | Not started | Off the critical path: seed data ships via Mongock |
-| Deployment | Not started | Runs locally; university hardware pending |
+| Area | Status | Tests | Notes |
+|---|---|---|---|
+| Platform foundation | Complete | — | Boot 3.5, MongoDB, RS256/JWKS, Mongock, Testcontainers |
+| API contract | Complete | — | Five OpenAPI 3.1 specs, linted in CI, served as mocks |
+| **Auth: sign-in and registration** | **Merged** | **71** | Institutional and guest registration, verification, invitation codes, `IdentityProviderPort` |
+| **User profiles** | **Merged** | **97** | Profiles, internal upsert, accent-insensitive indexed search |
+| **Campus map** | **Merged** | **36** | Buildings, spaces, guest-readable, plus an offline pin editor |
+| Catalogue and semaforo | In progress | — | Seed and progress tracking |
+| Timetables | In progress | — | Enrolments, meetings, overlap detection |
+| Admin and developer portal | In progress | — | Angular, runs from a compose `dev` profile |
+| Android (Kotlin) | Not started | — | The product. Unblocked by the mocks |
+| iOS (Swift) | Not started | — | The product. Unblocked by the mocks |
+| Deployment | Not started | — | Runs locally; university hardware pending |
+
+**214 integration tests**, from a repository that had none three days ago. Every service asserts its
+full role-by-endpoint authorization matrix with one assertion per case, including every combination
+that must be refused — those are the ones that matter.
 
 ---
 
@@ -48,10 +50,21 @@ making that migration a change of property value.
 **Contract first.** `docs/api/*.openapi.yaml` are hand-written and served by Prism containers, so
 the mobile team works without waiting for the backend. CI lints them on every push.
 
-**Tests.** 27 integration tests on Testcontainers, from a repository that had none. They cover
-anonymous rejection, valid-token acceptance with role mapping, the shared error envelope, Mongock
-migrations, and — most importantly — that an issued token verifies against the published public key
-with no shared secret anywhere.
+**Tests.** 214 integration tests on Testcontainers, from a repository that had none. Beyond the
+authorization matrices, they have already earned their keep by catching real defects:
+
+- In `auth-service`, the role check ran before the `try` block, so an invitation code carrying a
+  rejected role consumed its slot permanently — the `release()` in the `catch` never ran. A student
+  would have burned an invitation on a registration that failed.
+- A shared static Testcontainers instance was being stopped by the first test class to finish, while
+  sibling classes still depended on it. That is the kind of failure that looks random.
+
+**Two findings worth carrying forward.** MongoDB 7 reports `IXSCAN` for an unanchored,
+case-insensitive regex while walking the index over its full unbounded key range — the same cost as
+a collection scan under a reassuring name. Any assertion about query plans must check narrowed
+bounds and documents examined, not the stage name. And a security regression guard must not claim a
+path a service might legitimately want, or it collides with the real chain and stops the context
+from starting.
 
 ---
 
@@ -62,7 +75,7 @@ Tracked in `docs/SECURITY-AUDIT.md`.
 | ID | Severity | Status |
 |---|---|---|
 | S1 | Critical | Resolved. Per-service token validation; service ports unpublished |
-| S2 | High | Partially resolved. Enforcement mechanism in place; the per-endpoint matrix lands with the domain logic |
+| S2 | High | Resolved in the merged services. Every endpoint carries an explicit rule, asserted per role in tests |
 | S3 | Moderate | Resolved. CORS allow-list replaces the wildcard |
 | S4 | Moderate | Resolved. Eureka discovery locator off; `/internal/**` has no route |
 | S5 | Moderate | Resolved. Actuator exposes health and info only, without details |
