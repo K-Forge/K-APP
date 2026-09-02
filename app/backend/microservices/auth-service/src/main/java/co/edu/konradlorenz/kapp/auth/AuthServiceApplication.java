@@ -1,23 +1,30 @@
 package co.edu.konradlorenz.kapp.auth;
 
+import co.edu.konradlorenz.kapp.auth.config.RegistrationProperties;
 import co.edu.konradlorenz.kapp.auth.jwt.JwtProperties;
 import io.mongock.runner.springboot.EnableMongock;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
- * Owns user profiles: name, identification, contact details and, for members of the
- * university, their academic placement.
+ * Owns credentials: e-mail, password hash, roles, e-mail verification state, and the
+ * RS256 key pair that signs every access token on the platform.
  *
- * <p>It deliberately does NOT own credentials. Passwords, roles and e-mail verification
- * live in auth-service. Splitting them this way keeps authentication behind a single
- * seam, which is the piece that Microsoft Entra ID will replace once the university
- * grants an application registration.
+ * <p>It deliberately does NOT own profiles. Names, identification, contact details and
+ * academic placement live in user-service, which this service calls exactly once, during
+ * registration. Splitting them this way keeps authentication behind a single seam, which
+ * is the piece Microsoft Entra ID replaces once the university grants an application
+ * registration - see {@code identity.EntraIdAdapter}.
  *
- * <p>Security is configured by {@code common}'s auto-configuration: no annotation or
- * component scan is required here.
+ * <p>{@code @EnableFeignClients} activates {@code UserProfileClient}, that single outbound
+ * call.
+ *
+ * <p>Security comes from {@code common}'s auto-configuration, which contributes the
+ * catch-all chain; {@code config.AuthSecurityConfig} adds the narrower chain that makes
+ * login, registration, verification and the JWKS document public.
  *
  * <p>{@code @EnableMongock} is NOT optional. Mongock 5.5.1 ships neither
  * {@code AutoConfiguration.imports} nor {@code spring.factories}, so nothing registers
@@ -28,7 +35,8 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 @SpringBootApplication
 @EnableDiscoveryClient
 @EnableMongock
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableFeignClients
+@EnableConfigurationProperties({JwtProperties.class, RegistrationProperties.class})
 public class AuthServiceApplication {
 
     public static void main(String[] args) {
