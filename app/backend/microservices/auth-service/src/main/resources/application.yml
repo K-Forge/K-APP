@@ -54,6 +54,14 @@ eureka:
     prefer-ip-address: true
 
 management:
+  health:
+    mail:
+      # Spring contributes a mail health indicator whenever spring-boot-starter-mail is
+      # on the classpath, and it opens a real SMTP connection. Mail is optional here by
+      # design - there is no relay yet, and verification sits behind a flag - so an
+      # absent mail server must not make a service that is answering requests correctly
+      # report itself unhealthy and get restarted.
+      enabled: ${SPRING_MAIL_HEALTH_ENABLED:false}
   endpoints:
     web:
       exposure:
