@@ -1,5 +1,6 @@
 package co.edu.konradlorenz.kapp.schedule.web.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -17,6 +18,10 @@ import java.util.List;
  * other - are not expressible as annotations here and are done in
  * {@code service.MeetingWriteValidation} instead, alongside the overlap check against the
  * rest of the schedule.
+ *
+ * <p>{@code @JsonFormat(pattern = "HH:mm")} matches the contract's {@code LocalTime}
+ * schema, which forbids seconds, and rejects a request that sends them rather than
+ * silently truncating - see {@code MeetingResponse} for the read-side half of this.
  */
 public record CreateMeetingRequest(
 
@@ -24,9 +29,11 @@ public record CreateMeetingRequest(
         DayOfWeek dayOfWeek,
 
         @NotNull(message = "must not be null")
+        @JsonFormat(pattern = "HH:mm")
         LocalTime startTime,
 
         @NotNull(message = "must not be null")
+        @JsonFormat(pattern = "HH:mm")
         LocalTime endTime,
 
         @NotEmpty(message = "must contain at least one date range")
