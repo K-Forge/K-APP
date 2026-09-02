@@ -1,0 +1,249 @@
+package co.edu.konradlorenz.kapp.user.web;
+
+import co.edu.konradlorenz.kapp.user.AbstractUserServiceTest;
+import co.edu.konradlorenz.kapp.user.domain.StoredInstant;
+import co.edu.konradlorenz.kapp.user.domain.UserProfile;
+import co.edu.konradlorenz.kapp.user.domain.UserRole;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * The directory and activation endpoints under {@code /api/users}, exercised as an admin.
+ *
+ * <p>{@link UserAuthorizationMatrixTest} covers who may call these; this class covers
+ * what they do: filtering, pagination and its cap, the accent-insensitive search through
+ * the actual HTTP surface (the index itself is proven separately by
+ * {@code DirectorySearchIndexTest}), and the activation flow.
+ */
+class UserAdminControllerTest extends AbstractUserServiceTest {
+
+    private static final String ADMIN_ID = "c0000000-0000-0000-0000-000000000001";
+    private static final String TARGET_ID = "c0000000-0000-0000-0000-000000000002";
+
+    // ---------------------------------------------------------------------------------
+    // GET /api/users - filters
+    // ---------------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("no filters returns every account")
+    void list_noFilters_returnsEveryone() throws Exception {
+        save(student("s1", "s1@konradlorenz.edu.co", "One", "Student"));
+        save(professor("p1", "p1@konradlorenz.edu.co", "One", "Professor"));
+
+        mockMvc.perform(get("/api/users").with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2));
+    }
+
+    @Test
+    @DisplayName("the role filter narrows the directory to that role only")
+    void list_roleFilter_narrowsToThatRole() throws Exception {
+        save(student("s1", "s1@konradlorenz.edu.co", "One", "Student"));
+        save(professor("p1", "p1@konradlorenz.edu.co", "One", "Professor"));
+
+        mockMvc.perform(get("/api/users").param("role", "ROLE_PROFESSOR")
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].role").value("ROLE_PROFESSOR"));
+    }
+
+    @Test
+    @DisplayName("the active filter narrows the directory to that activation state")
+    void list_activeFilter_narrowsToThatState() throws Exception {
+        UserProfile stillActive = save(student("s1", "s1@konradlorenz.edu.co", "One", "Student"));
+        UserProfile toDeactivate = save(student("s2", "s2@konradlorenz.edu.co", "Two", "Student"));
+        save(toDeactivate.withActive(false, StoredInstant.now()));
+
+        mockMvc.perform(get("/api/users").param("active", "false")
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value("s2"));
+
+        assertThat(stillActive.active()).isTrue();
+    }
+
+    @Test
+    @DisplayName("an accent-insensitive search finds Munoz from munoz through the HTTP layer")
+    void list_search_isAccentInsensitive() throws Exception {
+        save(student("s1", "laura.munoz@konradlorenz.edu.co", "Laura", "Muñoz Peña"));
+        save(student("s2", "other@konradlorenz.edu.co", "Other", "Person"));
+
+        mockMvc.perform(get("/api/users").param("q", "munoz")
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].lastName").value("Muñoz Peña"));
+    }
+
+    // ---------------------------------------------------------------------------------
+    // GET /api/users - pagination
+    // ---------------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("the first page reports its own metadata correctly")
+    void list_firstPage_reportsMetadata() throws Exception {
+        for (int i = 0; i < 25; i++) {
+            save(student("page-" + i, "page" + i + "@konradlorenz.edu.co", "P" + i, "Student"));
+        }
+
+        mockMvc.perform(get("/api/users").param("page", "0").param("size", "20")
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(20))
+                .andExpect(jsonPath("$.totalElements").value(25))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.first").value(true))
+                .andExpect(jsonPath("$.last").value(false));
+    }
+
+    @Test
+    @DisplayName("the last page holds only the remainder and reports itself as last")
+    void list_lastPage_holdsRemainderAndReportsLast() throws Exception {
+        for (int i = 0; i < 25; i++) {
+            save(student("page-" + i, "page" + i + "@konradlorenz.edu.co", "P" + i, "Student"));
+        }
+
+        mockMvc.perform(get("/api/users").param("page", "1").param("size", "20")
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(5))
+                .andExpect(jsonPath("$.first").value(false))
+                .andExpect(jsonPath("$.last").value(true));
+    }
+
+    @Test
+    @DisplayName("a page size above the cap is rejected with 400, never clamped")
+    void list_sizeAboveCap_isRejected() throws Exception {
+        mockMvc.perform(get("/api/users").param("size", "101")
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field").value("size"));
+    }
+
+    @Test
+    @DisplayName("a page size below 1 is rejected with 400")
+    void list_sizeBelowMinimum_isRejected() throws Exception {
+        mockMvc.perform(get("/api/users").param("size", "0")
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field").value("size"));
+    }
+
+    @Test
+    @DisplayName("a negative page index is rejected with 400")
+    void list_negativePage_isRejected() throws Exception {
+        mockMvc.perform(get("/api/users").param("page", "-1")
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field").value("page"));
+    }
+
+    @Test
+    @DisplayName("an empty search string is rejected with 400")
+    void list_emptyQuery_isRejected() throws Exception {
+        mockMvc.perform(get("/api/users").param("q", "")
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field").value("q"));
+    }
+
+    @Test
+    @DisplayName("a search string over 100 characters is rejected with 400")
+    void list_queryTooLong_isRejected() throws Exception {
+        mockMvc.perform(get("/api/users").param("q", "a".repeat(101))
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field").value("q"));
+    }
+
+    // ---------------------------------------------------------------------------------
+    // GET /api/users/{userId}
+    // ---------------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("an unknown id is a 404, not a 400")
+    void getById_unknownId_is404() throws Exception {
+        mockMvc.perform(get("/api/users/{userId}", "does-not-exist")
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("a known id returns that profile")
+    void getById_knownId_returnsProfile() throws Exception {
+        save(fullyPopulated(TARGET_ID, "brian.vargasc@konradlorenz.edu.co"));
+
+        mockMvc.perform(get("/api/users/{userId}", TARGET_ID)
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(TARGET_ID))
+                .andExpect(jsonPath("$.email").value("brian.vargasc@konradlorenz.edu.co"));
+    }
+
+    // ---------------------------------------------------------------------------------
+    // PATCH /api/users/{userId}/status
+    // ---------------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("deactivating an account flips active to false")
+    void setStatus_deactivate_flipsActiveFlag() throws Exception {
+        save(student(TARGET_ID, "target@konradlorenz.edu.co", "Target", "Account"));
+
+        mockMvc.perform(patch("/api/users/{userId}/status", TARGET_ID)
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"active": false}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(false));
+
+        assertThat(reload(TARGET_ID).active()).isFalse();
+    }
+
+    @Test
+    @DisplayName("setting the status an account already holds is idempotent")
+    void setStatus_alreadyInThatState_isIdempotent() throws Exception {
+        save(student(TARGET_ID, "target@konradlorenz.edu.co", "Target", "Account"));
+
+        mockMvc.perform(patch("/api/users/{userId}/status", TARGET_ID)
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"active": true}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(true));
+    }
+
+    @Test
+    @DisplayName("changing the status of an unknown id is a 404")
+    void setStatus_unknownId_is404() throws Exception {
+        mockMvc.perform(patch("/api/users/{userId}/status", "does-not-exist")
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"active": false}"""))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("a null active flag is rejected with 400 rather than defaulting")
+    void setStatus_nullActive_isRejected() throws Exception {
+        save(student(TARGET_ID, "target@konradlorenz.edu.co", "Target", "Account"));
+
+        mockMvc.perform(patch("/api/users/{userId}/status", TARGET_ID)
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"active": null}"""))
+                .andExpect(status().isBadRequest());
+    }
+}

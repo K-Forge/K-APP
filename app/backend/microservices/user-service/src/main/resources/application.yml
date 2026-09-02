@@ -22,6 +22,14 @@ spring:
           # auth-service were already up - a boot-order deadlock under docker compose.
           jwk-set-uri: ${KAPP_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
 
+kapp:
+  internal:
+    # Shared secret guarding POST /internal/users, the endpoint auth-service calls during
+    # registration. Both services must hold the same value. Left empty the service still
+    # starts, warns once and rejects every internal request with 401: an unset secret must
+    # never read as "no check needed".
+    token: ${KAPP_INTERNAL_TOKEN:}
+
 mongock:
   migration-scan-package: co.edu.konradlorenz.kapp.user.migration
   # Left off deliberately: the change units only create indexes, which are idempotent,

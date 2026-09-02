@@ -34,6 +34,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>The chain is now an ordered catch-all instead. This test declares exactly the kind
  * of narrow chain that used to cause the problem, then checks that an unrelated route is
  * still protected. If someone reinstates the condition, this fails.
+ *
+ * <p>The synthetic chain below matches a path of its own ({@code /test-scoped/**}) rather
+ * than the real {@code /internal/**} that {@code InternalApiSecurityConfig} now claims in
+ * production: Spring Security refuses to start a context in which two chains declare the
+ * identical {@code securityMatcher} ({@code UnreachableFilterChainException}), and this
+ * test needs to stay a generic guard on the mechanism itself, independent of whichever
+ * concrete narrow chains the service happens to add over time.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -62,7 +69,7 @@ class CatchAllSecurityChainTest {
         @Order(10)
         SecurityFilterChain narrowChain(HttpSecurity http) throws Exception {
             return http
-                    .securityMatcher("/internal/**")
+                    .securityMatcher("/test-scoped/**")
                     .csrf(AbstractHttpConfigurer::disable)
                     .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                     .build();
@@ -89,7 +96,7 @@ class CatchAllSecurityChainTest {
     void narrowChainGovernsItsOwnPath() throws Exception {
         // Permitted by the narrow chain, so it reaches the dispatcher and 404s on a
         // missing handler rather than being rejected as unauthenticated.
-        mockMvc.perform(get("/internal/nothing-here"))
+        mockMvc.perform(get("/test-scoped/nothing-here"))
                 .andExpect(status().isNotFound());
     }
 }
