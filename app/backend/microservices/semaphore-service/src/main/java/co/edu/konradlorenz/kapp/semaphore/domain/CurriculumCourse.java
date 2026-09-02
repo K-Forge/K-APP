@@ -1,5 +1,7 @@
 package co.edu.konradlorenz.kapp.semaphore.domain;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 /**
@@ -41,7 +43,11 @@ public record CurriculumCourse(
         int credits,
         int weeklyHours,
         String area,
-        boolean electiveSlot,
+        // @JsonProperty mirrors CurriculumCourseDto's own alias: the wire and seed JSON
+        // both use "isElectiveSlot" (the OpenAPI field name), while the Java field keeps
+        // the grammatical "electiveSlot" spelling. V002_SeedIngenieriaDeSistemas reads
+        // seed JSON straight into this record, so without the alias it fails to parse.
+        @JsonProperty("isElectiveSlot") boolean electiveSlot,
         List<String> prerequisites,
         String sinuCode
 ) {

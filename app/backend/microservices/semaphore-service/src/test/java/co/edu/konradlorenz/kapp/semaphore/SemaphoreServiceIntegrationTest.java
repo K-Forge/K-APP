@@ -109,6 +109,19 @@ class SemaphoreServiceIntegrationTest {
                 .map(info -> info.getName())
                 .toList();
 
-        assertThat(indexNames).contains("uk_curricula_pensum", "ix_curricula_program");
+        // uk_curricula_pensum does not exist: pensumCode is @Id, so MongoDB's own
+        // implicit _id index already guarantees it - see V001_SemaphoreIndexes.
+        assertThat(indexNames).contains("ix_curricula_program");
+    }
+
+    @Test
+    @DisplayName("the unique compound index guards concurrent lazy creation")
+    void progressUniqueIndexExists() {
+        var indexNames = StreamSupport
+                .stream(mongoTemplate.indexOps("studentProgress").getIndexInfo().spliterator(), false)
+                .map(info -> info.getName())
+                .toList();
+
+        assertThat(indexNames).contains("uk_progress_user_pensum");
     }
 }
