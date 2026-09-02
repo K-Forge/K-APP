@@ -30,6 +30,10 @@ export const routes: Routes = [
         path: 'data/buildings',
         loadComponent: () => import('./features/data/buildings/buildings.page').then((m) => m.BuildingsPage),
       },
+      {
+        path: 'data/spaces',
+        loadComponent: () => import('./features/data/spaces/spaces.page').then((m) => m.SpacesPage),
+      },
     ],
   },
   { path: '**', redirectTo: 'login' },

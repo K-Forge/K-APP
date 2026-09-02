@@ -26,16 +26,16 @@ export class ApiClientService {
     return this.http.post<T>(this.url(path), body).pipe(catchError(rethrow));
   }
 
-  put<T>(path: string, body: unknown): Observable<T> {
-    return this.http.put<T>(this.url(path), body).pipe(catchError(rethrow));
+  put<T>(path: string, body: unknown, params?: QueryParams): Observable<T> {
+    return this.http.put<T>(this.url(path), body, { params: toHttpParams(params) }).pipe(catchError(rethrow));
   }
 
-  patch<T>(path: string, body: unknown): Observable<T> {
-    return this.http.patch<T>(this.url(path), body).pipe(catchError(rethrow));
+  patch<T>(path: string, body: unknown, params?: QueryParams): Observable<T> {
+    return this.http.patch<T>(this.url(path), body, { params: toHttpParams(params) }).pipe(catchError(rethrow));
   }
 
-  delete(path: string): Observable<void> {
-    return this.http.delete<void>(this.url(path)).pipe(catchError(rethrow));
+  delete(path: string, params?: QueryParams): Observable<void> {
+    return this.http.delete<void>(this.url(path), { params: toHttpParams(params) }).pipe(catchError(rethrow));
   }
 
   private url(path: string): string {
