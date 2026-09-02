@@ -7,8 +7,11 @@ import java.time.Duration;
 /**
  * Registration and e-mail verification settings.
  *
- * <p>Bound from {@code kapp.auth.registration.*}, which {@code application.yml} fills from
- * the environment variables {@code docker-compose.yml} already sets.
+ * <p>Bound from {@code kapp.auth.*}, which {@code application.yml} fills from the
+ * environment variables {@code docker-compose.yml} already sets. In particular
+ * {@code requireEmailVerification} is {@code kapp.auth.require-email-verification},
+ * off by default, because there is no SMTP relay yet and registration must not be
+ * blocked waiting for one.
  *
  * @param allowedEmailDomain       the domain {@code POST /auth/register} demands. Guests are
  *                                 unrestricted and land on {@code ROLE_GUEST} instead.
@@ -28,7 +31,7 @@ import java.time.Duration;
  *                                 user-service requires it on the academic record.
  * @param defaultCurrentLevel      semester a newly registered student starts on
  */
-@ConfigurationProperties(prefix = "kapp.auth.registration")
+@ConfigurationProperties(prefix = "kapp.auth")
 public record RegistrationProperties(
         String allowedEmailDomain,
         boolean requireEmailVerification,
