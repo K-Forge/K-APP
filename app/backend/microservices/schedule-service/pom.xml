@@ -12,7 +12,7 @@
 
     <artifactId>schedule-service</artifactId>
     <name>Schedule Service</name>
-    <description>Owns user profiles. Credentials belong to auth-service.</description>
+    <description>Owns each student's per-period class timetable: enrollments, weekly meetings and their date-ranged rooms.</description>
 
     <!--
       Versions come from the parent's dependencyManagement. Never add a <version>
@@ -48,6 +48,23 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+
+        <!-- Reads the academic catalogue from semaphore-service; see catalog/CatalogClient. -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+
+        <!-- Backs the ~1h in-memory cache over the catalogue lookup, so a briefly-down
+             semaphore-service never blocks a student from entering their own timetable. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
         </dependency>
 
         <dependency>

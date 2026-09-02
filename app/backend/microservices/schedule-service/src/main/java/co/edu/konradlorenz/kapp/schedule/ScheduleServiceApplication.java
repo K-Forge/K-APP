@@ -3,16 +3,15 @@ package co.edu.konradlorenz.kapp.schedule;
 import io.mongock.runner.springboot.EnableMongock;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
- * Owns user profiles: name, identification, contact details and, for members of the
- * university, their academic placement.
- *
- * <p>It deliberately does NOT own credentials. Passwords, roles and e-mail verification
- * live in auth-service. Splitting them this way keeps authentication behind a single
- * seam, which is the piece that Microsoft Entra ID will replace once the university
- * grants an application registration.
+ * Owns each student's per-period class timetable: enrollments, their weekly meetings, and
+ * the disjoint date ranges - each with its own room - those meetings are actually taught
+ * over. Modelled directly on the university's own SINU report so a future automatic sync
+ * needs no migration; see {@code docs/api/schedule.openapi.yaml}.
  *
  * <p>Security is configured by {@code common}'s auto-configuration: no annotation or
  * component scan is required here.
@@ -22,10 +21,17 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  * it automatically: without this annotation the migrations are silently skipped, indexes
  * are never created and the failure only shows up as duplicate data much later. Every
  * KApp service that talks to MongoDB must carry it.
+ *
+ * <p>{@code @EnableFeignClients} activates
+ * {@link co.edu.konradlorenz.kapp.schedule.catalog.CatalogClient}, which reads the
+ * academic catalogue from semaphore-service. {@code @EnableCaching} backs the ~1h cache in
+ * front of it - see {@link co.edu.konradlorenz.kapp.schedule.catalog.CurriculumCatalogService}.
  */
 @SpringBootApplication
 @EnableDiscoveryClient
 @EnableMongock
+@EnableFeignClients
+@EnableCaching
 public class ScheduleServiceApplication {
 
     public static void main(String[] args) {
