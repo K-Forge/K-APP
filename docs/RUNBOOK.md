@@ -8,12 +8,12 @@ Everything runs in Docker. You almost never need all of it at once — see [Prof
 
 ## Prerequisites
 
-| Tool | Version | Notes |
-|---|---|---|
-| Docker Desktop | 4.x+ | Must be **running**, not just installed |
-| JDK | 21 | Only to build or run tests outside Docker |
-| Maven | — | Use the bundled `./mvnw`; do not install one |
-| pnpm | latest | Only to develop the admin portal itself |
+| Tool           | Version | Notes                                        |
+| -------------- | ------- | -------------------------------------------- |
+| Docker Desktop | 4.x+    | Must be **running**, not just installed      |
+| JDK            | 21      | Only to build or run tests outside Docker    |
+| Maven          | —       | Use the bundled `./mvnw`; do not install one |
+| pnpm           | latest  | Only to develop the admin portal itself      |
 
 The repository pins the JDK with `.java-version` (jenv) in `app/backend/microservices/`. If `java`
 is not found there, `jenv` is not picking it up:
@@ -29,14 +29,14 @@ jenv add /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 Seven JVMs plus MongoDB is roughly 5 GB. You rarely need that, and on a laptop also running Xcode
 or Android Studio you actively do not want it.
 
-| Profile | What starts | RAM | Use it when |
-|---|---|---|---|
-| `mock` | 5 Prism mock servers | ~200 MB | Building a mobile screen against the API contract |
-| `core` | mongo, discovery, gateway, auth, user | ~2.5 GB | Working on sign-in or profiles |
-| `academic` | core + semaphore, schedule | ~3.5 GB | Working on curricula or timetables |
-| `map` | core + map | ~3 GB | Working on the campus map |
-| `full` | everything | ~5 GB | End-to-end checks before a merge |
-| `dev` | the admin portal | ~50 MB | Any time you want the web console |
+| Profile    | What starts                           | RAM     | Use it when                                       |
+| ---------- | ------------------------------------- | ------- | ------------------------------------------------- |
+| `mock`     | 5 Prism mock servers                  | ~200 MB | Building a mobile screen against the API contract |
+| `core`     | mongo, discovery, gateway, auth, user | ~2.5 GB | Working on sign-in or profiles                    |
+| `academic` | core + semaphore, schedule            | ~3.5 GB | Working on curricula or timetables                |
+| `map`      | core + map                            | ~3 GB   | Working on the campus map                         |
+| `full`     | everything                            | ~5 GB   | End-to-end checks before a merge                  |
+| `dev`      | the admin portal                      | ~50 MB  | Any time you want the web console                 |
 
 Profiles combine. The portal on its own is not much use, so pair it with a backend:
 
@@ -93,13 +93,13 @@ docker compose logs --tail=50 api-gateway
 
 ## What runs where
 
-| URL | What |
-|---|---|
-| http://localhost:4300 | **Admin and developer portal** |
-| http://localhost:8080 | API gateway — the only backend entry point |
-| http://localhost:8080/swagger-ui.html | Aggregated API documentation |
-| http://localhost:27017 | MongoDB, for `mongosh` and Compass |
-| http://localhost:4010-4014 | Prism mocks: auth, user, semaphore, schedule, map |
+| URL                                   | What                                              |
+| ------------------------------------- | ------------------------------------------------- |
+| http://localhost:4300                 | **Admin and developer portal**                    |
+| http://localhost:8080                 | API gateway — the only backend entry point        |
+| http://localhost:8080/swagger-ui.html | Aggregated API documentation                      |
+| http://localhost:27017                | MongoDB, for `mongosh` and Compass                |
+| http://localhost:4010-4014            | Prism mocks: auth, user, semaphore, schedule, map |
 
 **Ports 8081 to 8085 are deliberately unreachable.** The services are only addressable through the
 gateway; being able to bypass it was security finding S1. If you need to reach one directly for
@@ -115,12 +115,12 @@ docker compose exec api-gateway wget -qO- http://auth-service:8081/auth/health
 
 Password for all of them: `KForge2026Dev!`
 
-| E-mail | Role |
-|---|---|
-| `brian@konradlorenz.edu.co` | ADMIN |
-| `julian@` · `santiago@` · `diego@` · `ivan@` · `alejandro@` `konradlorenz.edu.co` | STUDENT |
-| `profesor@konradlorenz.edu.co` | PROFESSOR |
-| `visitante@gmail.com` | GUEST |
+| E-mail                                                                            | Role      |
+| --------------------------------------------------------------------------------- | --------- |
+| `brian@konradlorenz.edu.co`                                                       | ADMIN     |
+| `julian@` · `santiago@` · `diego@` · `ivan@` · `alejandro@` `konradlorenz.edu.co` | STUDENT   |
+| `profesor@konradlorenz.edu.co`                                                    | PROFESSOR |
+| `visitante@gmail.com`                                                             | GUEST     |
 
 These live in **your** MongoDB. They are not shared, and they disappear with `down -v`.
 
@@ -229,6 +229,23 @@ fixed, but the pattern recurs.
 ### Tests fail with "Could not find a valid Docker environment"
 
 Docker Desktop is not running. Start it and wait for the whale icon to settle.
+
+### A service 404s on endpoints you know exist
+
+The container is running an older image than the one you just built. `docker compose up -d`
+starts whatever image exists **at that moment**, so kicking off a build and bringing the stack
+up before it finishes leaves containers on the previous build — and a service still carrying
+only its Phase 0 skeleton answers 404 for every real endpoint.
+
+Check what the running jar actually contains:
+
+```bash
+docker compose exec map-service sh -c 'unzip -l /app/app.jar | grep -c "kapp/map"'
+```
+
+A handful of classes means the skeleton; several dozen means the real service. Fix by running
+`up -d` again once the build has finished — Compose recreates only the containers whose image
+changed.
 
 ### Everything is slow, the fan is loud
 

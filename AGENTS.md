@@ -21,7 +21,7 @@ K-Forge is a software development club at Fundación Universitaria Konrad Lorenz
 
 **KApp** is the **mobile application** for the Fundación Universitaria Konrad Lorenz community, developed by the K-Forge club. The product vision is mobile-first: native Android (Kotlin) and iOS (Swift) clients that give students and staff access to academic management — courses, assignments, users, and authentication — from their phones.
 
-The mobile clients are powered by a **Spring Boot microservices backend** that exposes a unified API behind a Gateway. Delivery is sequenced backend first, web second, mobile third: the web frontend exercises the API while the backend is built and settles the interface design that the Kotlin and Swift clients will inherit.
+The mobile clients are powered by a **Spring Boot microservices backend** behind a single gateway. Delivery is backend first, then mobile directly: the clients build against the hand-written OpenAPI contracts in `docs/api/`, served as Prism mocks, so client and server progress in parallel rather than in sequence. The old HTML/JS client was a prototype of the mobile layout and is frozen.
 
 ---
 
@@ -29,10 +29,10 @@ The mobile clients are powered by a **Spring Boot microservices backend** that e
 
 | Layer | Technology |
 |-------|-----------|
-| Mobile (Android) | Kotlin — final product, not started |
-| Mobile (iOS) | Swift — final product, not started |
-| Web (API test surface, design reference) | HTML/JS/CSS → migrating to Angular |
-| Backend | Java 21, Spring Boot 3.2, Spring Cloud 2023.0.0 |
+| Mobile (Android) | Kotlin + Jetpack Compose — the product, in progress |
+| Mobile (iOS) | Swift + SwiftUI — the product, in progress |
+| Admin portal | Angular — `app/frontend/web-admin/`, compose `dev` profile |
+| Backend | Java 21, Spring Boot 3.5.16, Spring Cloud 2025.0.3 |
 | Service discovery | Netflix Eureka (`:8761`) |
 | API Gateway | Spring Cloud Gateway (`:8080`) |
 | Security | Spring Security, RS256 JWT with a published JWKS, BCrypt |
@@ -79,31 +79,28 @@ KApp/
 │   │   ├── microservices/           # Backend — the only application code
 │   │   │   ├── pom.xml              # Parent POM (multi-module)
 │   │   │   ├── docker-compose.yml
-│   │   │   ├── discovery-server/
-│   │   │   ├── api-gateway/
-│   │   │   ├── auth-service/
-│   │   │   ├── user-service/
-│   │   │   ├── course-service/
-│   │   │   ├── assignment-service/
-│   │   │   └── common/              # Shared DTOs and exceptions
+│   │   │   ├── discovery-server/    api-gateway/    common/
+│   │   │   ├── auth-service/  user-service/  semaphore-service/
+│   │   │   ├── schedule-service/  map-service/
+│   │   │   ├── course-service/      # FROZEN, not in the reactor
+│   │   │   └── assignment-service/  # FROZEN, not in the reactor
 │   │   └── postman/                 # Postman collections
 │   ├── frontend/
-│   │   ├── web/                     # Web client (HTML/JS/CSS → migrating to Angular)
+│   │   ├── web-admin/               # Admin and developer portal (Angular)
+│   │   ├── web/                     # FROZEN prototype of the mobile layout
 │   │   └── mobile/
-│   │       ├── kotlin/              # Android (future)
-│   │       └── swift/               # iOS (future)
+│   │       ├── kotlin/              # Android
+│   │       └── swift/               # iOS
 │   └── database/
-│       ├── init.sql                 # Full schema (enums, tables, triggers)
-│       ├── test_data.sql            # Mock data
-│       └── delete_all_data.sql      # Cleanup
+│       └── init.sql                 # LEGACY PostgreSQL schema, reference only
 ├── docs/
-│   ├── SRS.md                       # Software Requirements Specification
-│   ├── REQUIREMENTS.md
-│   ├── DESIGN.md
-│   ├── DOCKER-GUIDE.md
-│   ├── K-COLORS.md
+│   ├── api/                         # OpenAPI contracts — the source of truth
+│   ├── adr/                         # Architecture decisions and their reasons
+│   ├── RUNBOOK.md                   # How to run everything — start here
 │   ├── PROGRESS.md                  # Implementation status — read before large changes
-│   └── diagrams/
+│   ├── INTEGRATION-NOTES.md         # Cross-cutting findings worth carrying forward
+│   ├── SECURITY-AUDIT.md  SRS.md  REQUIREMENTS.md  DESIGN.md  K-COLORS.md
+│   └── DOCKER-GUIDE.md              # Superseded by RUNBOOK.md
 ├── scripts/
 │   ├── start-frontend.sh
 │   └── start-microservices.sh
@@ -196,16 +193,27 @@ npx --package=@redocly/cli@latest redocly lint docs/api/*.yaml
 
 ### Inter-Service Communication
 
-Two Feign edges only. Keep it that way: every extra edge is a new failure mode and a new
-reason for one service to be unable to answer without another.
+Three Feign edges. Keep the number small: every extra one is a new failure mode and a new
+reason for a service to be unable to answer on its own.
 
 ```
-Schedule Service → (Feign) → Semaphore Service    # course catalogue, cached
-Auth Service     → (Feign) → User Service         # create a profile at registration
+Auth Service      → (Feign) → User Service       # create a profile at registration
+Semaphore Service → (Feign) → User Service       # resolve the student's programme
+Schedule Service  → (Feign) → Semaphore Service  # course catalogue, cached 1h
 ```
+
+**None of them sits on a hot path**, which is the property that makes three acceptable. The first
+two fire once per account; the third reads near-static reference data through a cache, so
+`schedule-service` keeps working while `semaphore-service` is briefly down.
 
 Services are discovered by name via Eureka. The caller's token is propagated automatically by
-`common`; the registration call is the exception, since no user token exists yet.
+`common`; registration is the exception, since no user token exists yet — that call carries a
+shared internal secret and has no gateway route.
+
+> **Open decision.** `semaphore → user` exists only to read `programCode` when a student's progress
+> document is first created; afterwards the value is stored. Carrying `programCode` as a JWT claim
+> would remove the edge entirely, at the cost of requiring a fresh sign-in after a programme change.
+> Recorded rather than resolved: it was added without a decision, and it should have one.
 
 ### Git
 

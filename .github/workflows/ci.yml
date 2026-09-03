@@ -75,3 +75,46 @@ jobs:
       # cannot pick one and errors out. --package names the package, `redocly` the bin.
       - name: Lint specs
         run: npx --package=@redocly/cli@latest redocly lint docs/api/*.yaml
+
+  portal:
+    name: Build and test the admin portal
+    runs-on: ubuntu-latest
+
+    # The portal is how the mobile team signs in as a role, inspects a token and
+    # reproduces a failing call, so a broken build costs four people their tooling.
+    # Its tests cover the three pieces whose failure is confusing rather than obvious:
+    # JWT decoding, the auth interceptor and ApiError parsing.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: app/frontend/web-admin/pnpm-lock.yaml
+
+      # --frozen-lockfile so a lockfile that drifted from package.json fails here rather
+      # than silently resolving different versions than anyone tested against.
+      - name: Install
+        working-directory: app/frontend/web-admin
+        run: pnpm install --frozen-lockfile
+
+      # Vitest on jsdom, so no browser is needed. `pnpm test` regenerates the bundled
+      # OpenAPI JSON first: the API console imports those as modules, so a spec change
+      # that breaks the parser fails here instead of in someone's browser.
+      - name: Test
+        working-directory: app/frontend/web-admin
+        run: pnpm test
+
+      # Building is a real check, not a formality: the portal is served as static files
+      # from nginx, so a template or type error only surfaces at build time.
+      - name: Build
+        working-directory: app/frontend/web-admin
+        run: pnpm build
