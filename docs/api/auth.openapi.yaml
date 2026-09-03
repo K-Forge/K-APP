@@ -357,6 +357,121 @@ paths:
               example:
                 status: UP
 
+  /auth/admin/invitation-codes:
+    get:
+      operationId: listInvitationCodes
+      summary: List invitation codes
+      description: |
+        Requires `ROLE_ADMIN`. Invitation codes are what gate institutional registration, so
+        being able to see which exist, how many uses each has left and which are still active
+        is the difference between managing access and guessing at it.
+      tags: [Invitation codes]
+      parameters:
+        - name: active
+          in: query
+          required: false
+          schema: { type: boolean }
+          description: Filter by whether the code can still be redeemed.
+      responses:
+        '200':
+          description: The codes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvitationCode'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createInvitationCode
+      summary: Create an invitation code
+      description: |
+        Requires `ROLE_ADMIN`. The role a code grants is fixed at creation. `ROLE_ADMIN` is
+        never grantable this way: an administrator must be promoted deliberately, or anyone
+        holding a code could escalate.
+      tags: [Invitation codes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationCodeRequest'
+      responses:
+        '201':
+          description: The created code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationCode'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/admin/invitation-codes/{code}:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        schema: { type: string, maxLength: 40 }
+        example: KL-20262-STUDENT
+    patch:
+      operationId: updateInvitationCode
+      summary: Activate or deactivate an invitation code
+      description: |
+        Requires `ROLE_ADMIN`. Deactivating is the reversible way to stop a code being
+        redeemed, and it keeps the record of who used it.
+      tags: [Invitation codes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active]
+              properties:
+                active: { type: boolean }
+              additionalProperties: false
+      responses:
+        '200':
+          description: The updated code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationCode'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteInvitationCode
+      summary: Delete an invitation code
+      description: |
+        Requires `ROLE_ADMIN`. Prefer deactivating: deleting a code that has already been
+        redeemed discards the only record of how those accounts were created.
+      tags: [Invitation codes]
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
 components:
   securitySchemes:
     bearerAuth:
@@ -364,6 +479,71 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    InvitationCode:
+      type: object
+      description: A code that permits one institutional registration, for a fixed role.
+      required: [code, role, maxUses, timesUsed, active]
+      properties:
+        code:
+          type: string
+          maxLength: 40
+          example: KL-20262-STUDENT
+        role:
+          type: string
+          enum: [ROLE_STUDENT, ROLE_PROFESSOR]
+          description: >-
+            The role a registration through this code receives. ROLE_ADMIN is deliberately
+            absent: it is granted by promotion, never by redeeming a code.
+          example: ROLE_STUDENT
+        maxUses:
+          type: integer
+          minimum: 1
+          example: 200
+        timesUsed:
+          type: integer
+          minimum: 0
+          description: Incremented atomically on redemption, so it cannot exceed maxUses.
+          example: 6
+        active:
+          type: boolean
+          example: true
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+          description: Null means it does not expire on its own.
+        notes:
+          type: [string, 'null']
+          maxLength: 200
+          example: Intake for 2026-2
+
+    InvitationCodeRequest:
+      type: object
+      required: [code, role, maxUses]
+      properties:
+        code:
+          type: string
+          minLength: 6
+          maxLength: 40
+          pattern: '^[A-Z0-9-]+$'
+          description: Upper case, digits and hyphens, so it survives being read aloud.
+          example: KL-20262-STUDENT
+        role:
+          type: string
+          enum: [ROLE_STUDENT, ROLE_PROFESSOR]
+          example: ROLE_STUDENT
+        maxUses:
+          type: integer
+          minimum: 1
+          maximum: 10000
+          example: 200
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+        notes:
+          type: [string, 'null']
+          maxLength: 200
+      additionalProperties: false
+
     ApiError:
       type: object
       required: [timestamp, status, error, message, path]

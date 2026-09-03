@@ -96,6 +96,34 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+    post:
+      operationId: createProgram
+      summary: Create an academic program
+      description: |
+        Requires `ROLE_ADMIN`. The institutional code is supplied by the caller rather than
+        generated: it already identifies the program in the university's own records.
+      tags: [Catalog]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgramRequest'
+      responses:
+        '201':
+          description: The created program
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Program'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/catalog/programs/{programCode}:
     parameters:
       - $ref: '#/components/parameters/ProgramCodePath'
@@ -124,6 +152,51 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+    put:
+      operationId: replaceProgram
+      summary: Replace an academic program
+      description: Requires `ROLE_ADMIN`. The code in the path wins; a differing code in the body is a 400.
+      tags: [Catalog]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgramRequest'
+      responses:
+        '200':
+          description: The updated program
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Program'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteProgram
+      summary: Delete an academic program
+      description: |
+        Requires `ROLE_ADMIN`. Refused with `409` while any curriculum still references it:
+        removing the program would orphan every student following those curricula, and a
+        silent cascade is worse than an error a human can read.
+      tags: [Catalog]
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/catalog/curricula/{pensumCode}:
     parameters:
       - $ref: '#/components/parameters/PensumCodePath'
@@ -195,6 +268,24 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+    delete:
+      operationId: deleteCurriculum
+      summary: Delete a curriculum
+      description: |
+        Requires `ROLE_ADMIN`. Refused with `409` while any student still follows it —
+        deleting it would leave their progress pointing at a pensum that no longer exists.
+      tags: [Catalog]
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/catalog/curricula:
     post:
       operationId: createCurriculum
@@ -707,6 +798,33 @@ components:
             This is the pensum that `GET /api/semaphore/me` pins for new students.
           maxLength: 20
           example: "1015"
+
+    ProgramRequest:
+      type: object
+      description: >-
+        The writable half of a program. `activePensumCode` is absent on purpose: it is
+        derived from whichever curriculum is currently `ACTIVE`, so letting a caller set it
+        would allow the two to disagree.
+      required: [code, name, faculty, level]
+      properties:
+        code:
+          type: string
+          description: Institutional program code. Immutable once created.
+          maxLength: 20
+          example: "506"
+        name:
+          type: string
+          maxLength: 100
+          example: Ingeniería de Sistemas
+        faculty:
+          type: string
+          maxLength: 100
+          example: Facultad de Matemáticas e Ingenierías
+        level:
+          type: string
+          enum: [PREGRADO, POSGRADO, TECNOLOGIA, MAESTRIA, DOCTORADO, ESPECIALIZACION]
+          example: PREGRADO
+      additionalProperties: false
 
     CurriculumArea:
       type: object
