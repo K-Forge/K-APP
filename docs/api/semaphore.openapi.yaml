@@ -822,7 +822,8 @@ components:
           example: Facultad de Matemáticas e Ingenierías
         level:
           type: string
-          enum: [PREGRADO, POSGRADO, TECNOLOGIA, MAESTRIA, DOCTORADO, ESPECIALIZACION]
+          enum: [PREGRADO, POSGRADO, TECNOLOGIA, MAESTRIA, DOCTORADO,
+                 CURSOS_DIPLOMADOS, ESPECIALIZACION]
           example: PREGRADO
       additionalProperties: false
 

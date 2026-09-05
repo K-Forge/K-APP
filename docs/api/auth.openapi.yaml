@@ -371,7 +371,12 @@ paths:
           in: query
           required: false
           schema: { type: boolean }
-          description: Filter by whether the code can still be redeemed.
+          description: >-
+            Filter by whether the code can still be redeemed **right now**, which is
+            narrower than its `active` flag: `true` returns codes that are active, not
+            expired and not spent, and `false` returns every code failing any one of
+            those. Omit it to list all codes. A code with `active: true` that has used
+            all of `maxUses` is therefore returned by `active=false`.
       responses:
         '200':
           description: The codes

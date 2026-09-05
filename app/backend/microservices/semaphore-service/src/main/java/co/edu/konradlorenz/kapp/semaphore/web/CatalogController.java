@@ -5,6 +5,7 @@ import co.edu.konradlorenz.kapp.semaphore.security.CatalogRead;
 import co.edu.konradlorenz.kapp.semaphore.service.CatalogService;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumCourseDto;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.ProgramRequest;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.ProgramResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,8 +13,10 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
@@ -58,6 +62,31 @@ public class CatalogController {
         return catalog.getProgram(programCode);
     }
 
+    @PostMapping("/programs")
+    @AdminOnly
+    @Operation(summary = "Create an academic program")
+    public ResponseEntity<ProgramResponse> createProgram(@Valid @RequestBody ProgramRequest body) {
+        ProgramResponse created = catalog.createProgram(body);
+        return ResponseEntity.created(URI.create("/api/catalog/programs/" + created.code()))
+                .body(created);
+    }
+
+    @PutMapping("/programs/{programCode}")
+    @AdminOnly
+    @Operation(summary = "Replace an academic program")
+    public ProgramResponse replaceProgram(@PathVariable String programCode,
+                                           @Valid @RequestBody ProgramRequest body) {
+        return catalog.replaceProgram(programCode, body);
+    }
+
+    @DeleteMapping("/programs/{programCode}")
+    @AdminOnly
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Delete an academic program")
+    public void deleteProgram(@PathVariable String programCode) {
+        catalog.deleteProgram(programCode);
+    }
+
     @GetMapping("/curricula/{pensumCode}")
     @CatalogRead
     @Operation(summary = "Get a full curriculum")
@@ -80,6 +109,14 @@ public class CatalogController {
         CurriculumDto created = catalog.createCurriculum(body);
         return ResponseEntity.created(URI.create("/api/catalog/curricula/" + created.pensumCode()))
                 .body(created);
+    }
+
+    @DeleteMapping("/curricula/{pensumCode}")
+    @AdminOnly
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Delete a curriculum")
+    public void deleteCurriculum(@PathVariable String pensumCode) {
+        catalog.deleteCurriculum(pensumCode);
     }
 
     @GetMapping("/curricula/{pensumCode}/courses")

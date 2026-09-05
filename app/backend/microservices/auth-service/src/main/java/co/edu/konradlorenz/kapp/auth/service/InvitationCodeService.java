@@ -2,10 +2,14 @@ package co.edu.konradlorenz.kapp.auth.service;
 
 import co.edu.konradlorenz.kapp.auth.domain.InvitationCode;
 import co.edu.konradlorenz.kapp.common.error.ApiError;
+import co.edu.konradlorenz.kapp.auth.web.InvitationCodeRequest;
 import co.edu.konradlorenz.kapp.common.error.BusinessRuleException;
+import co.edu.konradlorenz.kapp.common.error.DuplicateResourceException;
+import co.edu.konradlorenz.kapp.common.error.ResourceNotFoundException;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.BasicQuery;
@@ -16,6 +20,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Claims and returns uses of an invitation code.
@@ -101,6 +106,125 @@ public class InvitationCodeService {
             log.warn("Could not release invitation code {}: unknown or already at zero", code);
         } else {
             log.info("Released invitation code {}, {} uses left", code, released.remainingUses());
+        }
+    }
+
+    /**
+     * The roles a code may grant.
+     *
+     * <p>{@code ROLE_ADMIN} is absent and must stay absent. Codes are handed out on paper
+     * and at a counter, and two of them ship in this repository; a code that granted admin
+     * would mean anyone who can read the repo can escalate. Administrators are promoted
+     * deliberately, by someone who already is one.
+     */
+    private static final Set<String> GRANTABLE_ROLES = Set.of("ROLE_STUDENT", "ROLE_PROFESSOR");
+
+    /**
+     * @param redeemable when true, only codes that could be redeemed right now: active,
+     *                   unexpired and with uses left. When false, only the codes that
+     *                   could not. Null returns every code.
+     */
+    public List<InvitationCode> list(Boolean redeemable) {
+        List<InvitationCode> all = mongo.find(
+                new BasicQuery(new Document()).with(Sort.by(Sort.Direction.ASC, "code")),
+                InvitationCode.class, InvitationCode.COLLECTION);
+        if (redeemable == null) {
+            return all;
+        }
+        Instant now = Instant.now();
+        return all.stream().filter(c -> isRedeemable(c, now) == redeemable).toList();
+    }
+
+    /**
+     * Redeemability as {@link #redeem} defines it, evaluated in Java for the listing only.
+     *
+     * <p>The filter is not pushed into the query on purpose: the authoritative rule lives
+     * in {@code redeem}'s {@code $expr} guard, and expressing it a second time as Mongo
+     * criteria would give two definitions of "usable" that can drift apart. There are tens
+     * of codes, not millions.
+     */
+    private static boolean isRedeemable(InvitationCode c, Instant now) {
+        return c.active()
+                && (c.expiresAt() == null || c.expiresAt().isAfter(now))
+                && c.timesUsed() < c.maxUses();
+    }
+
+    /**
+     * @throws BusinessRuleException      (400) if the role is not one a code may grant
+     * @throws DuplicateResourceException (409) if the code already exists. Reusing a value
+     *                                    would make "which one did I just decrement"
+     *                                    unanswerable, which is what the unique index on
+     *                                    {@code code} exists to prevent
+     */
+    public InvitationCode create(InvitationCodeRequest request) {
+        String code = normalise(request.code());
+        if (!GRANTABLE_ROLES.contains(request.role())) {
+            throw new BusinessRuleException(
+                    "An invitation code may only grant ROLE_STUDENT or ROLE_PROFESSOR",
+                    List.of(new ApiError.FieldIssue("role",
+                            "must be one of ROLE_STUDENT, ROLE_PROFESSOR")));
+        }
+        if (find(code) != null) {
+            throw new DuplicateResourceException("Invitation code", code);
+        }
+
+        Instant now = Instant.now();
+        InvitationCode created = new InvitationCode(
+                null, code, request.role(), request.maxUses(), 0, true,
+                request.expiresAt(), request.notes(), now, now);
+
+        InvitationCode saved = mongo.insert(created, InvitationCode.COLLECTION);
+        log.info("Invitation code {} created for {} with {} uses", code, saved.role(), saved.maxUses());
+        return saved;
+    }
+
+    /**
+     * Flips the off switch. Deactivating is the reversible way to stop a code being
+     * redeemed and it keeps the record of who used it, which is why it exists alongside
+     * deletion.
+     *
+     * <p>A targeted {@code $set} rather than saving the whole document: a full save would
+     * write {@code timesUsed} back from a value read earlier and could undo a redemption
+     * that landed in between.
+     *
+     * @throws ResourceNotFoundException (404) if no such code exists
+     */
+    public InvitationCode setActive(String rawCode, boolean active) {
+        String code = normalise(rawCode);
+        Update update = new Update().set("active", active).set("updatedAt", Date.from(Instant.now()));
+
+        InvitationCode updated = mongo.findAndModify(
+                new BasicQuery(new Document("code", code)), update,
+                FindAndModifyOptions.options().returnNew(true),
+                InvitationCode.class, InvitationCode.COLLECTION);
+
+        if (updated == null) {
+            throw new ResourceNotFoundException("Invitation code", code);
+        }
+        log.info("Invitation code {} set active={}", code, active);
+        return updated;
+    }
+
+    /**
+     * @throws ResourceNotFoundException (404) if no such code exists
+     */
+    public void delete(String rawCode) {
+        String code = normalise(rawCode);
+        InvitationCode existing = find(code);
+        if (existing == null) {
+            throw new ResourceNotFoundException("Invitation code", code);
+        }
+        mongo.remove(new BasicQuery(new Document("code", code)),
+                InvitationCode.class, InvitationCode.COLLECTION);
+
+        // Deleting a code that has already been redeemed discards the only record of how
+        // those accounts came to exist. Deactivating keeps it; the contract says to prefer
+        // that, and this line is what makes the choice visible when someone did not.
+        if (existing.timesUsed() > 0) {
+            log.warn("Invitation code {} deleted after {} redemption(s); that record is now gone",
+                    code, existing.timesUsed());
+        } else {
+            log.info("Invitation code {} deleted, never redeemed", code);
         }
     }
 

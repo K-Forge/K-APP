@@ -78,7 +78,8 @@ Written. Two things worth knowing:
      reachable from outside.
 
   2. To point at Atlas instead, replace the five MONGO_*_URI values with the cluster's
-     strings (mongodb+srv://..., no replicaSet parameter — the SRV record carries it)
-     and run `docker compose --profile cloud up -d`, which starts no local database.
+     strings — mongodb+srv://..., with neither replicaSet nor authSource — and run
+     `docker compose --profile cloud up -d`, which starts no local database.
+     Step by step: docs/ATLAS-SETUP.md
 
 EOF

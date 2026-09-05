@@ -272,15 +272,27 @@ docker compose --profile cloud --profile dev up -d
 ```
 
 It reads the same five `MONGO_*_URI` variables from `.env`; replace their values with the cluster's
-strings. Atlas SRV records carry the replica set name, so drop the `replicaSet` parameter:
+strings:
 
 ```
-MONGO_MAP_URI=mongodb+srv://kapp_map_user:<password>@<cluster>.mongodb.net/kapp_map?authSource=kapp_map
+MONGO_MAP_URI=mongodb+srv://kapp_map_user:<password>@<cluster>.mongodb.net/kapp_map?retryWrites=true&w=majority
 ```
 
-Create the five accounts in Atlas with the same one-database-each rule — Atlas calls it a custom
-role with `readWrite` scoped to a single database. `scripts/verify-db-isolation.sh` assumes the
-local container, so check Atlas isolation from the Atlas UI instead.
+Two parameters that belong in the local URI must **not** appear in the Atlas one:
+
+- **`replicaSet`** — the SRV record already carries it.
+- **`authSource`** — Atlas stores every database user in `admin` regardless of which database it
+  can reach, so pinning the authSource to the service's own database makes authentication fail with
+  a message that reads exactly like a wrong password. The isolation still holds; it comes from the
+  privilege, not from where the user is stored.
+
+Create the five accounts in Atlas with the same one-database-each rule: *Specific Privileges* →
+`readWrite` on that one database, never the "read and write to any database" built-in role.
+`scripts/verify-db-isolation.sh` assumes the local container, so check Atlas isolation from the
+Atlas UI instead.
+
+**Full walkthrough: [ATLAS-SETUP.md](ATLAS-SETUP.md)** — creating the cluster, the five users, the
+network rules and the connection strings, step by step.
 
 **The tests do not use Atlas.** They start their own MongoDB through Testcontainers, deliberately:
 pointing them at a shared cluster would make them slow and flaky, and one person's run would wipe

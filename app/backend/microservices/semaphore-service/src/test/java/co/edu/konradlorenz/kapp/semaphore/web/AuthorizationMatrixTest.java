@@ -236,6 +236,182 @@ class AuthorizationMatrixTest {
     }
 
     // ==================================================================================
+    // POST /api/catalog/programs - ADMIN only
+    // ==================================================================================
+
+    @Test
+    @DisplayName("createProgram: anonymous is refused with 401")
+    void createProgram_anonymous_401() throws Exception {
+        mockMvc.perform(post("/api/catalog/programs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validProgramJson("MX-P-ANON")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("createProgram: GUEST is refused with 403")
+    void createProgram_guest_403() throws Exception {
+        mockMvc.perform(post("/api/catalog/programs").with(guest())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validProgramJson("MX-P-GUEST")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("createProgram: STUDENT is refused with 403")
+    void createProgram_student_403() throws Exception {
+        mockMvc.perform(post("/api/catalog/programs").with(student("s9"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validProgramJson("MX-P-STUDENT")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("createProgram: PROFESSOR is refused with 403")
+    void createProgram_professor_403() throws Exception {
+        mockMvc.perform(post("/api/catalog/programs").with(professor("p9"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validProgramJson("MX-P-PROFESSOR")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("createProgram: ADMIN is allowed")
+    void createProgram_admin_201() throws Exception {
+        mockMvc.perform(post("/api/catalog/programs").with(admin("a9"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validProgramJson("MX-P-ADMIN")))
+                .andExpect(status().isCreated());
+    }
+
+    // ==================================================================================
+    // PUT /api/catalog/programs/{programCode} - ADMIN only
+    // ==================================================================================
+
+    @Test
+    @DisplayName("replaceProgram: anonymous is refused with 401")
+    void replaceProgram_anonymous_401() throws Exception {
+        mockMvc.perform(put("/api/catalog/programs/{code}", "MX-PR-ANON")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validProgramJson("MX-PR-ANON")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("replaceProgram: GUEST is refused with 403")
+    void replaceProgram_guest_403() throws Exception {
+        mockMvc.perform(put("/api/catalog/programs/{code}", "MX-PR-GUEST").with(guest())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validProgramJson("MX-PR-GUEST")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("replaceProgram: STUDENT is refused with 403")
+    void replaceProgram_student_403() throws Exception {
+        mockMvc.perform(put("/api/catalog/programs/{code}", "MX-PR-STUDENT").with(student("s10"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validProgramJson("MX-PR-STUDENT")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("replaceProgram: PROFESSOR is refused with 403")
+    void replaceProgram_professor_403() throws Exception {
+        mockMvc.perform(put("/api/catalog/programs/{code}", "MX-PR-PROF").with(professor("p10"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validProgramJson("MX-PR-PROF")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("replaceProgram: ADMIN is allowed (404 for an unknown code proves the gate passed)")
+    void replaceProgram_admin_404() throws Exception {
+        mockMvc.perform(put("/api/catalog/programs/{code}", "MX-PR-ADMIN").with(admin("a10"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validProgramJson("MX-PR-ADMIN")))
+                .andExpect(status().isNotFound());
+    }
+
+    // ==================================================================================
+    // DELETE /api/catalog/programs/{programCode} - ADMIN only
+    // ==================================================================================
+
+    @Test
+    @DisplayName("deleteProgram: anonymous is refused with 401")
+    void deleteProgram_anonymous_401() throws Exception {
+        mockMvc.perform(delete("/api/catalog/programs/{code}", "MX-PD-ANON"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("deleteProgram: GUEST is refused with 403")
+    void deleteProgram_guest_403() throws Exception {
+        mockMvc.perform(delete("/api/catalog/programs/{code}", "MX-PD-GUEST").with(guest()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("deleteProgram: STUDENT is refused with 403")
+    void deleteProgram_student_403() throws Exception {
+        mockMvc.perform(delete("/api/catalog/programs/{code}", "MX-PD-STUDENT").with(student("s11")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("deleteProgram: PROFESSOR is refused with 403")
+    void deleteProgram_professor_403() throws Exception {
+        mockMvc.perform(delete("/api/catalog/programs/{code}", "MX-PD-PROF").with(professor("p11")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("deleteProgram: ADMIN is allowed (404 for an unknown code proves the gate passed)")
+    void deleteProgram_admin_404() throws Exception {
+        mockMvc.perform(delete("/api/catalog/programs/{code}", "MX-PD-ADMIN").with(admin("a11")))
+                .andExpect(status().isNotFound());
+    }
+
+    // ==================================================================================
+    // DELETE /api/catalog/curricula/{pensumCode} - ADMIN only
+    // ==================================================================================
+
+    @Test
+    @DisplayName("deleteCurriculum: anonymous is refused with 401")
+    void deleteCurriculum_anonymous_401() throws Exception {
+        mockMvc.perform(delete("/api/catalog/curricula/{code}", "MX-CD-ANON"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("deleteCurriculum: GUEST is refused with 403")
+    void deleteCurriculum_guest_403() throws Exception {
+        mockMvc.perform(delete("/api/catalog/curricula/{code}", "MX-CD-GUEST").with(guest()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("deleteCurriculum: STUDENT is refused with 403")
+    void deleteCurriculum_student_403() throws Exception {
+        mockMvc.perform(delete("/api/catalog/curricula/{code}", "MX-CD-STUDENT").with(student("s12")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("deleteCurriculum: PROFESSOR is refused with 403")
+    void deleteCurriculum_professor_403() throws Exception {
+        mockMvc.perform(delete("/api/catalog/curricula/{code}", "MX-CD-PROF").with(professor("p12")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("deleteCurriculum: ADMIN is allowed (404 for an unknown code proves the gate passed)")
+    void deleteCurriculum_admin_404() throws Exception {
+        mockMvc.perform(delete("/api/catalog/curricula/{code}", "MX-CD-ADMIN").with(admin("a12")))
+                .andExpect(status().isNotFound());
+    }
+
+    // ==================================================================================
     // POST /api/catalog/curricula - ADMIN only
     // ==================================================================================
 
@@ -642,6 +818,17 @@ class AuthorizationMatrixTest {
         // "already accounted for elsewhere on the semaforo".
         return """
                 {"resolvedCode":"EXTERNAL-101","resolvedName":"Elective From Another Program"}""";
+    }
+
+    /**
+     * A body that passes {@code @Valid} even in the cases expected to be refused. Argument
+     * binding runs before the {@code @PreAuthorize} advice, so an invalid body would return
+     * 400 regardless of the caller's role and mask the authorization outcome.
+     */
+    private String validProgramJson(String code) throws Exception {
+        return mapper.writeValueAsString(new co.edu.konradlorenz.kapp.semaphore.web.dto.ProgramRequest(
+                code, "Matrix Program", "Matrix Faculty",
+                co.edu.konradlorenz.kapp.semaphore.domain.ProgramLevel.PREGRADO));
     }
 
     private String validCurriculumJson(String pensumCode) throws Exception {

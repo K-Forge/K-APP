@@ -10,4 +10,10 @@ public interface StudentProgressRepository extends MongoRepository<StudentProgre
     Optional<StudentProgress> findByUserId(String userId);
 
     Optional<StudentProgress> findByUserIdAndPensumCode(String userId, String pensumCode);
+
+    /**
+     * How many students are pinned to a pensum. Used to refuse deleting a curriculum
+     * that is still in use, rather than leaving their progress pointing at nothing.
+     */
+    long countByPensumCode(String pensumCode);
 }

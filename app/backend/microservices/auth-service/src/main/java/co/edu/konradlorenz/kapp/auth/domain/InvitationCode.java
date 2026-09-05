@@ -21,6 +21,8 @@ import java.time.Instant;
  * @param timesUsed how many it has created so far
  * @param active    an off switch the registrar can flip without deleting history
  * @param expiresAt when the code stops working; null means it never expires on its own
+ * @param notes     free text for whoever minted it - which intake, which cohort. Null on
+ *                  the two seeded codes, which predate the field
  */
 @Document(collection = "invitation_codes")
 public record InvitationCode(
@@ -31,6 +33,7 @@ public record InvitationCode(
         int timesUsed,
         boolean active,
         Instant expiresAt,
+        String notes,
         Instant createdAt,
         Instant updatedAt
 ) {
