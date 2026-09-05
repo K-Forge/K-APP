@@ -10,25 +10,32 @@ info:
     ## What this service is (and is not)
 
     This map is deliberately **not** geospatial. There is no basemap, no GPS, no external map
-    provider and no latitude/longitude anywhere in this contract. The map is a set of **static
-    floor plan images** plus a **space search**: the student searches for a room, and the app
-    shows the right floor plan with a pin on it.
-
-    Floor plan images are served as **static files by the reverse proxy, not by this service**.
-    `planImageUrl` is only a path (for example `/api/map/plans/bloque-a-p7.webp`); fetching it
-    does not go through this API and does not require a token.
+    provider and no latitude/longitude anywhere in this contract. It is also **no longer a set
+    of floor plan images**: a floor is described as data and drawn by the client.
 
     ## Coordinate model
 
-    Every space carries `x` and `y` as a **percentage (0-100, float) of the floor plan image's
-    dimensions**, never as pixels, so the pin lands on the same spot at any screen size. Each
-    floor also carries the plan image's intrinsic `imageWidth` and `imageHeight` in pixels, so a
-    client can reserve the correct aspect ratio before the image finishes loading.
+    A floor is a **grid**. It declares `gridRows` and `gridColumns`; every space occupies a
+    rectangle of cells given by `gridRow`, `gridColumn`, `rowSpan` and `colSpan`, zero-based with
+    row 0 at the top of the floor as drawn. Corridors are polylines through the same grid,
+    carrying the colour the wing is actually painted.
 
-    ## Room codes
+    This replaced a model where each floor carried a plan image and each space was pinned at a
+    percentage of it. The reason is not rendering: obtaining architectural plans for five
+    buildings depended on other people's calendars, and a schematic floor is captured by walking
+    it with the grid editor at `/admin/grid-editor.html`.
+
+    ## Room codes and wings
 
     Room codes such as `708`, `302` or `612` are the real codes printed on Konrad doors, and the
-    first digit is the floor number. They are the **same codes the KApp schedule service stores
+    first digit is the floor number — **except in the basement**, which is level `-1` and whose
+    rooms are coded however the building codes them.
+
+    The central building's rooms come in threes: `301`, `301-N` and `301-S` are three different
+    rooms on the same floor. The wing is a **field**, not a suffix a client should parse:
+    `wing` carries it, `baseCode` carries the code without it, and `GET /api/map/spaces/search`
+    takes a `wing` filter. A student who types what they were told, without the wing, matches all
+    three through `baseCode`. They are the **same codes the KApp schedule service stores
     for a class**, which is what makes `GET /api/map/spaces/{code}` the endpoint the schedule
     screen calls when a student taps a class. `code` is the stable business key across this API:
     every path parameter addresses a resource by code, never by `id`.
@@ -118,39 +125,32 @@ paths:
                   floors:
                     - level: 1
                       name: Piso 1
-                      planImageUrl: /api/map/plans/bloque-a-p1.webp
-                      imageWidth: 2048
-                      imageHeight: 1536
+                      gridRows: 11
+                      gridColumns: 16
                     - level: 2
                       name: Piso 2
-                      planImageUrl: /api/map/plans/bloque-a-p2.webp
-                      imageWidth: 2048
-                      imageHeight: 1536
+                      gridRows: 11
+                      gridColumns: 16
                     - level: 3
                       name: Piso 3
-                      planImageUrl: /api/map/plans/bloque-a-p3.webp
-                      imageWidth: 2048
-                      imageHeight: 1536
+                      gridRows: 11
+                      gridColumns: 16
                     - level: 4
                       name: Piso 4
-                      planImageUrl: /api/map/plans/bloque-a-p4.webp
-                      imageWidth: 2048
-                      imageHeight: 1536
+                      gridRows: 11
+                      gridColumns: 16
                     - level: 5
                       name: Piso 5
-                      planImageUrl: /api/map/plans/bloque-a-p5.webp
-                      imageWidth: 2048
-                      imageHeight: 1536
+                      gridRows: 11
+                      gridColumns: 16
                     - level: 6
                       name: Piso 6
-                      planImageUrl: /api/map/plans/bloque-a-p6.webp
-                      imageWidth: 2048
-                      imageHeight: 1536
+                      gridRows: 11
+                      gridColumns: 16
                     - level: 7
                       name: Piso 7
-                      planImageUrl: /api/map/plans/bloque-a-p7.webp
-                      imageWidth: 2048
-                      imageHeight: 1536
+                      gridRows: 11
+                      gridColumns: 16
                 - id: 7c4b0a18-5e93-4a6f-8b21-9d0c5e7f1a34
                   code: B
                   name: Bloque B
@@ -159,19 +159,16 @@ paths:
                   floors:
                     - level: 1
                       name: Piso 1
-                      planImageUrl: /api/map/plans/bloque-b-p1.webp
-                      imageWidth: 1920
-                      imageHeight: 1440
+                      gridRows: 11
+                      gridColumns: 16
                     - level: 2
                       name: Piso 2
-                      planImageUrl: /api/map/plans/bloque-b-p2.webp
-                      imageWidth: 1920
-                      imageHeight: 1440
+                      gridRows: 11
+                      gridColumns: 16
                     - level: 3
                       name: Piso 3
-                      planImageUrl: /api/map/plans/bloque-b-p3.webp
-                      imageWidth: 1920
-                      imageHeight: 1440
+                      gridRows: 11
+                      gridColumns: 16
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -203,14 +200,12 @@ paths:
               floors:
                 - level: 1
                   name: Piso 1
-                  planImageUrl: /api/map/plans/bloque-c-p1.webp
-                  imageWidth: 1600
-                  imageHeight: 1200
+                  gridRows: 11
+                  gridColumns: 16
                 - level: 2
                   name: Piso 2
-                  planImageUrl: /api/map/plans/bloque-c-p2.webp
-                  imageWidth: 1600
-                  imageHeight: 1200
+                  gridRows: 11
+                  gridColumns: 16
       responses:
         '201':
           description: The building was created.
@@ -233,14 +228,12 @@ paths:
                 floors:
                   - level: 1
                     name: Piso 1
-                    planImageUrl: /api/map/plans/bloque-c-p1.webp
-                    imageWidth: 1600
-                    imageHeight: 1200
+                    gridRows: 11
+                    gridColumns: 16
                   - level: 2
                     name: Piso 2
-                    planImageUrl: /api/map/plans/bloque-c-p2.webp
-                    imageWidth: 1600
-                    imageHeight: 1200
+                    gridRows: 11
+                    gridColumns: 16
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -281,39 +274,32 @@ paths:
                 floors:
                   - level: 1
                     name: Piso 1
-                    planImageUrl: /api/map/plans/bloque-a-p1.webp
-                    imageWidth: 2048
-                    imageHeight: 1536
+                    gridRows: 11
+                    gridColumns: 16
                   - level: 2
                     name: Piso 2
-                    planImageUrl: /api/map/plans/bloque-a-p2.webp
-                    imageWidth: 2048
-                    imageHeight: 1536
+                    gridRows: 11
+                    gridColumns: 16
                   - level: 3
                     name: Piso 3
-                    planImageUrl: /api/map/plans/bloque-a-p3.webp
-                    imageWidth: 2048
-                    imageHeight: 1536
+                    gridRows: 11
+                    gridColumns: 16
                   - level: 4
                     name: Piso 4
-                    planImageUrl: /api/map/plans/bloque-a-p4.webp
-                    imageWidth: 2048
-                    imageHeight: 1536
+                    gridRows: 11
+                    gridColumns: 16
                   - level: 5
                     name: Piso 5
-                    planImageUrl: /api/map/plans/bloque-a-p5.webp
-                    imageWidth: 2048
-                    imageHeight: 1536
+                    gridRows: 11
+                    gridColumns: 16
                   - level: 6
                     name: Piso 6
-                    planImageUrl: /api/map/plans/bloque-a-p6.webp
-                    imageWidth: 2048
-                    imageHeight: 1536
+                    gridRows: 11
+                    gridColumns: 16
                   - level: 7
                     name: Piso 7
-                    planImageUrl: /api/map/plans/bloque-a-p7.webp
-                    imageWidth: 2048
-                    imageHeight: 1536
+                    gridRows: 11
+                    gridColumns: 16
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -345,19 +331,16 @@ paths:
               floors:
                 - level: 1
                   name: Piso 1
-                  planImageUrl: /api/map/plans/bloque-b-p1.webp
-                  imageWidth: 1920
-                  imageHeight: 1440
+                  gridRows: 11
+                  gridColumns: 16
                 - level: 2
                   name: Piso 2
-                  planImageUrl: /api/map/plans/bloque-b-p2.webp
-                  imageWidth: 1920
-                  imageHeight: 1440
+                  gridRows: 11
+                  gridColumns: 16
                 - level: 3
                   name: Piso 3
-                  planImageUrl: /api/map/plans/bloque-b-p3.webp
-                  imageWidth: 1920
-                  imageHeight: 1440
+                  gridRows: 11
+                  gridColumns: 16
       responses:
         '200':
           description: The updated building.
@@ -374,19 +357,16 @@ paths:
                 floors:
                   - level: 1
                     name: Piso 1
-                    planImageUrl: /api/map/plans/bloque-b-p1.webp
-                    imageWidth: 1920
-                    imageHeight: 1440
+                    gridRows: 11
+                    gridColumns: 16
                   - level: 2
                     name: Piso 2
-                    planImageUrl: /api/map/plans/bloque-b-p2.webp
-                    imageWidth: 1920
-                    imageHeight: 1440
+                    gridRows: 11
+                    gridColumns: 16
                   - level: 3
                     name: Piso 3
-                    planImageUrl: /api/map/plans/bloque-b-p3.webp
-                    imageWidth: 1920
-                    imageHeight: 1440
+                    gridRows: 11
+                    gridColumns: 16
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -430,9 +410,9 @@ paths:
       operationId: getFloor
       summary: Get a floor and every space on it
       description: |
-        Returns one floor of a building together with every space located on it. This is the call
-        that renders a floor plan screen: the client draws `planImageUrl` and then places one pin
-        per space using its `x`/`y` percentages.
+        Returns one floor of a building together with every space located on it, in one call.
+        This is what renders a floor screen: the client draws a `gridRows` x `gridColumns` grid,
+        traces the corridors through it, and fills the cells each space occupies.
 
         Responds `404` when the building does not exist or when it has no floor at that level.
 
@@ -449,9 +429,8 @@ paths:
               example:
                 level: 7
                 name: Piso 7
-                planImageUrl: /api/map/plans/bloque-a-p7.webp
-                imageWidth: 2048
-                imageHeight: 1536
+                gridRows: 11
+                gridColumns: 16
                 buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
                 buildingCode: A
                 buildingName: Bloque A
@@ -459,6 +438,7 @@ paths:
                 spaces:
                   - id: 5a2c7e10-9b3d-4f68-8c41-2e7a0d6b9f53
                     code: '708'
+                    baseCode: '708'
                     name: Aula 708
                     type: CLASSROOM
                     buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
@@ -468,11 +448,14 @@ paths:
                     aliases:
                       - sala 708
                       - salon 708
-                    x: 42.5
-                    y: 63.1
+                    gridRow: 4
+                    gridColumn: 6
+                    rowSpan: 1
+                    colSpan: 2
                     capacity: 30
                   - id: 91d0b6a4-3f27-4c8e-b510-7a6d2e4c8b09
                     code: '709'
+                    baseCode: '709'
                     name: Aula 709
                     type: CLASSROOM
                     buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
@@ -482,11 +465,14 @@ paths:
                     aliases:
                       - sala 709
                       - salon 709
-                    x: 52.8
-                    y: 63.1
+                    gridRow: 6
+                    gridColumn: 9
+                    rowSpan: 1
+                    colSpan: 2
                     capacity: 30
                   - id: c47e8b12-6d05-4a93-9f2c-1b8e5a7d3046
                     code: '710'
+                    baseCode: '710'
                     name: Aula 710
                     type: CLASSROOM
                     buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
@@ -496,11 +482,14 @@ paths:
                     aliases:
                       - sala 710
                       - salon 710
-                    x: 63.0
-                    y: 63.1
+                    gridRow: 8
+                    gridColumn: 12
+                    rowSpan: 1
+                    colSpan: 2
                     capacity: 28
                   - id: 2b6f9c31-8e14-4d07-a92b-5c3f0e8a7d61
                     code: '711'
+                    baseCode: '711'
                     name: Aula 711
                     type: CLASSROOM
                     buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
@@ -510,8 +499,10 @@ paths:
                     aliases:
                       - sala 711
                       - salon 711
-                    x: 73.4
-                    y: 63.1
+                    gridRow: 2
+                    gridColumn: 3
+                    rowSpan: 1
+                    colSpan: 2
                     capacity: 28
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -572,6 +563,16 @@ paths:
             minLength: 1
             maxLength: 10
           example: A
+        - name: wing
+          in: query
+          required: false
+          description: |
+            Restrict results to one arm of the floor. This is how a client separates `301`,
+            `301-N` and `301-S`, which are three different rooms sharing one `baseCode`.
+          schema:
+            type: string
+            enum: [NORTE, SUR, CENTRAL]
+          example: NORTE
         - $ref: '#/components/parameters/PageQuery'
         - $ref: '#/components/parameters/SizeQuery'
       responses:
@@ -591,6 +592,7 @@ paths:
                     content:
                       - id: e83a1f57-4b29-4c60-9d8e-3a5f7c2b6014
                         code: '302'
+                        baseCode: '302'
                         name: Laboratorio de Sistemas
                         type: LAB
                         buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
@@ -601,11 +603,14 @@ paths:
                           - sala de sistemas
                           - lab 302
                           - laboratorio 302
-                        x: 27.4
-                        y: 55.8
+                        gridRow: 4
+                        gridColumn: 6
+                        rowSpan: 1
+                        colSpan: 2
                         capacity: 25
                       - id: 4d9c2e60-7a83-4f15-b6c9-0e2d8b4a7f31
                         code: '612'
+                        baseCode: '612'
                         name: Aula 612
                         type: CLASSROOM
                         buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
@@ -615,11 +620,14 @@ paths:
                         aliases:
                           - sala 612
                           - salon 612
-                        x: 68.2
-                        y: 31.9
+                        gridRow: 6
+                        gridColumn: 9
+                        rowSpan: 1
+                        colSpan: 2
                         capacity: 35
                       - id: 5a2c7e10-9b3d-4f68-8c41-2e7a0d6b9f53
                         code: '708'
+                        baseCode: '708'
                         name: Aula 708
                         type: CLASSROOM
                         buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
@@ -629,8 +637,10 @@ paths:
                         aliases:
                           - sala 708
                           - salon 708
-                        x: 42.5
-                        y: 63.1
+                        gridRow: 8
+                        gridColumn: 12
+                        rowSpan: 1
+                        colSpan: 2
                         capacity: 30
                     page: 0
                     size: 20
@@ -648,6 +658,7 @@ paths:
                     content:
                       - id: e83a1f57-4b29-4c60-9d8e-3a5f7c2b6014
                         code: '302'
+                        baseCode: '302'
                         name: Laboratorio de Sistemas
                         type: LAB
                         buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
@@ -658,8 +669,10 @@ paths:
                           - sala de sistemas
                           - lab 302
                           - laboratorio 302
-                        x: 27.4
-                        y: 55.8
+                        gridRow: 2
+                        gridColumn: 3
+                        rowSpan: 1
+                        colSpan: 2
                         capacity: 25
                     page: 0
                     size: 20
@@ -716,8 +729,10 @@ paths:
                 - sala de sistemas
                 - lab 302
                 - laboratorio 302
-              x: 27.4
-              y: 55.8
+              gridRow: 4
+              gridColumn: 6
+              rowSpan: 1
+              colSpan: 2
               capacity: 25
       responses:
         '201':
@@ -735,6 +750,7 @@ paths:
               example:
                 id: e83a1f57-4b29-4c60-9d8e-3a5f7c2b6014
                 code: '302'
+                baseCode: '302'
                 name: Laboratorio de Sistemas
                 type: LAB
                 buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
@@ -745,8 +761,10 @@ paths:
                   - sala de sistemas
                   - lab 302
                   - laboratorio 302
-                x: 27.4
-                y: 55.8
+                gridRow: 6
+                gridColumn: 9
+                rowSpan: 1
+                colSpan: 2
                 capacity: 25
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -774,8 +792,8 @@ paths:
 
         **This is the endpoint the schedule screen calls when a student taps a class.** The KApp
         schedule service stores the same room code (`708`, `302`, `612`), so the client can hand
-        that code over unchanged and receive everything it needs to render the plan: the floor's
-        `planImageUrl` and pixel dimensions, and the space's `x`/`y` percentages for the pin.
+        that code over unchanged and receive everything it needs to draw the floor: its grid
+        dimensions and corridors, and the cells the space occupies.
 
         Space codes are unique within a building. If the code exists in more than one building,
         pass `buildingCode`; without it, an ambiguous code is answered with `409`.
@@ -793,6 +811,7 @@ paths:
               example:
                 id: 5a2c7e10-9b3d-4f68-8c41-2e7a0d6b9f53
                 code: '708'
+                baseCode: '708'
                 name: Aula 708
                 type: CLASSROOM
                 buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
@@ -802,15 +821,16 @@ paths:
                 aliases:
                   - sala 708
                   - salon 708
-                x: 42.5
-                y: 63.1
+                gridRow: 8
+                gridColumn: 12
+                rowSpan: 1
+                colSpan: 2
                 capacity: 30
                 floor:
                   level: 7
                   name: Piso 7
-                  planImageUrl: /api/map/plans/bloque-a-p7.webp
-                  imageWidth: 2048
-                  imageHeight: 1536
+                  gridRows: 11
+                  gridColumns: 16
                 building:
                   id: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
                   code: A
@@ -856,8 +876,10 @@ paths:
               aliases:
                 - sala 710
                 - salon 710
-              x: 63.0
-              y: 63.1
+              gridRow: 2
+              gridColumn: 3
+              rowSpan: 1
+              colSpan: 2
               capacity: 32
       responses:
         '200':
@@ -869,6 +891,7 @@ paths:
               example:
                 id: c47e8b12-6d05-4a93-9f2c-1b8e5a7d3046
                 code: '710'
+                baseCode: '710'
                 name: Aula 710
                 type: CLASSROOM
                 buildingId: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
@@ -878,8 +901,10 @@ paths:
                 aliases:
                   - sala 710
                   - salon 710
-                x: 63.0
-                y: 63.1
+                gridRow: 4
+                gridColumn: 6
+                rowSpan: 1
+                colSpan: 2
                 capacity: 32
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -973,32 +998,79 @@ components:
     SpaceType:
       type: string
       description: |
-        The kind of space. Clients use this to pick the pin icon and to offer the `type` filter in
-        search. `WELLBEING` covers Bienestar Universitario services (counselling, sports, culture).
+        The kind of space. Clients use it three times: to decide how a cell is drawn on the
+        schematic floor, to pick its icon, and to offer the `type` filter in search.
+
+        `ELEVATOR`, `STAIRS` and `ENTRANCE` are what make `accessVia` answerable — "sube por el
+        ascensor central" needs the lift to be a space with a code, not a decoration.
+
+        `OFFICE` and `ADMIN_OFFICE` mean different things to somebody looking for a room:
+        `OFFICE` is a person's office, the one a student visits during consulting hours;
+        `ADMIN_OFFICE` is a service counter — Registro, Admisiones, Tesorería — where the queue
+        is the point. `WELLBEING` covers Bienestar Universitario (counselling, sports, culture).
       enum:
         - CLASSROOM
         - LAB
         - AUDITORIUM
-        - OFFICE
         - LIBRARY
         - CAFETERIA
         - RESTROOM
+        - OFFICE
+        - ADMIN_OFFICE
         - WELLBEING
+        - TERRACE
+        - ELEVATOR
+        - STAIRS
+        - CORRIDOR
+        - ENTRANCE
         - OTHER
       example: CLASSROOM
+
+    GridPoint:
+      type: object
+      description: One cell of a floor's grid. Zero-based, row 0 at the top as the floor is drawn.
+      required: [row, col]
+      properties:
+        row: { type: integer, minimum: 0, example: 5 }
+        col: { type: integer, minimum: 0, example: 3 }
+
+    Corridor:
+      type: object
+      description: |
+        A walkable route across a floor, drawn as a coloured line through the grid.
+
+        `color` is stored rather than derived so whoever captures a floor can match what is
+        painted on the actual walls — several buildings colour-code their wings, and a palette
+        invented by the client would throw that away.
+      required: [code, name, color, path]
+      properties:
+        code: { type: string, maxLength: 30, example: PAS-CENTRAL }
+        name: { type: string, maxLength: 60, example: Pasillo central }
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          example: "#F2A93B"
+        path:
+          type: array
+          minItems: 1
+          description: The cells the corridor runs through, in walking order. A polyline, not a
+            rectangle — real corridors bend.
+          items:
+            $ref: '#/components/schemas/GridPoint'
 
     Floor:
       type: object
       description: |
-        One floor of a building, and the static plan image that represents it.
-      required: [level, name, planImageUrl, imageWidth, imageHeight]
+        One floor of a building, described as a grid the client draws.
+      required: [level, name, gridRows, gridColumns]
       properties:
         level:
           type: integer
           description: |
             Floor number. Matches the first digit of the room codes on this floor, so room `708`
-            is on level 7.
-          minimum: 0
+            is on level 7 — except in the basement, which is `-1` and whose rooms are coded
+            however the building codes them.
+          minimum: -5
           maximum: 99
           example: 7
         name:
@@ -1007,26 +1079,23 @@ components:
           minLength: 1
           maxLength: 60
           example: Piso 7
-        planImageUrl:
-          type: string
-          description: |
-            Path to the floor plan image. Served as a static file by the reverse proxy, not by
-            this service. It is a path, never an absolute URL to an external map provider.
-          minLength: 1
-          maxLength: 255
-          example: /api/map/plans/bloque-a-p7.webp
-        imageWidth:
+        gridRows:
           type: integer
-          description: |
-            Intrinsic width of the plan image in pixels. Present so a client can compute the
-            aspect ratio and reserve layout space before the image finishes loading.
+          description: How many rows this floor's grid has.
           minimum: 1
-          example: 2048
-        imageHeight:
+          maximum: 60
+          example: 11
+        gridColumns:
           type: integer
-          description: Intrinsic height of the plan image in pixels.
           minimum: 1
-          example: 1536
+          maximum: 60
+          example: 16
+        corridors:
+          type: array
+          description: Walkable routes across this floor. May be empty while a floor is being
+            captured.
+          items:
+            $ref: '#/components/schemas/Corridor'
 
     Building:
       type: object
@@ -1143,7 +1212,8 @@ components:
         A locatable space: a classroom, lab, office, or any other place a student may need to
         find. Denormalised on purpose - `buildingCode`, `campus` and `floorLevel` are carried on
         the space itself so a search result can be rendered without a second call.
-      required: [id, code, name, type, buildingId, buildingCode, campus, floorLevel, aliases, x, y]
+      required: [id, code, baseCode, name, type, buildingId, buildingCode, campus,
+                 floorLevel, aliases, gridRow, gridColumn, rowSpan, colSpan]
       properties:
         id:
           type: string
@@ -1153,13 +1223,31 @@ components:
         code:
           type: string
           description: |
-            Room code as printed on the door, unique within its building. The first digit is the
-            floor number. This is the same code the KApp schedule service stores for a class,
-            which is what lets a student jump from a class in their timetable to its classroom on
-            the plan.
+            Room code as printed on the door, including its wing where the building uses them,
+            unique within its building. The first digit is the floor number, except in the
+            basement. This is the same code the KApp schedule service stores for a class, which
+            is what lets a student jump from a class in their timetable to its classroom.
           minLength: 1
           maxLength: 20
-          example: '708'
+          example: '301-N'
+        baseCode:
+          type: string
+          description: |
+            The code without its wing suffix — `301` for `301-N`. Present so a student who types
+            what they were told, without the wing, matches all three rooms. Equal to `code` when
+            the code carries no wing.
+          minLength: 1
+          maxLength: 20
+          example: '301'
+        wing:
+          type: [string, 'null']
+          description: |
+            Which arm of the floor this space is in, or null in a building with one arm. A field
+            rather than something a client parses out of the code: search filters on it, and
+            reading the last two characters would break the first time a building names its
+            wings anything else.
+          enum: [NORTE, SUR, CENTRAL, null]
+          example: NORTE
         name:
           type: string
           description: Official name of the space, as signposted.
@@ -1189,9 +1277,9 @@ components:
         floorLevel:
           type: integer
           description: Level of the floor this space sits on. Matches a `level` in the building's floors.
-          minimum: 0
+          minimum: -5
           maximum: 99
-          example: 7
+          example: 3
         aliases:
           type: array
           description: |
@@ -1206,25 +1294,40 @@ components:
           example:
             - sala 708
             - salon 708
-        x:
-          type: number
-          format: float
+        gridRow:
+          type: integer
           description: |
-            Horizontal position of the pin as a **percentage of the floor plan image's width**
-            (0 = left edge, 100 = right edge). A percentage rather than a pixel offset so the pin
-            lands on the same spot at any screen size and for any rendered image scale.
+            Top-left cell of the rectangle this space occupies, zero-based, row 0 at the top of
+            the floor as drawn.
           minimum: 0
-          maximum: 100
-          example: 42.5
-        y:
-          type: number
-          format: float
+          example: 5
+        gridColumn:
+          type: integer
+          minimum: 0
+          example: 4
+        rowSpan:
+          type: integer
+          description: How many rows the space covers. 1 for an ordinary room.
+          minimum: 1
+          maximum: 60
+          example: 1
+        colSpan:
+          type: integer
+          minimum: 1
+          maximum: 60
+          example: 2
+        accessVia:
+          type: [string, 'null']
           description: |
-            Vertical position of the pin as a **percentage of the floor plan image's height**
-            (0 = top edge, 100 = bottom edge).
-          minimum: 0
-          maximum: 100
-          example: 63.1
+            Code of the lift, staircase or entrance that serves this space — a `Space` of type
+            `ELEVATOR`, `STAIRS` or `ENTRANCE` in the same building. This is what produces
+            "piso 4, sube por el ascensor central".
+
+            Explicit rather than derived from grid distance: whoever walks the floor knows which
+            lift people actually use, and nearest-by-distance gives the wrong answer whenever a
+            wall sits between them.
+          maxLength: 20
+          example: ASC-CENTRAL
         capacity:
           type: integer
           description: Seating capacity, where it is known. Absent for spaces where it is meaningless.
@@ -1282,14 +1385,24 @@ components:
       description: |
         Payload for creating or replacing a space. `id`, `buildingId` and `campus` are derived
         server-side from `buildingCode` and are never accepted from the client.
-      required: [code, name, type, buildingCode, floorLevel, x, y]
+      required: [code, name, type, buildingCode, floorLevel, gridRow, gridColumn]
       properties:
         code:
           type: string
-          description: Room code, unique within the building identified by `buildingCode`.
+          description: |
+            Room code as printed on the door, including its wing where the building uses them.
+            Unique within the building identified by `buildingCode`.
           minLength: 1
           maxLength: 20
           example: '302'
+        wing:
+          type: [string, 'null']
+          description: |
+            Which arm of the floor this space is in. Omit it and the server derives it from a
+            `-N`, `-S` or `-C` suffix on the code; send it explicitly when the building names its
+            wings some other way. `baseCode` is always derived server-side and never accepted.
+          enum: [NORTE, SUR, CENTRAL, null]
+          example: NORTE
         name:
           type: string
           minLength: 1
@@ -1307,8 +1420,8 @@ components:
           type: integer
           description: |
             Level of the floor this space sits on. The building must already have a floor at this
-            level, otherwise the request fails with `404`.
-          minimum: 0
+            level, otherwise the request fails with `404`. `-1` is the basement.
+          minimum: -5
           maximum: 99
           example: 3
         aliases:
@@ -1325,20 +1438,41 @@ components:
             - sala de sistemas
             - lab 302
             - laboratorio 302
-        x:
-          type: number
-          format: float
-          description: Pin position as a percentage of the floor plan image's width.
+        gridRow:
+          type: integer
+          description: |
+            Top-left cell of the rectangle this space occupies, zero-based.
+
+            The rectangle must fit inside the floor's `gridRows` x `gridColumns`, otherwise the
+            request fails with `400`, and it must not overlap another space on the same floor,
+            otherwise `409`. Neither failure is visible once stored — a space outside the grid
+            simply does not render, and an overlapped one is drawn underneath — so both are
+            refused at write time.
           minimum: 0
-          maximum: 100
-          example: 27.4
-        y:
-          type: number
-          format: float
-          description: Pin position as a percentage of the floor plan image's height.
+          example: 5
+        gridColumn:
+          type: integer
           minimum: 0
-          maximum: 100
-          example: 55.8
+          example: 7
+        rowSpan:
+          type: integer
+          description: How many rows the space covers. Omit for an ordinary single-cell room.
+          minimum: 1
+          maximum: 60
+          default: 1
+          example: 2
+        colSpan:
+          type: integer
+          minimum: 1
+          maximum: 60
+          default: 1
+          example: 3
+        accessVia:
+          type: [string, 'null']
+          description: |
+            Code of the lift, staircase or entrance that serves this space.
+          maxLength: 20
+          example: ASC-CENTRAL
         capacity:
           type: integer
           description: Seating capacity, where it is known.
