@@ -23,14 +23,14 @@ production deployment.
 | **User profiles** | **Merged** | **97** | Profiles, internal upsert, accent-insensitive indexed search |
 | **Catalogue and semáforo** | **Merged** | **214** | Programs and curricula with full CRUD, student progress, personal academic plans, bulk CSV import |
 | **Timetables** | **Merged** | **140** | Enrolments, meetings, overlap detection |
-| **Campus map** | **Merged** | **36** | Buildings, spaces, guest-readable, plus an offline pin editor. **Model changes in Phase 4** |
+| **Campus map** | **Merged** | **47** | Schematic floors on a grid, wings, corridors, a basement, and an offline grid editor. No floor plan images |
 | Admin and developer portal | In progress | — | Angular, runs from a compose `dev` profile. Full CRUD is Phase 6 |
 | Visitor day pass | Not started | — | Phase 5. Replaces open guest registration |
 | Android (Kotlin) | Not started | — | The product. Unblocked by the mocks |
 | iOS (Swift) | Not started | — | The product. Unblocked by the mocks |
 | Deployment | Not started | — | Runs locally; university hardware pending |
 
-**586 integration tests**, from a repository that had none in August. Every service asserts its
+**597 integration tests**, from a repository that had none in August. Every service asserts its
 full role-by-endpoint authorization matrix with one assertion per case, including every combination
 that must be refused — those are the ones that matter.
 
@@ -41,6 +41,7 @@ that must be refused — those are the ones that matter.
 | 1 · Per-service credentials | Each service holds its own MongoDB account with `readWrite` on one database. The separation between services is now enforced by the engine rather than respected by the code — 25 of 25 checks. Four development accounts are created by `scripts/create-dev-accounts.sh`, which generates their passwords locally. **Atlas is pending Brian creating the cluster** — see `ATLAS-SETUP.md` |
 | 2 · Admin endpoints | The eight operations the contracts already promised: program create/replace/delete, curriculum delete, and invitation-code list/create/activate/delete. Deleting never cascades, and every `409` names what blocks it |
 | 3 · Plans and bulk import | Personal academic plans stored as deltas over the immutable pensum, and a CSV import for the 24 programs that validates the whole file before writing anything |
+| 4 · Schematic map | A floor is a grid the client draws, not a photograph with pins on it. Wings as a field, corridors with the colour they are painted, a basement at level −1, and `accessVia` so the app can say "sube por el ascensor central". **This removed the longest-lead item on the project** — obtaining architectural plans was human latency, and a schematic floor is captured by walking it with `/admin/grid-editor.html` |
 
 ---
 
@@ -60,7 +61,7 @@ making that migration a change of property value.
 **Contract first.** `docs/api/*.openapi.yaml` are hand-written and served by Prism containers, so
 the mobile team works without waiting for the backend. CI lints them on every push.
 
-**Tests.** 586 integration tests on Testcontainers, from a repository that had none. Beyond the
+**Tests.** 597 integration tests on Testcontainers, from a repository that had none. Beyond the
 authorization matrices, they have already earned their keep by catching real defects:
 
 - In `auth-service`, the role check ran before the `try` block, so an invitation code carrying a
@@ -104,13 +105,6 @@ Tracked in `docs/SECURITY-AUDIT.md`.
 ---
 
 ## Next
-
-**Phase 4 — schematic campus map.** The mockups draw a floor as *data*: rooms on a grid, corridors
-as coloured segments, lifts and stairs as elements. That replaces the floor-plan image with a model
-somebody can capture by walking a floor, and **it removes the longest-lead item on the whole
-project** — obtaining architectural plans was human latency, not engineering, and the likeliest
-thing to slip before November. Five buildings, roughly 40 floors, with the basement at level −1 and
-wings (`301-N`, `301-S`, `301`) as a field rather than a suffix.
 
 **Phase 5 — visitor day pass.** Reception issues a one-day token that opens the map and nothing
 else: no account, no e-mail, nothing to clean up afterwards. Each redemption records the visitor's

@@ -102,6 +102,16 @@ docker compose logs --tail=50 api-gateway
 | http://localhost:27017                | MongoDB, for `mongosh` and Compass                |
 | http://localhost:4010-4014            | Prism mocks: auth, user, semaphore, schedule, map |
 
+**The floor editor** is a self-contained HTML file with no server and no network:
+
+```bash
+open app/backend/microservices/map-service/src/main/resources/static/admin/grid-editor.html
+```
+
+It is how a floor is captured — walk it, draw the grid, export the JSON. It enforces the same two
+rules the server does, so a room that will not fit or that overlaps another is refused while you
+are still standing in the building rather than hours later.
+
 **Ports 8081 to 8085 are deliberately unreachable.** The services are only addressable through the
 gateway; being able to bypass it was security finding S1. If you need to reach one directly for
 debugging, go through the container:
