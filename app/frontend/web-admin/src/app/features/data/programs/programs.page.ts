@@ -1,34 +1,44 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewChild, inject, signal } from '@angular/core';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AppHttpError } from '../../../core/http/api-http-error';
 import type { ApiError } from '../../../core/http/api-error.model';
 import { ApiErrorBannerComponent } from '../../../shared/ui/api-error-banner/api-error-banner.component';
 import { DataTableComponent } from '../../../shared/ui/data-table/data-table.component';
-import type { Program } from './program.model';
+import { ModalComponent } from '../../../shared/ui/modal/modal.component';
+import { PROGRAM_LEVELS, type Program, type ProgramRequest } from './program.model';
 import { ProgramsService } from './programs.service';
 
 /**
- * Read-only: docs/api/semaphore.openapi.yaml defines `GET /api/catalog/programs` and
- * `GET /api/catalog/programs/{programCode}` but no admin write endpoint for programs themselves -
- * only curricula (pensums) can be created or replaced. Showing an edit action here would be
- * inventing a capability the API doesn't have, which is exactly what this tool exists to avoid.
+ * Full CRUD over /api/catalog/programs.
+ *
+ * <p>This screen was read-only until the contract grew its admin endpoints, and said so. It does
+ * not any more.
+ *
+ * <p>A program's code cannot be changed once created: it is the key every curriculum and every
+ * student profile points at, and editing it here would silently orphan all of them. Delete the
+ * program and create a new one if the code itself is wrong — which the server will refuse while
+ * curricula still reference it, naming them.
  */
 @Component({
   selector: 'app-programs-page',
-  imports: [DataTableComponent, ApiErrorBannerComponent, RouterLink],
+  imports: [DataTableComponent, ApiErrorBannerComponent, ModalComponent, ReactiveFormsModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack">
-      <h1>Programs</h1>
-      <p class="text-muted">
-        Read-only. The semaphore contract has no admin endpoint to create or edit a program -
-        only its curricula (pensums) can be managed, on the Curricula screen.
-      </p>
+      <div class="row-between">
+        <h1>Programs</h1>
+        <button type="button" class="btn btn-primary" (click)="openCreate()">New program</button>
+      </div>
 
       <div class="card">
         <app-api-error-banner [error]="error()" />
 
-        <app-data-table [loading]="loading()" [empty]="!loading() && !error() && programs().length === 0" emptyMessage="No programs found.">
+        <app-data-table
+          [loading]="loading()"
+          [empty]="!loading() && !error() && programs().length === 0"
+          emptyMessage="No programs yet."
+        >
           <thead>
             <tr>
               <th>Code</th>
@@ -47,12 +57,21 @@ import { ProgramsService } from './programs.service';
                 <td class="text-muted">{{ program.faculty }}</td>
                 <td><span class="badge badge-neutral">{{ program.level }}</span></td>
                 <td class="mono">{{ program.activePensumCode ?? '—' }}</td>
-                <td>
+                <td class="row">
                   @if (program.activePensumCode) {
                     <a class="btn btn-sm" [routerLink]="['/data/curricula']" [queryParams]="{ pensum: program.activePensumCode }">
-                      View curriculum
+                      Curriculum
                     </a>
                   }
+                  <button type="button" class="btn btn-sm" (click)="openEdit(program)">Edit</button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-danger"
+                    [disabled]="busyCode() === program.code"
+                    (click)="remove(program)"
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             }
@@ -60,16 +79,111 @@ import { ProgramsService } from './programs.service';
         </app-data-table>
       </div>
     </div>
+
+    <app-modal #formModal [title]="editing() ? 'Edit program' : 'New program'" (closed)="formError.set(null)">
+      <app-api-error-banner [error]="formError()" />
+      <form [formGroup]="form" (ngSubmit)="save()" class="stack">
+        <div class="field" [class.invalid]="invalid('code')">
+          <label for="p-code">Code</label>
+          <input id="p-code" type="text" formControlName="code" [readonly]="editing()" />
+          @if (editing()) {
+            <span class="hint">
+              Fixed. Every curriculum and student profile points at this code.
+            </span>
+          }
+          @if (invalid('code')) {
+            <span class="error">Required, 1-20 characters.</span>
+          }
+        </div>
+
+        <div class="field" [class.invalid]="invalid('name')">
+          <label for="p-name">Name</label>
+          <input id="p-name" type="text" formControlName="name" />
+          @if (invalid('name')) {
+            <span class="error">Required, 1-120 characters.</span>
+          }
+        </div>
+
+        <div class="field" [class.invalid]="invalid('faculty')">
+          <label for="p-faculty">Faculty</label>
+          <input id="p-faculty" type="text" formControlName="faculty" />
+          @if (invalid('faculty')) {
+            <span class="error">Required, 1-120 characters.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label for="p-level">Level</label>
+          <select id="p-level" formControlName="level">
+            @for (level of levels; track level) {
+              <option [value]="level">{{ level }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="row">
+          <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+            {{ submitting() ? 'Saving…' : editing() ? 'Save changes' : 'Create program' }}
+          </button>
+          <button type="button" class="btn" (click)="formModal.close()">Cancel</button>
+        </div>
+      </form>
+    </app-modal>
   `,
 })
 export class ProgramsPage {
   private readonly programsService = inject(ProgramsService);
 
+  readonly levels = PROGRAM_LEVELS;
+
   readonly loading = signal(true);
   readonly error = signal<ApiError | null>(null);
   readonly programs = signal<Program[]>([]);
+  readonly busyCode = signal<string | null>(null);
+
+  readonly editingProgram = signal<Program | null>(null);
+  readonly submitting = signal(false);
+  readonly formError = signal<ApiError | null>(null);
+
+  readonly editing = () => this.editingProgram() !== null;
+
+  @ViewChild('formModal') private formModal?: ModalComponent;
+
+  form = this.buildForm(null);
 
   constructor() {
+    this.fetch();
+  }
+
+  private buildForm(program: Program | null) {
+    return new FormGroup({
+      code: new FormControl(program?.code ?? '', {
+        nonNullable: true,
+        validators: [Validators.required, Validators.minLength(1), Validators.maxLength(20)],
+      }),
+      name: new FormControl(program?.name ?? '', {
+        nonNullable: true,
+        validators: [Validators.required, Validators.minLength(1), Validators.maxLength(120)],
+      }),
+      faculty: new FormControl(program?.faculty ?? '', {
+        nonNullable: true,
+        validators: [Validators.required, Validators.minLength(1), Validators.maxLength(120)],
+      }),
+      level: new FormControl<Program['level']>(program?.level ?? 'PREGRADO', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
+    });
+  }
+
+  invalid(name: 'code' | 'name' | 'faculty'): boolean {
+    const control = this.form.controls[name];
+    return control.invalid && control.touched;
+  }
+
+  private fetch(): void {
+    this.loading.set(true);
+    this.error.set(null);
     this.programsService.list().subscribe({
       next: (programs) => {
         this.programs.set(programs);
@@ -77,6 +191,65 @@ export class ProgramsPage {
       },
       error: (err: unknown) => {
         this.loading.set(false);
+        this.error.set(err instanceof AppHttpError ? err.apiError : null);
+      },
+    });
+  }
+
+  openCreate(): void {
+    this.editingProgram.set(null);
+    this.form = this.buildForm(null);
+    this.formError.set(null);
+    this.formModal?.open();
+  }
+
+  openEdit(program: Program): void {
+    this.editingProgram.set(program);
+    this.form = this.buildForm(program);
+    this.formError.set(null);
+    this.formModal?.open();
+  }
+
+  save(): void {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    this.submitting.set(true);
+    this.formError.set(null);
+
+    const request = this.form.getRawValue() as ProgramRequest;
+    const editingProgram = this.editingProgram();
+    const call = editingProgram
+      ? this.programsService.replace(editingProgram.code, request)
+      : this.programsService.create(request);
+
+    call.subscribe({
+      next: () => {
+        this.submitting.set(false);
+        this.formModal?.close();
+        this.fetch();
+      },
+      error: (err: unknown) => {
+        this.submitting.set(false);
+        this.formError.set(err instanceof AppHttpError ? err.apiError : null);
+      },
+    });
+  }
+
+  remove(program: Program): void {
+    if (!window.confirm(`Delete program ${program.code} — ${program.name}? Deleting never cascades: if it still has curricula, the server refuses and says which.`)) {
+      return;
+    }
+    this.busyCode.set(program.code);
+    this.error.set(null);
+    this.programsService.delete(program.code).subscribe({
+      next: () => {
+        this.busyCode.set(null);
+        this.fetch();
+      },
+      error: (err: unknown) => {
+        this.busyCode.set(null);
         this.error.set(err instanceof AppHttpError ? err.apiError : null);
       },
     });

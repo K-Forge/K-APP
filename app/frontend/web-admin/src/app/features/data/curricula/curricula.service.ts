@@ -22,4 +22,12 @@ export class CurriculaService {
   replace(pensumCode: string, curriculum: Curriculum): Observable<Curriculum> {
     return this.api.put<Curriculum>(`/api/catalog/curricula/${encodeURIComponent(pensumCode)}`, curriculum);
   }
+
+  /**
+   * Never cascades. A curriculum that students are following comes back as `409` saying how
+   * many, which the error banner renders from the envelope's `details`.
+   */
+  delete(pensumCode: string): Observable<void> {
+    return this.api.delete(`/api/catalog/curricula/${encodeURIComponent(pensumCode)}`);
+  }
 }

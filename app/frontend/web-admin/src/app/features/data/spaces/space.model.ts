@@ -1,21 +1,37 @@
+/** Mirrors SpaceType in docs/api/map.openapi.yaml, in the same order. */
 export const SPACE_TYPES = [
   'CLASSROOM',
   'LAB',
   'AUDITORIUM',
-  'OFFICE',
   'LIBRARY',
   'CAFETERIA',
   'RESTROOM',
+  'OFFICE',
+  'ADMIN_OFFICE',
   'WELLBEING',
+  'TERRACE',
+  'ELEVATOR',
+  'STAIRS',
+  'CORRIDOR',
+  'ENTRANCE',
   'OTHER',
 ] as const;
 
 export type SpaceType = (typeof SPACE_TYPES)[number];
 
+/** The types a space's `accessVia` may point at: the things people actually travel through. */
+export const CIRCULATION_TYPES: readonly SpaceType[] = ['ELEVATOR', 'STAIRS', 'ENTRANCE'];
+
+export const WINGS = ['NORTE', 'SUR', 'CENTRAL'] as const;
+export type Wing = (typeof WINGS)[number];
+
 /** Mirrors Space in docs/api/map.openapi.yaml. */
 export interface Space {
   id: string;
   code: string;
+  /** The code without its wing suffix. Derived server-side; never sent. */
+  baseCode: string;
+  wing?: Wing | null;
   name: string;
   type: SpaceType;
   buildingId: string;
@@ -23,21 +39,32 @@ export interface Space {
   campus: string;
   floorLevel: number;
   aliases: string[];
-  x: number;
-  y: number;
+  gridRow: number;
+  gridColumn: number;
+  rowSpan: number;
+  colSpan: number;
+  accessVia?: string | null;
   capacity?: number;
 }
 
-/** Mirrors SpaceRequest - the create/update payload. */
+/**
+ * Mirrors SpaceRequest - the create/update payload.
+ *
+ * `baseCode` is absent on purpose: the server derives it from the code and refuses to accept it.
+ */
 export interface SpaceRequest {
   code: string;
+  wing?: Wing | null;
   name: string;
   type: SpaceType;
   buildingCode: string;
   floorLevel: number;
   aliases: string[];
-  x: number;
-  y: number;
+  gridRow: number;
+  gridColumn: number;
+  rowSpan?: number;
+  colSpan?: number;
+  accessVia?: string | null;
   capacity?: number;
 }
 
@@ -48,4 +75,5 @@ export interface SpaceSearchFilters {
   campus?: string;
   type?: SpaceType;
   buildingCode?: string;
+  wing?: Wing;
 }

@@ -367,4 +367,67 @@ class MapBusinessRulesTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.wing").value("CENTRAL"));
     }
+
+    @Test
+    @DisplayName("accessVia must name a real circulation element, or the app tells a visitor to use a lift that is not there")
+    void accessViaMustResolve() throws Exception {
+        mockMvc.perform(post("/api/map/spaces").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "AV-1",
+                                  "name": "Se llega por un ascensor inventado",
+                                  "type": "CLASSROOM",
+                                  "buildingCode": "A",
+                                  "floorLevel": 2,
+                                  "gridRow": 0,
+                                  "gridColumn": 0,
+                                  "accessVia": "ASC-QUE-NO-EXISTE"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field").value("accessVia"));
+    }
+
+    @Test
+    @DisplayName("accessVia may not point at an ordinary room: nobody travels through a classroom")
+    void accessViaMustBeCirculation() throws Exception {
+        mockMvc.perform(post("/api/map/spaces").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "AV-2",
+                                  "name": "Se llega por otro salón",
+                                  "type": "CLASSROOM",
+                                  "buildingCode": "A",
+                                  "floorLevel": 2,
+                                  "gridRow": 0,
+                                  "gridColumn": 2,
+                                  "accessVia": "302"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].issue").value("must be an ELEVATOR, STAIRS or ENTRANCE"));
+    }
+
+    @Test
+    @DisplayName("a real lift is accepted, including from another floor of the same building")
+    void accessViaAcceptsARealLift() throws Exception {
+        mockMvc.perform(post("/api/map/spaces").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "AV-3",
+                                  "name": "Se llega por el ascensor central",
+                                  "type": "CLASSROOM",
+                                  "buildingCode": "A",
+                                  "floorLevel": 2,
+                                  "gridRow": 0,
+                                  "gridColumn": 4,
+                                  "accessVia": "ASC-CENTRAL"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.accessVia").value("ASC-CENTRAL"));
+    }
 }

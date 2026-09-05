@@ -22,6 +22,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -34,6 +35,10 @@ import java.util.UUID;
  */
 @Service
 public class SpaceService {
+
+    /** What {@code accessVia} may point at: the things people actually travel through. */
+    private static final Set<SpaceType> CIRCULATION_TYPES =
+            Set.of(SpaceType.ELEVATOR, SpaceType.STAIRS, SpaceType.ENTRANCE);
 
     private static final Logger log = LoggerFactory.getLogger(SpaceService.class);
 
@@ -227,6 +232,8 @@ public class SpaceService {
                                             request.gridColumn(), lastColumn))));
         }
 
+        checkAccessViaResolves(building, request);
+
         SpaceDocument candidate = new SpaceDocument(
                 null, request.code(), null, null, request.name(), request.type(),
                 building.id(), building.code(), building.campus(), request.floorLevel(),
@@ -244,6 +251,37 @@ public class SpaceService {
                                             request.floorLevel(), building.code()),
                             List.of(new ApiError.FieldIssue("gridRow", other.code())));
                 });
+    }
+
+    /**
+     * {@code accessVia} has to name a real lift, staircase or entrance in the same building.
+     *
+     * <p>This is the field that produces "piso 4, sube por el ascensor central". A code that
+     * matches nothing fails silently in the worst way: the app simply says nothing about how to
+     * get there, or worse, names something that is not where the visitor is. A typo here is
+     * invisible until a student is standing in the wrong corridor.
+     *
+     * <p>Only circulation types qualify. Pointing a classroom at another classroom would produce
+     * an instruction nobody can follow.
+     */
+    private void checkAccessViaResolves(BuildingDocument building, SpaceRequest request) {
+        String target = request.accessVia();
+        if (target == null || target.isBlank()) {
+            return;
+        }
+
+        SpaceDocument circulation = spaces.findByBuildingIdAndCode(building.id(), target.trim())
+                .orElseThrow(() -> new BusinessRuleException(
+                        "%s is not a space in building %s".formatted(target, building.code()),
+                        List.of(new ApiError.FieldIssue("accessVia", "no such code in this building"))));
+
+        if (!CIRCULATION_TYPES.contains(circulation.type())) {
+            throw new BusinessRuleException(
+                    "%s is a %s, not something a visitor travels through"
+                            .formatted(target, circulation.type()),
+                    List.of(new ApiError.FieldIssue("accessVia",
+                            "must be an ELEVATOR, STAIRS or ENTRANCE")));
+        }
     }
 
     /**

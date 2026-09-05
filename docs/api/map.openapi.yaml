@@ -1471,6 +1471,12 @@ components:
           type: [string, 'null']
           description: |
             Code of the lift, staircase or entrance that serves this space.
+
+            **Validated.** It must name an existing space in the same building whose type is
+            `ELEVATOR`, `STAIRS` or `ENTRANCE`; anything else is a `400`. A code that matches
+            nothing fails in the worst way — the app says nothing about how to get there, or names
+            something that is not where the visitor is — and a typo is invisible until somebody is
+            standing in the wrong corridor.
           maxLength: 20
           example: ASC-CENTRAL
         capacity:

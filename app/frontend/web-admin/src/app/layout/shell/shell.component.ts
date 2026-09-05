@@ -21,6 +21,8 @@ const NAV_LINKS: NavLink[] = [
   { path: '/data/programs', label: 'Programs' },
   { path: '/data/curricula', label: 'Curricula' },
   { path: '/data/invitation-codes', label: 'Invitation codes' },
+  { path: '/data/visitor-passes', label: 'Visitor passes' },
+  { path: '/data/import', label: 'Import pensums' },
 ];
 
 /** Nav + header shared by every authenticated screen. Login stays outside so it renders alone. */

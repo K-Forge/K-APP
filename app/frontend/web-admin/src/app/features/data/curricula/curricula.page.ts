@@ -47,7 +47,12 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
           <div class="stack">
             <div class="row-between">
               <h2 style="margin:0">{{ c.programName }} · {{ c.pensumCode }}</h2>
-              <button type="button" class="btn btn-sm" (click)="openEdit(c)">Edit this curriculum</button>
+              <div class="row">
+                <button type="button" class="btn btn-sm" (click)="openEdit(c)">Edit this curriculum</button>
+                <button type="button" class="btn btn-sm btn-danger" [disabled]="deleting()" (click)="remove(c)">
+                  {{ deleting() ? 'Deleting…' : 'Delete' }}
+                </button>
+              </div>
             </div>
             <dl class="curriculum-summary">
               <dt>Faculty</dt>
@@ -177,6 +182,7 @@ export class CurriculaPage {
   readonly loading = signal(false);
   readonly error = signal<ApiError | null>(null);
   readonly curriculum = signal<Curriculum | null>(null);
+  readonly deleting = signal(false);
 
   readonly formMode = signal<'create' | 'edit'>('create');
   readonly formText = signal('');
@@ -281,6 +287,35 @@ export class CurriculaPage {
       error: (err: unknown) => {
         this.formSubmitting.set(false);
         this.formError.set(err instanceof AppHttpError ? err.apiError : null);
+      },
+    });
+  }
+
+  /**
+   * Deleting never cascades. A pensum students are following comes back as `409` saying how many,
+   * which the error banner renders from the envelope's own details - the confirmation says so up
+   * front rather than letting the refusal look like a bug.
+   */
+  remove(curriculum: Curriculum): void {
+    if (
+      !window.confirm(
+        `Delete curriculum ${curriculum.pensumCode} (${curriculum.programName})? ` +
+          `It has ${curriculum.courses.length} courses. If any student is following it, the ` +
+          `server refuses and says how many.`,
+      )
+    ) {
+      return;
+    }
+    this.deleting.set(true);
+    this.error.set(null);
+    this.curriculaService.delete(curriculum.pensumCode).subscribe({
+      next: () => {
+        this.deleting.set(false);
+        this.curriculum.set(null);
+      },
+      error: (err: unknown) => {
+        this.deleting.set(false);
+        this.error.set(err instanceof AppHttpError ? err.apiError : null);
       },
     });
   }

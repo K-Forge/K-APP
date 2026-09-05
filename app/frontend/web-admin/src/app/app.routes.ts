@@ -48,6 +48,15 @@ export const routes: Routes = [
           import('./features/data/invitation-codes/invitation-codes.page').then((m) => m.InvitationCodesPage),
       },
       {
+        path: 'data/visitor-passes',
+        loadComponent: () =>
+          import('./features/data/visitor-passes/visitor-passes.page').then((m) => m.VisitorPassesPage),
+      },
+      {
+        path: 'data/import',
+        loadComponent: () => import('./features/data/import/import.page').then((m) => m.ImportPage),
+      },
+      {
         path: 'roles',
         loadComponent: () => import('./features/roles/role-inspector.page').then((m) => m.RoleInspectorPage),
       },

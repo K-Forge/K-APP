@@ -107,6 +107,7 @@ const MIN_QUERY_LENGTH = 2;
       <app-space-form
         [initial]="editingSpace()"
         [buildings]="buildings()"
+        [knownSpaces]="result()?.content ?? []"
         [submitting]="formSubmitting()"
         (submitted)="save($event)"
         (cancelled)="formModal.close()"

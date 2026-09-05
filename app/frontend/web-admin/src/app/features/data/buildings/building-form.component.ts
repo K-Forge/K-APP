@@ -5,9 +5,8 @@ import type { Building, BuildingRequest, Floor } from './building.model';
 type FloorForm = FormGroup<{
   level: FormControl<number>;
   name: FormControl<string>;
-  planImageUrl: FormControl<string>;
-  imageWidth: FormControl<number>;
-  imageHeight: FormControl<number>;
+  gridRows: FormControl<number>;
+  gridColumns: FormControl<number>;
 }>;
 
 type BuildingForm = FormGroup<{
@@ -20,14 +19,12 @@ type BuildingForm = FormGroup<{
 
 function floorGroup(floor?: Floor): FloorForm {
   return new FormGroup({
-    level: new FormControl(floor?.level ?? 1, { nonNullable: true, validators: [Validators.required, Validators.min(0), Validators.max(99)] }),
+    // -5 rather than 0: the central building has a basement at level -1, and the rule that a
+    // room's first digit is its floor stops applying down there.
+    level: new FormControl(floor?.level ?? 1, { nonNullable: true, validators: [Validators.required, Validators.min(-5), Validators.max(99)] }),
     name: new FormControl(floor?.name ?? '', { nonNullable: true, validators: [Validators.required, Validators.minLength(1), Validators.maxLength(60)] }),
-    planImageUrl: new FormControl(floor?.planImageUrl ?? '', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.minLength(1), Validators.maxLength(255)],
-    }),
-    imageWidth: new FormControl(floor?.imageWidth ?? 1024, { nonNullable: true, validators: [Validators.required, Validators.min(1)] }),
-    imageHeight: new FormControl(floor?.imageHeight ?? 768, { nonNullable: true, validators: [Validators.required, Validators.min(1)] }),
+    gridRows: new FormControl(floor?.gridRows ?? 11, { nonNullable: true, validators: [Validators.required, Validators.min(1), Validators.max(60)] }),
+    gridColumns: new FormControl(floor?.gridColumns ?? 16, { nonNullable: true, validators: [Validators.required, Validators.min(1), Validators.max(60)] }),
   });
 }
 
@@ -91,25 +88,30 @@ function floorGroup(floor?: Floor): FloorForm {
           <div class="floor-grid">
             <div class="field">
               <label [for]="'level-' + $index">Level</label>
-              <input [id]="'level-' + $index" type="number" formControlName="level" min="0" max="99" />
+              <input [id]="'level-' + $index" type="number" formControlName="level" min="-5" max="99" />
+              <span class="hint">-1 is the basement.</span>
             </div>
             <div class="field">
               <label [for]="'name-' + $index">Name</label>
               <input [id]="'name-' + $index" type="text" formControlName="name" />
             </div>
             <div class="field">
-              <label [for]="'url-' + $index">Plan image URL</label>
-              <input [id]="'url-' + $index" type="text" formControlName="planImageUrl" />
+              <label [for]="'rows-' + $index">Grid rows</label>
+              <input [id]="'rows-' + $index" type="number" formControlName="gridRows" min="1" max="60" />
             </div>
             <div class="field">
-              <label [for]="'w-' + $index">Image width (px)</label>
-              <input [id]="'w-' + $index" type="number" formControlName="imageWidth" min="1" />
-            </div>
-            <div class="field">
-              <label [for]="'h-' + $index">Image height (px)</label>
-              <input [id]="'h-' + $index" type="number" formControlName="imageHeight" min="1" />
+              <label [for]="'cols-' + $index">Grid columns</label>
+              <input [id]="'cols-' + $index" type="number" formControlName="gridColumns" min="1" max="60" />
             </div>
           </div>
+          @if (corridorCount($index); as count) {
+            <p class="hint" style="margin:0.5rem 0 0">
+              {{ count }} corridor{{ count === 1 ? '' : 's' }} on this floor, kept as they are.
+              Corridors are drawn in the offline grid editor
+              (<code>map-service/src/main/resources/static/admin/grid-editor.html</code>), which
+              is also how a floor is captured in the first place.
+            </p>
+          }
         </div>
       }
 
@@ -177,7 +179,14 @@ export class BuildingFormComponent {
   }
 
   addFloor(): void {
-    this.form.controls.floors.push(floorGroup({ level: this.form.controls.floors.length, name: '', planImageUrl: '', imageWidth: 1024, imageHeight: 768 }));
+    this.form.controls.floors.push(
+      floorGroup({ level: this.form.controls.floors.length, name: '', gridRows: 11, gridColumns: 16 }),
+    );
+  }
+
+  /** How many corridors the floor at this index already has, so the form can say it keeps them. */
+  corridorCount(index: number): number {
+    return this.initial()?.floors[index]?.corridors?.length ?? 0;
   }
 
   removeFloor(index: number): void {
@@ -189,6 +198,18 @@ export class BuildingFormComponent {
       this.form.markAllAsTouched();
       return;
     }
-    this.submitted.emit(this.form.getRawValue());
+    // Corridors are carried through untouched. This form edits a floor's shape; its corridors
+    // are polylines through the grid, which is a drawing job and belongs in the grid editor.
+    // Dropping them here because the form does not show them would silently erase somebody's
+    // afternoon of walking a floor.
+    const raw = this.form.getRawValue();
+    const existing = this.initial()?.floors ?? [];
+    this.submitted.emit({
+      ...raw,
+      floors: raw.floors.map((floor) => ({
+        ...floor,
+        corridors: existing.find((f) => f.level === floor.level)?.corridors ?? [],
+      })),
+    });
   }
 }
