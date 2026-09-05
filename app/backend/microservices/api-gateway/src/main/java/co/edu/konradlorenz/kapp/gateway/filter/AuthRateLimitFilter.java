@@ -65,8 +65,17 @@ public class AuthRateLimitFilter implements WebFilter, Ordered {
     private static boolean isCredentialEndpoint(String path) {
         return path.equals("/auth/login")
                 || path.equals("/auth/register")
-                || path.equals("/auth/register/guest")
-                || path.equals("/auth/verify/resend");
+                || path.equals("/auth/verify/resend")
+                // A visitor pass code IS the credential - there is no account behind it -
+                // so redeeming one is guessed at exactly the way a password is. The codes
+                // are eight characters from a 32-letter alphabet, which is far too many to
+                // brute-force at ten attempts a minute, and that is the point.
+                || isVisitorPassRedemption(path);
+    }
+
+    /** {@code /auth/visitor-passes/{code}/redeem}, for any code. */
+    private static boolean isVisitorPassRedemption(String path) {
+        return path.startsWith("/auth/visitor-passes/") && path.endsWith("/redeem");
     }
 
     private boolean overLimit(String client) {

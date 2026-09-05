@@ -188,40 +188,6 @@ class AuthorizationMatrixIntegrationTest extends AbstractAuthIntegrationTest {
 
     // ----------------------------------------------------------- POST /auth/register/guest
 
-    @Test
-    @DisplayName("register/guest: anonymous is admitted")
-    void registerGuest_anonymous_ok() throws Exception {
-        mockMvc.perform(guestRegisterRequest("matrix-guest-anon@example.com")).andExpect(status().isCreated());
-    }
-
-    @Test
-    @DisplayName("register/guest: a caller carrying a GUEST token is still admitted")
-    void registerGuest_guestToken_ok() throws Exception {
-        mockMvc.perform(authed(guestRegisterRequest("matrix-guest-guest@example.com"), guestToken))
-                .andExpect(status().isCreated());
-    }
-
-    @Test
-    @DisplayName("register/guest: a caller carrying a STUDENT token is still admitted")
-    void registerGuest_studentToken_ok() throws Exception {
-        mockMvc.perform(authed(guestRegisterRequest("matrix-guest-student@example.com"), studentToken))
-                .andExpect(status().isCreated());
-    }
-
-    @Test
-    @DisplayName("register/guest: a caller carrying a PROFESSOR token is still admitted")
-    void registerGuest_professorToken_ok() throws Exception {
-        mockMvc.perform(authed(guestRegisterRequest("matrix-guest-professor@example.com"), professorToken))
-                .andExpect(status().isCreated());
-    }
-
-    @Test
-    @DisplayName("register/guest: a caller carrying an ADMIN token is still admitted")
-    void registerGuest_adminToken_ok() throws Exception {
-        mockMvc.perform(authed(guestRegisterRequest("matrix-guest-admin@example.com"), adminToken))
-                .andExpect(status().isCreated());
-    }
-
     // ------------------------------------------------------------------- POST /auth/verify
 
     @Test
@@ -362,5 +328,38 @@ class AuthorizationMatrixIntegrationTest extends AbstractAuthIntegrationTest {
     private static MockHttpServletRequestBuilder resendRequest() {
         return post("/auth/verify/resend").contentType(MediaType.APPLICATION_JSON).content("""
                 {"email":"no-such-account@konradlorenz.edu.co"}""");
+    }
+
+    /**
+     * Guest registration was removed when the visitor day pass replaced it: it accepted any
+     * e-mail address, created a real account, and left it behind forever, for somebody who
+     * was on campus for an afternoon.
+     *
+     * <p>This stays in the matrix as an entry that must be REFUSED, rather than being deleted
+     * with the feature. A path that used to be public and is now gone is exactly the kind of
+     * thing a later change re-opens by accident.
+     */
+    @Test
+    @DisplayName("registerGuest: the endpoint is gone, and no role can reach it")
+    void registerGuest_isGoneForEveryRole() throws Exception {
+        String body = """
+                {"email":"visitante@gmail.com","password":"Password123!",
+                 "firstName":"Vis","lastName":"Itante"}
+                """;
+
+        // Anonymously it is a 401: the path is no longer public, so the filter chain refuses
+        // it before the dispatcher looks for a handler.
+        mockMvc.perform(post("/auth/register/guest")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+
+        // With any valid token it is a 404, which is what proves the handler is really gone.
+        for (String role : java.util.List.of("ROLE_GUEST", "ROLE_STUDENT", "ROLE_PROFESSOR",
+                "ROLE_ADMIN")) {
+            mockMvc.perform(post("/auth/register/guest")
+                            .header("Authorization", bearerFor("u-" + role, "u@x.co", role))
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isNotFound());
+        }
     }
 }

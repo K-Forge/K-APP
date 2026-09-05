@@ -63,9 +63,12 @@ public class AuthSecurityConfig {
     static final String[] PUBLIC_AUTH_PATHS = {
             "/auth/login",
             "/auth/register",
-            "/auth/register/guest",
             "/auth/verify",
             "/auth/verify/resend",
+            // A visitor has no account and nothing to authenticate with: the code reception
+            // read out to them IS the credential. That is why it is single-use, dies after
+            // 12 hours, and is rate-limited at the gateway alongside login.
+            "/auth/visitor-passes/*/redeem",
             "/auth/health",
             "/.well-known/jwks.json"
     };

@@ -53,14 +53,6 @@ public class AuthController {
         return registrationService.register(request);
     }
 
-    @PostMapping("/register/guest")
-    @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Register a guest account",
-            description = "Any e-mail domain, no invitation code, always ROLE_GUEST.")
-    public RegistrationResponse registerGuest(@Valid @RequestBody GuestRegistrationRequest request) {
-        return registrationService.registerGuest(request);
-    }
-
     @PostMapping("/login")
     @Operation(summary = "Exchange credentials for an access token")
     public TokenResponse login(@Valid @RequestBody LoginRequest request) {

@@ -155,6 +155,29 @@ scripts/create-dev-accounts.sh --recreate
 These live in **your** MongoDB. They are not shared between machines, and they disappear with
 `down -v`; run the script again afterwards.
 
+### Visitors
+
+There is no guest account. Open guest registration was replaced by a **day pass**: reception
+issues a code, the visitor redeems it, and no account is created at all.
+
+```bash
+CODE=$(curl -sS -X POST http://localhost:8080/auth/admin/visitor-passes \
+  -H "Authorization: Bearer $TOKEN" | python3 -c 'import sys,json;print(json.load(sys.stdin)["code"])')
+```
+
+Then redeem it — the identity document is required, because the whole point is that reception
+has a record of who was in the building:
+
+```bash
+curl -sS -X POST "http://localhost:8080/auth/visitor-passes/$CODE/redeem" \
+  -H 'Content-Type: application/json' \
+  -d '{"documentType":"CC","documentNumber":"1032456789","visitorName":"Visitante de prueba"}'
+```
+
+The token that comes back lasts 24 hours, carries `ROLE_GUEST`, and is refused everywhere but
+`/api/map/**`. The register is at `GET /auth/admin/visitor-passes` and **deletes itself after 30
+days** — MongoDB does it, not a scheduled job. See `SECURITY-AUDIT.md`, S12.
+
 **To register any other account**, use a seeded invitation code:
 
 ```bash

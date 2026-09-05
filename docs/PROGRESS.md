@@ -25,12 +25,12 @@ production deployment.
 | **Timetables** | **Merged** | **140** | Enrolments, meetings, overlap detection |
 | **Campus map** | **Merged** | **47** | Schematic floors on a grid, wings, corridors, a basement, and an offline grid editor. No floor plan images |
 | Admin and developer portal | In progress | — | Angular, runs from a compose `dev` profile. Full CRUD is Phase 6 |
-| Visitor day pass | Not started | — | Phase 5. Replaces open guest registration |
+| **Visitor day pass** | **Merged** | **23** | A one-day token that opens the map and nothing else. No account, no e-mail. Identity documents deleted after 30 days by a TTL index |
 | Android (Kotlin) | Not started | — | The product. Unblocked by the mocks |
 | iOS (Swift) | Not started | — | The product. Unblocked by the mocks |
 | Deployment | Not started | — | Runs locally; university hardware pending |
 
-**597 integration tests**, from a repository that had none in August. Every service asserts its
+**613 integration tests**, from a repository that had none in August. Every service asserts its
 full role-by-endpoint authorization matrix with one assertion per case, including every combination
 that must be refused — those are the ones that matter.
 
@@ -42,6 +42,7 @@ that must be refused — those are the ones that matter.
 | 2 · Admin endpoints | The eight operations the contracts already promised: program create/replace/delete, curriculum delete, and invitation-code list/create/activate/delete. Deleting never cascades, and every `409` names what blocks it |
 | 3 · Plans and bulk import | Personal academic plans stored as deltas over the immutable pensum, and a CSV import for the 24 programs that validates the whole file before writing anything |
 | 4 · Schematic map | A floor is a grid the client draws, not a photograph with pins on it. Wings as a field, corridors with the colour they are painted, a basement at level −1, and `accessVia` so the app can say "sube por el ascensor central". **This removed the longest-lead item on the project** — obtaining architectural plans was human latency, and a schematic floor is captured by walking it with `/admin/grid-editor.html` |
+| 5 · Visitor day pass | Reception issues a code; a visitor redeems it with an identity document and gets 24 hours of map-only access. No account is created. The token is an ordinary `ROLE_GUEST` one, so "map only" is the matrix every service already enforces rather than a second mechanism that could drift. Open guest registration is gone. **KApp now stores personal data under Ley 1581** — 30-day retention, enforced by MongoDB rather than by a job |
 
 ---
 
@@ -61,7 +62,7 @@ making that migration a change of property value.
 **Contract first.** `docs/api/*.openapi.yaml` are hand-written and served by Prism containers, so
 the mobile team works without waiting for the backend. CI lints them on every push.
 
-**Tests.** 597 integration tests on Testcontainers, from a repository that had none. Beyond the
+**Tests.** 613 integration tests on Testcontainers, from a repository that had none. Beyond the
 authorization matrices, they have already earned their keep by catching real defects:
 
 - In `auth-service`, the role check ran before the `try` block, so an invitation code carrying a
@@ -106,12 +107,6 @@ Tracked in `docs/SECURITY-AUDIT.md`.
 
 ## Next
 
-**Phase 5 — visitor day pass.** Reception issues a one-day token that opens the map and nothing
-else: no account, no e-mail, nothing to clean up afterwards. Each redemption records the visitor's
-identity document for traceability. **This changes the project's data profile** — KApp starts
-handling personal data under Ley 1581, with a 30-day retention, and Dirección de TI has to be told
-rather than left to discover it.
-
 **Phase 6 — admin portal.** Full CRUD over everything administrable, with the contract's rules
 respected: a delete the server refuses with `409` must show *why*, not a generic error.
 
@@ -128,6 +123,7 @@ diagrams, four new ADRs, and the diagrams currently living in `/tmp` moved into 
 | A sketch or photo of one floor | Brian | Modelling the first floor; the rest are captured with the editor |
 | The 24 pensums as CSV | The team | Bulk import exists and validates; the data does not |
 | Mobile clients | Iván, Alejandro, Santiago, Brian | Unblocked — the contracts and mocks are ready |
+| Telling Dirección de TI that KApp now stores identity documents | Brian | Nothing technical. The summary shared with Gabriel says KApp stores no institutional records, and that stopped being accurate with Phase 5 |
 
 ---
 

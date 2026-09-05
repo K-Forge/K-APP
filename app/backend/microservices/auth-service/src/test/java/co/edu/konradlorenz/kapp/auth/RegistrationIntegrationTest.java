@@ -220,46 +220,6 @@ class RegistrationIntegrationTest extends AbstractAuthIntegrationTest {
     }
 
     @Test
-    @DisplayName("registers a guest with any e-mail domain and no invitation code")
-    void guestRegistration_succeedsWithAnyDomain() throws Exception {
-        mockMvc.perform(post("/auth/register/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(guestPayload("maria.rodriguez@gmail.com")))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.emailVerified").value(false));
-
-        Credential saved = credentials.findByEmailIgnoreCase("maria.rodriguez@gmail.com").orElseThrow();
-        assertThat(saved.roles()).containsExactly("ROLE_GUEST");
-    }
-
-    @Test
-    @DisplayName("an institutional address at the guest endpoint still lands on ROLE_GUEST")
-    void guestRegistration_institutionalEmailStillGuest() throws Exception {
-        mockMvc.perform(post("/auth/register/guest")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(guestPayload("visitor@konradlorenz.edu.co")))
-                .andExpect(status().isCreated());
-
-        assertThat(credentials.findByEmailIgnoreCase("visitor@konradlorenz.edu.co").orElseThrow().roles())
-                .containsExactly("ROLE_GUEST");
-
-        var captor = org.mockito.ArgumentCaptor.forClass(InternalUserUpsert.class);
-        verify(userProfileClient).upsert(captor.capture());
-        assertThat(captor.getValue().academic()).isNull();
-    }
-
-    @Test
-    @DisplayName("guest registration does not require or accept an invitation code")
-    void guestRegistration_duplicateEmailReturns409() throws Exception {
-        String payload = guestPayload("repeat.guest@gmail.com");
-
-        mockMvc.perform(post("/auth/register/guest").contentType(MediaType.APPLICATION_JSON).content(payload))
-                .andExpect(status().isCreated());
-        mockMvc.perform(post("/auth/register/guest").contentType(MediaType.APPLICATION_JSON).content(payload))
-                .andExpect(status().isConflict());
-    }
-
-    @Test
     @DisplayName("ten threads racing a single-use code produce exactly one success")
     void invitationCodeRedemption_isAtomicUnderConcurrency() throws Exception {
         String code = "KL-TEST-CONCURRENCY";

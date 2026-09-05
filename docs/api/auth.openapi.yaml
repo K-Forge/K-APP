@@ -64,13 +64,17 @@ security:
 
 tags:
   - name: Registration
-    description: Account creation for institutional members and guests.
+    description: Account creation for institutional members.
   - name: Authentication
     description: Credential exchange for access tokens.
   - name: Verification
     description: E-mail ownership confirmation.
   - name: Discovery
     description: Public key material consumed by the other KApp services.
+  - name: Visitor passes
+    description: |
+      One-day passes reception issues to visitors. A pass is a token, not an account: no
+      e-mail, no password, nothing that outlives the visit.
   - name: Health
     description: Liveness probe.
 
@@ -121,55 +125,6 @@ paths:
               example:
                 userId: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
                 email: brian.vargasc@konradlorenz.edu.co
-                emailVerified: false
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '409':
-          $ref: '#/components/responses/Conflict'
-
-  /auth/register/guest:
-    post:
-      operationId: registerGuest
-      summary: Register a guest account
-      description: |
-        Creates a credential record for a visitor with no formal link to the
-        university: applicants, relatives attending an event, external
-        attendees.
-
-        Public endpoint: no token required.
-
-        Differences from institutional registration:
-
-        - `email` may use **any** domain. A `@konradlorenz.edu.co` address is
-          accepted here as well, but it still produces a guest account with no
-          academic record.
-        - No invitation code is required or accepted.
-        - The account always receives `ROLE_GUEST`, whose only permission is
-          reading the campus map. The matching profile in the User API is
-          created with `academic: null`.
-      tags: [Registration]
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GuestRegistrationRequest'
-            example:
-              email: maria.rodriguez@gmail.com
-              password: VisitanteSegura!26
-              firstName: María Fernanda
-              lastName: Rodríguez Peña
-      responses:
-        '201':
-          description: Guest account created, verification e-mail sent
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RegistrationResponse'
-              example:
-                userId: c41d7b90-2e63-4a18-9f52-6b0d3ac71e84
-                email: maria.rodriguez@gmail.com
                 emailVerified: false
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -477,6 +432,180 @@ paths:
           $ref: '#/components/responses/NotFound'
 
 
+  /auth/visitor-passes/{code}/redeem:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        description: The code reception read out to the visitor.
+        schema:
+          type: string
+          maxLength: 20
+        example: KL-V-7K2M-QX9P
+    post:
+      operationId: redeemVisitorPass
+      summary: Redeem a visitor day pass
+      description: |
+        Exchanges a pass for a token valid for **24 hours** that opens the campus map and
+        nothing else.
+
+        Public, necessarily: a visitor has no account and nothing to authenticate with. The
+        code *is* the credential, which is why it is single-use, stops being redeemable 12
+        hours after it was issued, and is rate-limited at the gateway alongside `/auth/login`.
+
+        The returned token carries `ROLE_GUEST` and no other role. That is not a special
+        visitor permission — it is the role every other service already refuses everywhere
+        but the map, so "map only" is the authorization matrix the services enforce rather
+        than a second mechanism that could drift away from it. The `sub` claim is
+        `visitor:<pass id>`, not a user id, and there is no `email` claim: there is no
+        account behind it.
+
+        **The identity document is required.** The pass exists so reception has a record of
+        who was in the building; redeemed anonymously it would be an account with extra
+        steps. That record is personal data under Ley 1581 de 2012 and is **deleted
+        automatically 30 days** after redemption.
+      tags: [Visitor passes]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisitorPassRedemptionRequest'
+            example:
+              documentType: CC
+              documentNumber: "1032456789"
+              visitorName: María Fernanda Ríos
+      responses:
+        '200':
+          description: A 24-hour, map-only access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                accessToken: eyJhbGciOiJSUzI1NiIsImtpZCI6ImthcHAtMjAyNjA5In0...
+                tokenType: Bearer
+                expiresIn: 86400
+                userId: visitor:9c1f0a72-4b3e-4d51-8a20-77e1b2c9d640
+                roles: [ROLE_GUEST]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: No such code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: |
+            The pass cannot be redeemed. `details[0].issue` distinguishes the two cases —
+            `already-redeemed` or `expired` — so the app can say "ese pase ya se usó" rather
+            than a generic failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '429':
+          description: Rate limited, as on the other credential endpoints.
+
+  /auth/admin/visitor-passes:
+    get:
+      operationId: listVisitorPasses
+      summary: Read the visitor register
+      description: |
+        Requires `ROLE_ADMIN`. Newest first.
+
+        **This returns personal data**: visitors' names and identity documents. That is the
+        point of a register, and the reason it exists nowhere else in the API. Records are
+        deleted automatically 30 days after redemption.
+      tags: [Visitor passes]
+      parameters:
+        - name: redeemed
+          in: query
+          required: false
+          description: Filter to passes that have, or have not, been used.
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: The register
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VisitorPass'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createVisitorPass
+      summary: Issue a visitor day pass
+      description: |
+        Requires `ROLE_ADMIN`. Returns a code to read out to the visitor.
+
+        The code avoids `I`, `O`, `0` and `1`: it is read aloud across a counter and typed by
+        somebody who has never seen it written down.
+
+        Redeemable for 12 hours. Once redeemed the visitor has 24 hours of map-only access.
+      tags: [Visitor passes]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisitorPassRequest'
+            example:
+              notes: Feria de programas, auditorio
+      responses:
+        '201':
+          description: The pass, with the code to hand over
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisitorPass'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /auth/admin/visitor-passes/{code}:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 20
+        example: KL-V-7K2M-QX9P
+    delete:
+      operationId: deleteVisitorPass
+      summary: Revoke an unredeemed pass
+      description: |
+        Requires `ROLE_ADMIN`.
+
+        `409` for a pass that has already been redeemed. That row is no longer a pass, it is
+        the record of a visit, and a register reception could quietly edit is not a register.
+        It leaves on its own after 30 days.
+      tags: [Visitor passes]
+      responses:
+        '204':
+          description: Revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No such code.
+        '409':
+          description: Already redeemed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -628,36 +757,101 @@ components:
             Ingeniería de Sistemas.
           example: '506'
 
-    GuestRegistrationRequest:
+    VisitorPassRequest:
       type: object
       description: |
-        Guest signup payload. Any e-mail domain is accepted and no invitation
-        code is involved. The resulting account receives `ROLE_GUEST`.
-      required: [email, password, firstName, lastName]
+        Everything is optional: issuing a pass at the counter should take one click.
       properties:
-        email:
+        notes:
           type: string
-          format: email
-          maxLength: 100
-          description: Personal address. Any domain is accepted.
-          example: maria.rodriguez@gmail.com
-        password:
+          maxLength: 200
+          description: Free text for whoever issued it — which event, which office.
+          example: Feria de programas, auditorio
+      additionalProperties: false
+
+    DocumentType:
+      type: string
+      description: |
+        The kinds of identity document a visitor may present, as used in Colombia. Stored
+        rather than inferred from the number's shape: a `TI` and a `CC` can carry the same
+        digits for the same person at different ages, and telling reception which document
+        they were shown is the point of keeping the record.
+      enum: [CC, CE, TI, PASAPORTE, PPT]
+      example: CC
+
+    VisitorPassRedemptionRequest:
+      type: object
+      description: |
+        What the visitor presents at the counter. The document is required, not optional:
+        a pass redeemed anonymously would be an account with extra steps.
+      required: [documentType, documentNumber, visitorName]
+      properties:
+        documentType:
+          $ref: '#/components/schemas/DocumentType'
+        documentNumber:
           type: string
-          format: password
-          minLength: 10
-          maxLength: 72
-          description: Plain-text password, at least 10 characters. Stored as a BCrypt hash.
-          example: VisitanteSegura!26
-        firstName:
+          pattern: '^[A-Za-z0-9]+$'
+          minLength: 4
+          maxLength: 20
+          description: |
+            Letters and digits only — no dots or dashes, so the same document is not recorded
+            three different ways. Personal data under Ley 1581; deleted after 30 days.
+          example: "1032456789"
+        visitorName:
           type: string
           minLength: 1
-          maxLength: 50
-          example: María Fernanda
-        lastName:
+          maxLength: 120
+          example: María Fernanda Ríos
+      additionalProperties: false
+
+    VisitorPass:
+      type: object
+      description: |
+        A pass as reception sees it, including who redeemed it. Returned only to
+        `ROLE_ADMIN`, and only from `/auth/admin/**`.
+      required: [code, issuedBy, createdAt, redeemableUntil, redeemed]
+      properties:
+        code:
           type: string
-          minLength: 1
-          maxLength: 50
-          example: Rodríguez Peña
+          maxLength: 20
+          example: KL-V-7K2M-QX9P
+        issuedBy:
+          type: string
+          description: The administrator who minted it, so a pass traces back to a person.
+          example: 8f2c1d40-9a77-4e15-b3c8-2d6e05f1a9b3
+        notes:
+          type: string
+          maxLength: 200
+          example: Feria de programas, auditorio
+        createdAt: { type: string, format: date-time }
+        redeemableUntil:
+          type: string
+          format: date-time
+          description: After this the code is dead whether or not it was used. A pass is for today.
+        redeemed:
+          type: boolean
+          description: Once true this row is the record of a visit, not an unused pass.
+        redeemedAt: { type: string, format: date-time }
+        documentType:
+          $ref: '#/components/schemas/DocumentType'
+        documentNumber:
+          type: string
+          description: Present only once redeemed. Personal data; deleted after 30 days.
+          example: "1032456789"
+        visitorName:
+          type: string
+          example: María Fernanda Ríos
+        accessExpiresAt:
+          type: string
+          format: date-time
+          description: When the issued token stops working, 24 hours after redemption.
+        purgeAt:
+          type: string
+          format: date-time
+          description: |
+            When this whole record disappears. Enforced by a MongoDB TTL index rather than by
+            a scheduled job — a job that stops running leaves personal data sitting there,
+            and nobody notices until somebody asks.
 
     RegistrationResponse:
       type: object
@@ -722,12 +916,20 @@ components:
           type: integer
           format: int32
           minimum: 1
-          description: Token lifetime in seconds from issuance. One hour.
+          description: |
+            Token lifetime in seconds from issuance. One hour for an account; 24 hours for a
+            redeemed visitor pass.
           example: 3600
         userId:
           type: string
-          format: uuid
-          description: Authenticated account id, matching the `sub` claim.
+          maxLength: 64
+          description: |
+            Whatever the token's `sub` claim says. For an account this is its id, a UUID. For
+            a redeemed visitor pass it is `visitor:<pass id>` — there is no account behind it,
+            and a subject that looked like a user id would eventually be treated as one.
+
+            **Not declared as `format: uuid`** for exactly that reason: it was, and a client
+            generated from that would have parsed a visitor's subject into a UUID and failed.
           example: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
         roles:
           type: array

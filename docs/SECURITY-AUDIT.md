@@ -85,7 +85,7 @@ Severity reflects the impact if this configuration were deployed as-is on a reac
 | S9 | Informational | Sample data ships a known password and its hash. |
 | S10 | High | MongoDB ran without authentication; database separation was a convention, not a rule. **Resolved.** |
 | S11 | Moderate | Development accounts hold `ROLE_ADMIN` and two invitation codes ship in the repository. **Open, by decision.** |
-| S12 | Moderate | The visitor day pass will store identity documents, which are personal data under Ley 1581. **Not yet built — Phase 5.** |
+| S12 | Moderate | The visitor day pass stores identity documents, which are personal data under Ley 1581. **Built, with a 30-day retention enforced by the database. Dirección de TI has not yet been told.** |
 
 ### H1 — Credentials readable in git history (High)
 
@@ -289,24 +289,39 @@ more than it protects.
 `ROLE_ADMIN` is already impossible to obtain through an invitation code, enforced in
 `InvitationCodeService` as well as in the contract's enum, precisely because the codes are public.
 
-### S12 — Identity documents in the visitor register (Moderate) — NOT YET BUILT
+### S12 — Identity documents in the visitor register (Moderate) — BUILT, ONE ACTION OUTSTANDING
 
-**Planned for Phase 5.** Reception will issue a one-day pass, and each redemption will record the
-visitor's identity document so the desk has a record of who was in the building.
+**What changed.** Reception issues a one-day pass; a visitor redeems it by presenting an
+identity document and receives a 24-hour token that opens the campus map and nothing else. The
+register of redemptions carries the visitor's name, document type and document number.
 
-**This changes the project's data profile.** KApp currently stores no institutional or
+**This changed the project's data profile.** Before this, KApp stored no institutional or
 government-issued data at all. An identity document is personal data under **Ley 1581 de 2012**
-(habeas data), which brings obligations KApp has not needed so far: a stated purpose, a retention
-period, and deletion when that period ends.
+(habeas data), which brings obligations the project did not previously have: a stated purpose, a
+retention period, and deletion when it ends.
 
-**Decided before building it:**
+**How each is met:**
 
-- The register is deleted automatically after **30 days**. Traceability for reception is a
-  short-horizon need; keeping the records longer serves nobody and increases what a breach exposes.
-- The pass is a token, not an account — no e-mail, no password, nothing that outlives the day.
-- **Dirección de TI must be told.** The technical summary shared with Gabriel Cruz Parra says KApp
-  stores no institutional records. That stops being accurate the day this ships, and they should
-  hear it from us rather than find it.
+- **Purpose.** Reception knowing who was in the building. Nothing else reads the register; it is
+  exposed only under `/auth/admin/visitor-passes` and only to `ROLE_ADMIN`.
+- **Retention: 30 days**, enforced by a MongoDB TTL index on `purgeAt`
+  (`V003_VisitorPassIndexes`). The database deletes the document itself. A scheduled task in
+  the service could do the same and would be worse: it stops when the service is down, when
+  somebody disables it, or when it throws — and personal data quietly outstaying its retention
+  is precisely the failure nobody notices until they are asked to prove it did not happen.
+- **Minimisation.** The document number is deliberately absent from log lines. The register has
+  a retention period; a log line has none. No account is created, so nothing outlives the visit.
+
+**Replaced.** Open guest registration (`POST /auth/register/guest`) is gone. It accepted any
+e-mail address, created a real account for somebody who was on campus for an afternoon, and left
+it behind forever. Its authorization-matrix entry was kept and inverted — the endpoint must now
+be *refused* for every role — because a path that used to be public and is now gone is exactly
+what a later change re-opens by accident.
+
+**Still outstanding — this one is not a code change.** The technical summary shared with Gabriel
+Cruz Parra (Dirección de TI) says KApp stores no institutional records. That stopped being
+accurate the day this shipped. They should hear it from us, with the retention period, rather
+than find it.
 
 ## 4. Architectural notes
 

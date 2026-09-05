@@ -8,7 +8,6 @@ import co.edu.konradlorenz.kapp.auth.domain.Credential;
 import co.edu.konradlorenz.kapp.auth.domain.CredentialRepository;
 import co.edu.konradlorenz.kapp.auth.domain.InvitationCode;
 import co.edu.konradlorenz.kapp.auth.error.ProfileServiceUnavailableException;
-import co.edu.konradlorenz.kapp.auth.web.GuestRegistrationRequest;
 import co.edu.konradlorenz.kapp.auth.web.RegistrationRequest;
 import co.edu.konradlorenz.kapp.auth.web.RegistrationResponse;
 import co.edu.konradlorenz.kapp.common.error.ApiError;
@@ -104,20 +103,6 @@ public class RegistrationService {
             invitationCodes.release(code.code());
             throw e;
         }
-    }
-
-    /** Guest signup. Any domain, no code, always {@code ROLE_GUEST}. */
-    public RegistrationResponse registerGuest(GuestRegistrationRequest request) {
-        String email = normalise(request.email());
-        requireAvailable(email);
-
-        // Guests have no academic record: no student code, no program, no pensum.
-        // user-service rejects a ROLE_GUEST profile that carries one.
-        Credential credential = createAccount(email, request.password(),
-                request.firstName(), request.lastName(), KappRoles.GUEST, null);
-
-        verification.issueAndSend(credential);
-        return respond(credential);
     }
 
     private Credential createAccount(String email, String rawPassword, String firstName,

@@ -8,6 +8,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -46,8 +47,23 @@ public class JwtIssuer {
      * @param roles  prefixed role names, e.g. {@code ROLE_STUDENT}
      */
     public IssuedToken issue(String userId, String email, List<String> roles) {
+        return issue(userId, email, roles, properties.ttl());
+    }
+
+    /**
+     * Issues a token with a lifetime other than the configured default.
+     *
+     * <p>The one caller is the visitor day pass, whose 24 hours are a property of the pass
+     * rather than of this service's configuration: a visitor is let in for a day, and
+     * shortening the ordinary access-token TTL later must not silently shorten that.
+     *
+     * <p>{@code email} may be null. A visitor has no account and therefore no address, and
+     * inventing one - {@code visitor@kapp.local} or similar - would put a value into logs
+     * and audit trails that looks like an account and is not.
+     */
+    public IssuedToken issue(String userId, String email, List<String> roles, Duration ttl) {
         Instant now = Instant.now();
-        Instant expiry = now.plus(properties.ttl());
+        Instant expiry = now.plus(ttl);
 
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
                 .subject(userId)
@@ -66,7 +82,7 @@ public class JwtIssuer {
         try {
             SignedJWT jwt = new SignedJWT(header, claims);
             jwt.sign(new RSASSASigner(keys.signingKey().toPrivateKey()));
-            return new IssuedToken(jwt.serialize(), properties.ttl().toSeconds(), userId, roles);
+            return new IssuedToken(jwt.serialize(), ttl.toSeconds(), userId, roles);
         } catch (Exception e) {
             throw new IllegalStateException("Could not sign the access token", e);
         }
