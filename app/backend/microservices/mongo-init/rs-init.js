@@ -11,6 +11,17 @@
 // MVP service uses them today, but a standalone would fail the first one added.
 //
 // The script must stay idempotent - it runs every 10 seconds for the container's life.
+//
+// ── DO NOT WRAP DATABASE CALLS IN HELPER FUNCTIONS ─────────────────────────────────
+// Every try/catch here is at the top level, including the ones inside the loop, and that
+// is deliberate. mongosh rewrites the top-level program to await the driver's promises,
+// but it does NOT rewrite the body of an ordinary function declaration: inside one, a
+// failing call rejects a promise that a synchronous `catch` never sees, so the error
+// escapes and kills the process. The earlier version of this script had exactly that -
+// a tidy `tryAuth()` helper - and the container reported unhealthy with a bare
+// "MongoServerError: Authentication failed." and no indication of which line produced it.
+// A top-level try/catch AROUND a call to a function does work; one written INSIDE the
+// function does not.
 
 const RS_NAME = "rs0";
 
@@ -69,16 +80,15 @@ const admin = db.getSiblingDB("admin");
 // closed, and an unauthenticated getUser() throws Unauthorized rather than returning null.
 //
 // MongoDB's localhost exception permits creating the FIRST user without credentials, and
-// closes the moment that user exists — which is why root is created and immediately used.
-function tryAuth() {
-  try {
-    return admin.auth(ROOT_USER, ROOT_PASSWORD);
-  } catch (e) {
-    return false;
-  }
+// closes the moment that user exists - which is why root is created and immediately used.
+let authenticated = false;
+try {
+  authenticated = !!admin.auth(ROOT_USER, ROOT_PASSWORD);
+} catch (e) {
+  authenticated = false;
 }
 
-if (!tryAuth()) {
+if (!authenticated) {
   try {
     admin.createUser({
       user: ROOT_USER,
@@ -88,15 +98,20 @@ if (!tryAuth()) {
     print("created root user " + ROOT_USER);
   } catch (e) {
     // Reached when root already exists and the password does not match: a stale .env
-    // against a provisioned volume. Failing the probe is correct — the services would
+    // against a provisioned volume. Failing the probe is correct - the services would
     // fail to connect too, and a container reporting healthy with unusable credentials
     // hides the problem until something else breaks.
-    print("FATAL: cannot authenticate as " + ROOT_USER +
-          " and cannot create it. Is MONGO_ROOT_PASSWORD correct for this volume? " + e);
+    print("FATAL: cannot authenticate as " + ROOT_USER + " and cannot create it (" +
+          (e.codeName || e.message) + "). Is MONGO_ROOT_PASSWORD correct for this volume? " +
+          "If the volume holds users from an older .env, `docker compose --profile full " +
+          "--profile dev down -v` discards it.");
     quit(1);
   }
-  if (!tryAuth()) {
-    print("FATAL: created " + ROOT_USER + " but cannot authenticate as it");
+  try {
+    authenticated = !!admin.auth(ROOT_USER, ROOT_PASSWORD);
+  } catch (e) {
+    print("FATAL: created " + ROOT_USER + " but cannot authenticate as it (" +
+          (e.codeName || e.message) + ")");
     quit(1);
   }
 }
@@ -111,13 +126,29 @@ for (const svc of SERVICE_USERS) {
     continue;
   }
   const target = db.getSiblingDB(svc.db);
-  if (target.getUser(svc.user) === null) {
+
+  let existing = null;
+  try {
+    existing = target.getUser(svc.user);
+  } catch (e) {
+    print("FATAL: cannot read the users of " + svc.db + " (" + (e.codeName || e.message) + ")");
+    quit(1);
+  }
+  if (existing !== null) {
+    continue;
+  }
+
+  try {
     target.createUser({
       user: svc.user,
       pwd: svc.password,
       roles: [{ role: "readWrite", db: svc.db }],
     });
     print("created " + svc.user + " with readWrite on " + svc.db);
+  } catch (e) {
+    print("FATAL: cannot create " + svc.user + " in " + svc.db + " (" +
+          (e.codeName || e.message) + ")");
+    quit(1);
   }
 }
 
