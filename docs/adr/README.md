@@ -13,6 +13,10 @@ somewhere right.
 | [0001](0001-mongodb-over-postgresql.md) | MongoDB rather than PostgreSQL | Implemented |
 | [0002](0002-rs256-with-a-published-jwks.md) | RS256 with a published JWKS, verified by every service | Implemented |
 | [0003](0003-oidc-over-saml-for-mobile-authentication.md) | OIDC rather than SAML for the mobile clients | Accepted, pending university configuration |
+| [0004](0004-one-database-engine-not-polyglot.md) | One database engine, not polyglot persistence | Implemented |
+| [0005](0005-per-service-database-credentials.md) | One MongoDB account per service | Implemented |
+| [0006](0006-schematic-map-not-floor-plan-images.md) | A schematic map drawn from data, not floor plan images | Implemented |
+| [0007](0007-visitor-day-pass-instead-of-guest-accounts.md) | A visitor day pass instead of guest accounts | Implemented |
 
 ## Still to record
 
@@ -25,3 +29,4 @@ Decisions already taken whose reasoning currently lives only in commit messages 
 - `semaphore-service` owning the academic catalogue, because the curriculum is what the progress
   view displays
 - Freezing `course-service` and `assignment-service` rather than deleting or migrating them
+- Personal academic plans stored as deltas over an immutable pensum, rather than as copies of it

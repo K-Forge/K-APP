@@ -11,7 +11,7 @@
   </tr>
 </table>
 
-<p align="center"><strong>University mobile app for Fundación Universitaria Konrad Lorenz. Native Android (Kotlin) and iOS (Swift) clients, powered by a server-side Spring Boot microservices backend with JWT and PostgreSQL.</strong></p>
+<p align="center"><strong>University mobile app for Fundación Universitaria Konrad Lorenz. Native Android (Kotlin) and iOS (Swift) clients, powered by a Spring Boot microservices backend on MongoDB, with RS256 tokens verified by every service.</strong></p>
 
 <p align="center">
   <a href="https://github.com/K-Forge/KApp/actions/workflows/ci.yml"><img src="https://github.com/K-Forge/KApp/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"/></a>
@@ -21,9 +21,10 @@
   <img src="https://img.shields.io/badge/Android-Kotlin-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android (Kotlin)"/>
   <img src="https://img.shields.io/badge/iOS-Swift-F05138?style=for-the-badge&logo=swift&logoColor=white" alt="iOS (Swift)"/>
   <img src="https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java 21"/>
-  <img src="https://img.shields.io/badge/Spring%20Boot-3.2-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" alt="Spring Boot 3.2"/>
-  <img src="https://img.shields.io/badge/Spring%20Cloud-2023.0-6DB33F?style=for-the-badge&logo=spring&logoColor=white" alt="Spring Cloud 2023.0"/>
-  <img src="https://img.shields.io/badge/PostgreSQL-15+-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL 15+"/>
+  <img src="https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" alt="Spring Boot 3.5"/>
+  <img src="https://img.shields.io/badge/Spring%20Cloud-2025.0-6DB33F?style=for-the-badge&logo=spring&logoColor=white" alt="Spring Cloud 2025.0"/>
+  <img src="https://img.shields.io/badge/MongoDB-7-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB 7"/>
+  <img src="https://img.shields.io/badge/Tests-613%20integration-0EA5E9?style=for-the-badge" alt="613 integration tests"/>
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
   <img src="https://img.shields.io/badge/Status-Thesis%20proposal%20phase-EAB308?style=for-the-badge" alt="Thesis proposal phase"/>
   <img src="https://img.shields.io/badge/License-Internal%20use-8B5CF6?style=for-the-badge" alt="Internal use license"/>
@@ -52,20 +53,21 @@
 ## Overview
 
 KApp is the **university mobile application** for the Fundación Universitaria Konrad Lorenz community, developed by
-the K-Forge development club. The product is mobile-first: native **Android (Kotlin)** and **iOS (Swift)** clients
-give students and staff access to their academic life from their phones — identity and authentication, user and
-profile administration, course and group enrollment, and the assignment/submission/grading cycle.
+the K-Forge development club. It is a thesis project, and its scope was narrowed deliberately in August 2026 for a
+reason worth stating plainly: **the university's academic data is not available**, so the product cannot depend on
+it. Accounts are created inside KApp, and the MVP is four things a student uses day to day — **identity and
+profile, the campus map, a customisable preloaded timetable, and a customisable preloaded career semáforo**.
+Courses, assignments and grading are explicitly out of scope; see [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
 
-The clients are thin. Everything they consume lives **server-side, as a Spring Boot microservices backend**: six
-independent services register with a Eureka discovery server and are reached through a single API Gateway that
-centralizes routing and JWT validation. Services communicate over REST through OpenFeign clients, share a common
-library of DTOs and exception handling, and persist to a PostgreSQL 15+ schema with enumerated types, audit triggers
-and referential integrity enforced at database level.
+The clients are thin. Everything they consume lives **server-side**: six independent Spring Boot services register
+with a Eureka discovery server and are reached through a single API Gateway. **Every service validates the access
+token itself** against a published JWKS rather than trusting a header the gateway sets, and each holds its own
+MongoDB account with `readWrite` on exactly one database — so the separation between services is enforced by the
+engine, not merely respected by the code.
 
-Delivery is sequenced deliberately: **backend first, web second, mobile third**. The web frontend — plain
-HTML/CSS/JS, migrating to Angular — exists to exercise and validate the API end to end while the backend is being
-built, and to settle the interface design. Once that design is stable it gets ported to the native Kotlin and Swift
-clients, which are the final product.
+Delivery goes **straight to mobile**. There is a web portal, but it is an administration and development console
+for the team — not a product surface. The mobile clients are unblocked: the five OpenAPI contracts are served as
+Prism mocks, so Kotlin and Swift work does not wait on the backend.
 
 ---
 
@@ -137,92 +139,95 @@ and the desktop arrangement is the enhancement layered on top through breakpoint
 
 ## System Architecture
 
-The mobile clients run on the user's device; every service runs on the server side. The gateway is the only
-component exposed to clients, and service locations are resolved dynamically through Eureka instead of being
-hardcoded.
+The mobile clients run on the user's device; every service runs server-side. **The gateway is the only reachable
+component** — service ports are deliberately unpublished — and service locations are resolved through Eureka rather
+than hardcoded.
 
 ```mermaid
 flowchart TB
     subgraph clients["Client devices"]
-        AND["Android client<br/>Kotlin, planned"]
-        IOS["iOS client<br/>Swift, planned"]
-        WEB["Web frontend<br/>HTML / CSS / JS to Angular<br/>API test surface, design reference"]
+        AND["Android · Kotlin"]
+        IOS["iOS · Swift"]
+        PORTAL["Admin portal · Angular<br/>team console, not a product surface"]
     end
 
     subgraph server["Server side"]
-        GW["API Gateway :8080<br/>Spring Cloud Gateway<br/>routing, JWT filter, Resilience4j"]
-        EUR["Discovery Server :8761<br/>Netflix Eureka"]
+        GW["API Gateway :8080<br/>routing, CORS, rate limiting"]
+        EUR["Discovery :8761<br/>Netflix Eureka"]
 
-        subgraph services["Microservices"]
-            AUTH["auth-service :8081<br/>login, registration, JWT issuing"]
-            USER["user-service :8082<br/>people, members, students, employees"]
-            COURSE["course-service :8083<br/>programs, courses, groups, enrollment"]
-            ASSIGN["assignment-service :8084<br/>assignments, submissions, grading"]
+        subgraph services["Microservices — ports NOT published"]
+            AUTH["auth-service :8081<br/>credentials, RS256 tokens, JWKS,<br/>invitation codes, visitor passes"]
+            USER["user-service :8082<br/>profiles, directory search"]
+            SEM["semaphore-service :8083<br/>catalogue, progress, academic plans"]
+            SCH["schedule-service :8084<br/>enrolments, meetings, agenda"]
+            MAP["map-service :8085<br/>buildings, floors, spaces, search"]
         end
 
-        COMMON["common library<br/>shared DTOs and GlobalExceptionHandler"]
-        DB[("PostgreSQL 15+<br/>schema, enums, audit_log")]
+        COMMON["common library<br/>error envelope, CurrentUser, roles"]
+
+        subgraph data["MongoDB 7 — one database AND one account per service"]
+            DBA[("kapp_auth")]
+            DBU[("kapp_user")]
+            DBS[("kapp_semaphore")]
+            DBC[("kapp_schedule")]
+            DBM[("kapp_map")]
+        end
     end
 
     AND --> GW
     IOS --> GW
-    WEB --> GW
+    PORTAL --> GW
 
-    GW --> AUTH
-    GW --> USER
-    GW --> COURSE
-    GW --> ASSIGN
+    GW --> AUTH & USER & SEM & SCH & MAP
 
     AUTH -.register.-> EUR
     USER -.register.-> EUR
-    COURSE -.register.-> EUR
-    ASSIGN -.register.-> EUR
+    SEM -.register.-> EUR
+    SCH -.register.-> EUR
+    MAP -.register.-> EUR
     GW -.discover.-> EUR
 
-    COURSE -->|OpenFeign| USER
-    ASSIGN -->|OpenFeign| USER
-    ASSIGN -->|OpenFeign| COURSE
+    AUTH -->|OpenFeign| USER
+    SEM -->|OpenFeign| USER
+    SCH -->|OpenFeign| SEM
 
-    AUTH --> DB
-    USER --> DB
-    COURSE --> DB
-    ASSIGN --> DB
+    AUTH --> DBA
+    USER --> DBU
+    SEM --> DBS
+    SCH --> DBC
+    MAP --> DBM
 
-    COMMON -.shared dependency.-> AUTH
-    COMMON -.shared dependency.-> USER
-    COMMON -.shared dependency.-> COURSE
-    COMMON -.shared dependency.-> ASSIGN
+    COMMON -.shared.-> AUTH & USER & SEM & SCH & MAP
 ```
 
-Authentication is centralized: `auth-service` verifies credentials against BCrypt hashes and issues an HS512-signed
-JWT; the gateway validates every subsequent request and propagates the authenticated identity downstream.
+**The gateway does not decide identity.** It routes; each service validates the token's signature itself against
+auth-service's published JWKS. Trusting a header the gateway set was a finding in the security audit: anyone able to
+reach a service port directly could forge it. A signed token cannot be forged, so the two protections — unpublished
+ports and per-service validation — are independent on purpose.
 
 ```mermaid
 sequenceDiagram
     participant C as Client
     participant G as API Gateway :8080
-    participant A as auth-service :8081
+    participant A as auth-service
     participant S as Domain service
-    participant D as PostgreSQL
 
     C->>G: POST /auth/login (email, password)
-    G->>A: forward (public path, filter bypassed)
-    A->>D: load member by university_email
-    D-->>A: password_hash, role
-    A->>A: BCrypt verify, build JWT (HS512, roles claim)
-    A-->>C: 200 JwtResponse (token)
+    G->>A: forward (public path)
+    A->>A: BCrypt verify, sign RS256 JWT (roles claim)
+    A-->>C: 200 access token, 1 hour
 
-    Note over C,G: Subsequent authenticated request
+    Note over C,S: Any subsequent request
 
-    C->>G: GET /api/student/courses (Bearer token)
-    G->>G: JwtAuthenticationFilter validates signature and expiry
-    alt token invalid or missing
-        G-->>C: 401 Unauthorized
-    else token valid
-        G->>S: forward with X-User-Email header
-        S->>D: query domain data
-        D-->>S: rows
-        S-->>C: 200 payload
+    C->>G: GET /api/semaphore/me (Bearer token)
+    G->>S: forward, token untouched
+    S->>A: GET /.well-known/jwks.json (once, then cached)
+    A-->>S: public keys
+    S->>S: verify signature, check @PreAuthorize
+    alt wrong role
+        S-->>C: 403
+    else
+        S-->>C: 200
     end
 ```
 
@@ -230,45 +235,48 @@ sequenceDiagram
 
 ## Key Features
 
-- **Single entry point.** All client traffic goes through the API Gateway; routes for each service are declared
-  explicitly in `GatewayConfig` and resolved by service id (`lb://user-service`) rather than by host and port.
-- **Centralized authentication.** A global gateway filter (`JwtAuthenticationFilter`, order `-100`) validates the
-  token once, at the edge, and injects the authenticated identity into the downstream request.
-- **Dynamic service discovery.** Services register with Eureka and are load-balanced by logical name, so instances
-  can be added or moved without touching the gateway configuration.
-- **Resilience by configuration.** Resilience4j circuit breakers, connect/response timeouts and Docker health checks
-  are declared in configuration, keeping failure policy out of business code.
-- **Service-to-service communication over OpenFeign.** Declarative clients (`UserServiceClient`,
-  `CourseServiceClient`) keep cross-service calls typed and readable.
-- **Shared contract module.** The `common` library concentrates DTOs and a `GlobalExceptionHandler`, so error
-  responses and payload shapes stay consistent across services.
-- **Database-level integrity.** The PostgreSQL schema defines enumerated domains, foreign keys, `updated_at`
-  triggers and an `audit_log` table with an automatic logging function.
-- **Reproducible local setup.** Bash orchestration scripts start services in dependency order with health-check
-  polling, and Docker Compose provides the containerized equivalent.
+- **Single entry point.** All client traffic goes through the gateway; routes are declared explicitly and resolved
+  by service id (`lb://user-service`). Eureka's discovery locator is **off**, so registering a service does not
+  silently publish it.
+- **Per-service token validation.** Every service is an OAuth2 resource server verifying RS256 against a published
+  JWKS. Identity comes from the signed token, never from a header.
+- **Authorization asserted, not assumed.** Every endpoint carries an explicit rule, and each service's full
+  role-by-endpoint matrix is asserted in tests — **including every combination that must be refused**, which are the
+  ones that matter.
+- **Database isolation the engine enforces.** One database *and one account* per service, each with `readWrite` on
+  exactly one. `scripts/verify-db-isolation.sh` proves it in 25 checks.
+- **Contract-first.** Five hand-written OpenAPI 3.1 specs, linted in CI and served as Prism mocks, so the mobile
+  clients are never blocked on the backend.
+- **Versioned migrations.** Mongock change units are ordered, audited and lock-protected, so several developers and
+  CI can point at one database without racing.
+- **613 integration tests** on Testcontainers, from a repository that had none in August.
+- **A campus map drawn from data.** Floors are grids, not photographs — which removed the project's
+  longest-lead dependency, since a schematic floor is captured by walking it.
 
 ---
 
 ## Tech Stack
 
-| Technology                    | Role in the architecture | Rationale                                                                                 |
-| ----------------------------- | ------------------------ | ----------------------------------------------------------------------------------------- |
-| Kotlin (Android)              | Primary client           | Native Android app: the product's main delivery target.                                   |
-| Swift (iOS)                   | Primary client           | Native iOS app consuming the same gateway API as Android.                                 |
-| Java 21                       | Backend language         | Long-term support release; modern language features across all modules.                   |
-| Spring Boot 3.2               | Service runtime          | Auto-configuration and production-ready defaults for six independent services.            |
-| Spring Cloud 2023.0.0         | Distributed system layer | Provides Gateway, Eureka, OpenFeign and Resilience4j as a version-aligned set.            |
-| Spring Cloud Gateway          | Edge routing             | Reactive gateway with global filters; the natural place for cross-cutting authentication. |
-| Netflix Eureka                | Service discovery        | Removes hardcoded service addresses and enables client-side load balancing.               |
-| Spring Security + JJWT 0.11.5 | Authentication           | BCrypt password hashing and stateless HS512 JWT sessions.                                 |
-| OpenFeign                     | Inter-service calls      | Declarative HTTP clients integrated with discovery and load balancing.                    |
-| Resilience4j                  | Fault tolerance          | Circuit breaking to keep a failing dependency from cascading.                             |
-| Spring Data JPA + Hibernate   | Persistence              | Repository abstraction over a normalized relational model.                                |
-| PostgreSQL 15+                | Database                 | Enumerated types, JSONB auditing and strong constraint support.                           |
-| Maven (multi-module)          | Build                    | Parent POM centralizes dependency and plugin versions for the seven modules.              |
-| Docker + Docker Compose       | Containerization         | Reproducible local topology with dependency ordering and health checks.                   |
-| HTML / CSS / JS               | Web test surface         | Zero-build client that exercises the API and holds the design later ported to mobile.     |
-| pnpm + Bun                    | Tooling                  | pnpm manages repository tooling; Bun serves the static web client.                        |
+| Technology | Role | Why this one |
+| --- | --- | --- |
+| Kotlin (Android) | Primary client | The product's main delivery target. |
+| Swift (iOS) | Primary client | Consumes the same gateway API as Android. |
+| Java 21 | Backend language | Long-term support release. |
+| Spring Boot **3.5** | Service runtime | **Not Boot 4**: Mongock publishes no Boot 4 artifact. |
+| Spring Cloud **2025.0** | Distributed layer | The release train for Boot 3.5; 2025.1.x targets Boot 4. |
+| Spring Cloud Gateway | Edge routing | One entry point, with an explicit routing table rather than discovery-based exposure. |
+| Netflix Eureka | Service discovery | Services are addressed by logical name, not host and port. |
+| Spring Security 6.5 (OAuth2 resource server) | Authorization | **RS256** with a published JWKS. A shared symmetric secret handed to six services is six places that can mint an admin token — and Entra ID signs RS256, so that migration becomes a property change. |
+| OpenFeign | Inter-service calls | Three edges only, all one-directional. |
+| Spring Data MongoDB | Persistence | Document-shaped aggregates with a single writer each. See [ADR 0001](docs/adr/0001-mongodb-over-postgresql.md). |
+| **Mongock 5.5.1** | Migrations | Versioned, ordered, audited change units with a distributed lock — which the project previously had none of. |
+| MongoDB 7 | Database | One engine, not polyglot. See [ADR 0004](docs/adr/0004-one-database-engine-not-polyglot.md). |
+| Testcontainers | Testing | Real MongoDB per suite; no in-memory substitute pretending to be a database. |
+| OpenAPI 3.1 + Prism | Contracts | Hand-written, linted in CI, served as mocks so client work never waits. |
+| Maven (multi-module) | Build | The parent POM centralises every version, so parallel branches never edit it. |
+| Docker + Docker Compose | Containerisation | Profiles (`core`, `academic`, `map`, `full`, `dev`, `cloud`) so a laptop runs only what is needed. |
+| Angular 22 + Vitest | Admin portal | A team console, not a product surface. |
+| pnpm | Tooling | Repository tooling and the portal's dependencies. |
 
 ---
 
@@ -276,14 +284,15 @@ sequenceDiagram
 
 ### Prerequisites
 
-| Requirement             | Version                       | Used for                                |
-| ----------------------- | ----------------------------- | --------------------------------------- |
-| Java (JDK)              | 21+                           | Building and running the microservices. |
-| Maven                   | 3.9+ (or the bundled wrapper) | Multi-module build.                     |
-| PostgreSQL              | 15+ (local or managed)        | Application database.                   |
-| Docker + Docker Compose | Latest stable                 | Containerized topology (optional).      |
-| pnpm                    | 10+ (via Corepack)            | Repository tooling.                     |
-| Bun                     | Latest stable                 | Serving the static web client.          |
+| Requirement | Version | Used for |
+| --- | --- | --- |
+| Docker Desktop | 4.x+ | **Everything.** MongoDB runs in a container; so do the services and the tests' own database. |
+| Java (JDK) | 21 | Only to build or run tests outside Docker. |
+| Maven | Use the bundled `./mvnw` | Do not install one. |
+| pnpm | 10+ (via Corepack) | Only to develop the admin portal itself. |
+
+There is **no database to install**: Docker Compose starts MongoDB, and the tests start their own
+through Testcontainers.
 
 ### 1. Clone and install tooling
 
@@ -296,19 +305,21 @@ pnpm install
 
 ### 2. Configure environment variables
 
-```bash
-cp .env.example .env
-```
-
-Fill in the database credentials and a `JWT_SECRET` of at least 64 bytes (HS512 requirement — a shorter value makes
-the services fail on startup). The gateway and `auth-service` must share the same secret.
-
-### 3. Initialize the database
+Secrets are **generated on your machine**, not copied from an example file — a password pasted into a chat or a
+commit stays in that history forever:
 
 ```bash
-psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -f app/database/init.sql
-psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -f app/database/test_data.sql   # sample data, development only
+cd app/backend/microservices
+../../../scripts/generate-dev-secrets.sh > .env
 ```
+
+That writes sixteen values: a MongoDB account per service, the shared internal token, and the signing key id.
+`.env` is gitignored and must stay that way.
+
+### 3. Nothing to initialise
+
+Mongock creates every index and loads the seed data — curricula, buildings, spaces, invitation codes — on startup.
+`app/database/init.sql` is the legacy PostgreSQL schema, kept for reference only; nothing reads it.
 
 ### 4. Start the microservices
 
