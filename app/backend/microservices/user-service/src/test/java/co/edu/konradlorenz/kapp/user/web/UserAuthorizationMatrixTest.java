@@ -45,14 +45,20 @@ class UserAuthorizationMatrixTest extends AbstractUserServiceTest {
     }
 
     // ---------------------------------------------------------------------------------
-    // GET /api/users/me - any authenticated role reaches its own profile
+    // GET /api/users/me - every authenticated role EXCEPT a guest
     // ---------------------------------------------------------------------------------
 
+    /**
+     * A guest used to reach this. ROLE_GUEST now means one thing: a visitor holding a day
+     * pass, with no account behind it and a token whose subject is {@code visitor:<pass id>}.
+     * The endpoint could only ever have answered 404, and refusing it is what makes "the pass
+     * opens the campus map and nothing else" literally true.
+     */
     @Test
-    @DisplayName("GET /api/users/me: a guest reaches their own profile")
-    void getMe_guest_succeeds() throws Exception {
+    @DisplayName("GET /api/users/me: a guest is refused - a visitor has no profile")
+    void getMe_guest_forbidden() throws Exception {
         mockMvc.perform(get("/api/users/me").with(callerWith(GUEST_ID, UserRole.ROLE_GUEST)))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -84,15 +90,15 @@ class UserAuthorizationMatrixTest extends AbstractUserServiceTest {
     }
 
     // ---------------------------------------------------------------------------------
-    // PATCH /api/users/me - any authenticated role edits their own profile
+    // PATCH /api/users/me - every authenticated role EXCEPT a guest
     // ---------------------------------------------------------------------------------
 
     @Test
-    @DisplayName("PATCH /api/users/me: a guest can edit their own profile")
-    void patchMe_guest_succeeds() throws Exception {
+    @DisplayName("PATCH /api/users/me: a guest is refused - there is no profile to edit")
+    void patchMe_guest_forbidden() throws Exception {
         mockMvc.perform(patch("/api/users/me").with(callerWith(GUEST_ID, UserRole.ROLE_GUEST))
                         .contentType(MediaType.APPLICATION_JSON).content(TRIVIAL_PATCH))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
     }
 
     @Test

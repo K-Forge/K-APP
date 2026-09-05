@@ -1,6 +1,7 @@
 package co.edu.konradlorenz.kapp.user.web;
 
 import co.edu.konradlorenz.kapp.common.security.CurrentUser;
+import co.edu.konradlorenz.kapp.user.security.NotGuest;
 import co.edu.konradlorenz.kapp.user.service.UserProfileService;
 import co.edu.konradlorenz.kapp.user.web.dto.UserProfileResponse;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,8 +19,15 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>Neither method takes a user id. The target is always the {@code sub} claim of the
  * validated token, so there is no parameter an attacker could point at somebody else's
- * account, and no ownership check that could be forgotten. Any authenticated role reaches
- * its own profile here, guests included.
+ * account, and no ownership check that could be forgotten.
+ *
+ * <p><strong>{@code ROLE_GUEST} is refused.</strong> It used to be allowed, back when a guest
+ * was an account with a profile whose {@code academic} block was null. A guest is now a
+ * visitor holding a day pass: there is no account, the token's subject is
+ * {@code visitor:<pass id>}, and this endpoint answered every such call with {@code 404}
+ * because no profile could ever match. Refusing it outright is both more honest and what
+ * makes "the pass opens the campus map and nothing else" literally true rather than true in
+ * effect.
  */
 @RestController
 @RequestMapping("/api/users")
@@ -35,6 +43,7 @@ public class UserProfileController {
     }
 
     @GetMapping("/me")
+    @NotGuest
     @Operation(summary = "Get the authenticated user's profile",
             description = "Resolved from the token's sub claim. academic is null for a guest.")
     public UserProfileResponse me() {
@@ -50,6 +59,7 @@ public class UserProfileController {
      * that keeps the two apart.
      */
     @PatchMapping(path = "/me", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @NotGuest
     @Operation(summary = "Update the authenticated user's profile",
             description = "Only the fields present in the body are touched. Sending null "
                     + "clears phone, avatarUrl, identification or academic. Sending email, "

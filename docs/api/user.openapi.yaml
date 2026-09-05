@@ -29,7 +29,7 @@ info:
 
     | Role | Reach |
     |---|---|
-    | `ROLE_GUEST` | Own profile only. No academic record exists for a guest. |
+    | `ROLE_GUEST` | **Nothing here.** A guest is a visitor holding a day pass, with no account behind it — the campus map is all such a token opens. |
     | `ROLE_STUDENT` | Own profile only. |
     | `ROLE_PROFESSOR` | Own profile only. |
     | `ROLE_ADMIN` | Own profile plus the whole directory and activation state. |
@@ -89,10 +89,13 @@ paths:
         resolved from the token's `sub` claim. No user id is accepted in the
         request, so one account can never read another through this path.
 
-        **Access: any authenticated role** — `ROLE_GUEST`, `ROLE_STUDENT`,
-        `ROLE_PROFESSOR` and `ROLE_ADMIN` all reach their own profile here.
+        **Access: every authenticated role except `ROLE_GUEST`** — `ROLE_STUDENT`,
+        `ROLE_PROFESSOR` and `ROLE_ADMIN` reach their own profile here.
 
-        `academic` is `null` when the caller is a guest.
+        `ROLE_GUEST` is refused with `403`. It used to be allowed, when a guest was an account
+        whose `academic` block was null. A guest is now a visitor holding a day pass: there is
+        no account, the token's subject is `visitor:<pass id>`, and this endpoint could only
+        ever have answered `404`.
       tags: [Profile]
       responses:
         '200':
@@ -161,6 +164,8 @@ paths:
 
         Rejected with `400`: an empty body, an `academic` object on a
         `ROLE_GUEST` account, and any field that fails its own constraints.
+
+        **Access: every authenticated role except `ROLE_GUEST`**, for the reason above.
         `identification` and `academic` may be set to `null` to clear them.
       tags: [Profile]
       requestBody:
@@ -525,7 +530,7 @@ paths:
                     pensumCode: '1015'
                     currentLevel: 1
               guest:
-                summary: Guest created by guest registration
+                summary: Guest profile, created by an administrator
                 value:
                   email: maria.rodriguez@gmail.com
                   firstName: María Fernanda

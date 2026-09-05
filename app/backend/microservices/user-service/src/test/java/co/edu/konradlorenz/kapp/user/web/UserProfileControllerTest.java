@@ -24,6 +24,8 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
 
     private static final String STUDENT_ID = "b0000000-0000-0000-0000-000000000001";
     private static final String GUEST_ID = "b0000000-0000-0000-0000-000000000002";
+    /** Only used to read a guest's profile, which is no longer readable through /me. */
+    private static final String ADMIN_ID = "b0000000-0000-0000-0000-000000000003";
 
     // ---------------------------------------------------------------------------------
     // GET /api/users/me
@@ -43,16 +45,31 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
                 .andExpect(jsonPath("$.academic.currentLevel").value(6));
     }
 
+    /**
+     * A guest profile can still exist — an administrator can create one — and it must still
+     * serialise {@code academic} as an explicit null rather than omitting the key, because a
+     * client distinguishes "no academic record" from "field not sent". It is read through the
+     * admin endpoint now: {@code /api/users/me} refuses ROLE_GUEST, since that role means a
+     * visitor with no account at all.
+     */
     @Test
     @DisplayName("a guest's profile round-trips with academic explicitly null, not absent")
-    void getMe_guest_academicIsExplicitlyNull() throws Exception {
+    void guestProfile_academicIsExplicitlyNull() throws Exception {
         save(guest(GUEST_ID, "maria.rodriguez@gmail.com", "Maria", "Rodriguez"));
 
-        mockMvc.perform(get("/api/users/me").with(callerWith(GUEST_ID, UserRole.ROLE_GUEST)))
+        mockMvc.perform(get("/api/users/{id}", GUEST_ID)
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("ROLE_GUEST"))
                 .andExpect(jsonPath("$..academic").exists())
                 .andExpect(jsonPath("$.academic").value(nullValue()));
+    }
+
+    @Test
+    @DisplayName("a visitor's token is refused outright: there is no account behind it")
+    void getMe_guest_forbidden() throws Exception {
+        mockMvc.perform(get("/api/users/me").with(callerWith(GUEST_ID, UserRole.ROLE_GUEST)))
+                .andExpect(status().isForbidden());
     }
 
     // ---------------------------------------------------------------------------------
@@ -202,22 +219,11 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
     // PATCH /api/users/me - the guest / academic business rule
     // ---------------------------------------------------------------------------------
 
-    @Test
-    @DisplayName("a guest may not be given an academic record")
-    void patchMe_rejectsAcademicOnGuest() throws Exception {
-        save(guest(GUEST_ID, "maria.rodriguez@gmail.com", "Maria", "Rodriguez"));
-
-        mockMvc.perform(patch("/api/users/me").with(callerWith(GUEST_ID, UserRole.ROLE_GUEST))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"academic": {"studentCode": "506999999", "programCode": "506",
-                                              "pensumCode": "1015", "currentLevel": 3}}"""))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.details[0].field").value("academic"));
-
-        UserProfile stillAGuest = reload(GUEST_ID);
-        org.assertj.core.api.Assertions.assertThat(stillAGuest.academic()).isNull();
-    }
+    // "A guest may not be given an academic record" used to be asserted here, through
+    // PATCH /api/users/me. That door is closed: ROLE_GUEST now means a visitor with no
+    // account, and the endpoint refuses it. The rule itself still holds and is asserted
+    // where it is still reachable - InternalUserControllerTest.upsert_guestWithAcademic_isRejected,
+    // covering the one path that can still create a ROLE_GUEST profile.
 
     // ---------------------------------------------------------------------------------
     // PATCH /api/users/me - field-level validation, matching the contract exactly
