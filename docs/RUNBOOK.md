@@ -37,6 +37,7 @@ or Android Studio you actively do not want it.
 | `map`      | core + map                            | ~3 GB   | Working on the campus map                         |
 | `full`     | everything                            | ~5 GB   | End-to-end checks before a merge                  |
 | `dev`      | the admin portal                      | ~50 MB  | Any time you want the web console                 |
+| `cloud`    | everything **except** MongoDB         | ~4.5 GB | Pointing the services at the Atlas dev cluster    |
 
 Profiles combine. The portal on its own is not much use, so pair it with a backend:
 
@@ -113,18 +114,38 @@ docker compose exec api-gateway wget -qO- http://auth-service:8081/auth/health
 
 ## Local accounts
 
-Password for all of them: `KForge2026Dev!`
+The four development accounts are created by a script, which generates their passwords on your
+machine and writes them to `app/backend/microservices/.dev-accounts` (mode 600, gitignored):
 
-| E-mail                                                                            | Role      |
-| --------------------------------------------------------------------------------- | --------- |
-| `brian@konradlorenz.edu.co`                                                       | ADMIN     |
-| `julian@` · `santiago@` · `diego@` · `ivan@` · `alejandro@` `konradlorenz.edu.co` | STUDENT   |
-| `profesor@konradlorenz.edu.co`                                                    | PROFESSOR |
-| `visitante@gmail.com`                                                             | GUEST     |
+```bash
+scripts/create-dev-accounts.sh
+```
 
-These live in **your** MongoDB. They are not shared, and they disappear with `down -v`.
+| E-mail                              | Role       |
+| ----------------------------------- | ---------- |
+| `brian.dev@konradlorenz.edu.co`     | ADMIN      |
+| `ivan.dev@konradlorenz.edu.co`      | ADMIN      |
+| `alejandro.dev@konradlorenz.edu.co` | ADMIN      |
+| `santiago.dev@konradlorenz.edu.co`  | ADMIN      |
 
-**To recreate them**, register through the API with a seeded invitation code:
+All four hold ADMIN because the team is still building KApp and everyone needs to reach
+everything. There is deliberately no admin/developer split yet — and that has to change before
+KApp is reachable from outside a laptop. It is recorded in `SECURITY-AUDIT.md`.
+
+The passwords are **not** shared here, in the repository or in the group chat: anything said in
+one of those stays in its history forever, and rotating the password later does not remove it.
+Give each teammate their line from `.dev-accounts` privately.
+
+`--recreate` deletes the four and issues new passwords:
+
+```bash
+scripts/create-dev-accounts.sh --recreate
+```
+
+These live in **your** MongoDB. They are not shared between machines, and they disappear with
+`down -v`; run the script again afterwards.
+
+**To register any other account**, use a seeded invitation code:
 
 ```bash
 curl -X POST http://localhost:8080/auth/register \
@@ -137,11 +158,15 @@ curl -X POST http://localhost:8080/auth/register \
 Register no more than a handful at a time — the gateway allows 10 attempts per minute on the
 credential endpoints and will answer 429.
 
-`ROLE_ADMIN` is never granted by an invitation code, on purpose: otherwise anyone who could read
-the repository could escalate. Promote an existing account instead:
+`ROLE_ADMIN` is never granted by an invitation code, on purpose: the codes ship in the repository,
+so a code that granted admin would let anyone who can read the repo escalate. Promote an existing
+account instead — note that this now needs the Mongo root credentials, which live in `.env`:
 
 ```bash
-docker compose exec -T mongo mongosh --quiet --eval '
+cd app/backend/microservices
+docker compose exec -T -e P="$(grep '^MONGO_ROOT_PASSWORD=' .env | cut -d= -f2-)" \
+  mongo mongosh --quiet --eval '
+  db.getSiblingDB("admin").auth("kapp_root", process.env.P);
   const email = "you@konradlorenz.edu.co";
   db.getSiblingDB("kapp_auth").credentials.updateOne({email}, {$set:{roles:["ROLE_ADMIN"]}});
   db.getSiblingDB("kapp_user").users.updateOne({email}, {$set:{role:"ROLE_ADMIN"}});'
@@ -166,19 +191,100 @@ anyone else building at the same time.
 
 ---
 
-## Inspecting the database
+## Databases and credentials
+
+Each service has its own database **and its own MongoDB account**, holding `readWrite` on that one
+database and nothing else. A credential that leaks out of one service opens exactly one database;
+map-service cannot read `kapp_auth` even if somebody writes the query by mistake. This is what makes
+the anteproyecto's claim of *"servicios independientes, con base de datos propia"* true in the engine
+rather than only in the code.
+
+| Database         | Account                 | Service           |
+| ---------------- | ----------------------- | ----------------- |
+| `kapp_auth`      | `kapp_auth_user`        | auth-service      |
+| `kapp_user`      | `kapp_user_user`        | user-service      |
+| `kapp_semaphore` | `kapp_semaphore_user`   | semaphore-service |
+| `kapp_schedule`  | `kapp_schedule_user`    | schedule-service  |
+| `kapp_map`       | `kapp_map_user`         | map-service       |
+
+Plus `kapp_root`, which exists only to provision the other five and to run the admin commands in
+this runbook. No service uses it.
+
+The passwords live in `.env` and are generated per machine:
 
 ```bash
-docker compose exec mongo mongosh
+cd app/backend/microservices
+../../../scripts/generate-dev-secrets.sh > .env
 ```
 
-One database per service: `kapp_auth`, `kapp_user`, `kapp_semaphore`, `kapp_schedule`, `kapp_map`.
+Re-running produces a **different** set. If the volume already holds accounts created with the old
+passwords, mongo will refuse to start healthy and say so — see the troubleshooting entry below.
 
-```javascript
-use kapp_user
-db.users.find().limit(5)
-db.users.countDocuments({role: "ROLE_STUDENT"})
+**To prove the isolation actually holds:**
+
+```bash
+scripts/verify-db-isolation.sh
 ```
+
+Each of the five accounts must reach its own database and be refused on the other four — 25 checks.
+Run it after any change to `mongo-init/rs-init.js`.
+
+---
+
+## Inspecting the database
+
+mongosh now needs credentials. For a single service's data, use that service's account:
+
+```bash
+cd app/backend/microservices
+docker compose exec -T -e U=kapp_map_user -e P="$(grep '^MONGO_MAP_PASSWORD=' .env | cut -d= -f2-)" \
+  mongo mongosh --quiet --eval '
+  db.getSiblingDB("kapp_map").auth(process.env.U, process.env.P);
+  db.getSiblingDB("kapp_map").spaces.find().limit(5).forEach(printjson);'
+```
+
+For anything spanning services, use root:
+
+```bash
+docker compose exec -T -e P="$(grep '^MONGO_ROOT_PASSWORD=' .env | cut -d= -f2-)" \
+  mongo mongosh --quiet --eval '
+  db.getSiblingDB("admin").auth("kapp_root", process.env.P);
+  db.getSiblingDB("kapp_user").users.countDocuments({role: "ROLE_STUDENT"});'
+```
+
+The password goes in as an environment variable rather than on the command line, because anything
+in `argv` is readable by every process in the container through `/proc`.
+
+For an interactive session, Compass or `mongosh` from the host connect with
+`mongodb://kapp_root:<password>@localhost:27017/?authSource=admin&directConnection=true`. The
+`directConnection=true` matters: the replica set advertises itself as `mongo:27017`, which does not
+resolve from your Mac.
+
+---
+
+## Pointing at Atlas
+
+The `cloud` profile starts everything **except** the local MongoDB, so the services talk to the
+shared Atlas development cluster instead:
+
+```bash
+docker compose --profile cloud --profile dev up -d
+```
+
+It reads the same five `MONGO_*_URI` variables from `.env`; replace their values with the cluster's
+strings. Atlas SRV records carry the replica set name, so drop the `replicaSet` parameter:
+
+```
+MONGO_MAP_URI=mongodb+srv://kapp_map_user:<password>@<cluster>.mongodb.net/kapp_map?authSource=kapp_map
+```
+
+Create the five accounts in Atlas with the same one-database-each rule — Atlas calls it a custom
+role with `readWrite` scoped to a single database. `scripts/verify-db-isolation.sh` assumes the
+local container, so check Atlas isolation from the Atlas UI instead.
+
+**The tests do not use Atlas.** They start their own MongoDB through Testcontainers, deliberately:
+pointing them at a shared cluster would make them slow and flaky, and one person's run would wipe
+another's data mid-test.
 
 ---
 
@@ -247,6 +353,48 @@ A handful of classes means the skeleton; several dozen means the real service. F
 `up -d` again once the build has finished — Compose recreates only the containers whose image
 changed.
 
+### The mongo container never becomes healthy
+
+Read what the probe actually said:
+
+```bash
+docker inspect -f '{{range .State.Health.Log}}exit={{.ExitCode}} {{.Output}}{{end}}' kapp-mongo | tail -5
+```
+
+One `exit=1` at the very start is normal — the probe runs before the replica set has elected itself
+and correctly refuses to report healthy until the node can accept writes.
+
+A repeated `FATAL: cannot authenticate as kapp_root and cannot create it` means your `.env` no
+longer matches the volume: the accounts were provisioned with a different set of passwords, most
+likely because `generate-dev-secrets.sh` was run again. The passwords in `.env` are the only copy,
+so the fix is to discard the local data:
+
+```bash
+docker compose --profile full --profile dev down -v
+docker compose --profile core --profile dev up -d
+```
+
+### A service starts and then dies with `MongoSecurityException`
+
+Its `MONGODB_URI` and the volume disagree. Same cause and same fix as the entry above. Check what
+the container is actually using, with the password redacted:
+
+```bash
+docker compose exec -T map-service printenv MONGODB_URI | sed -E 's#://([^:]+):[^@]+@#://\1:REDACTED@#'
+```
+
+### Editing `mongo-init/rs-init.js` and errors vanish without a message
+
+mongosh rewrites the **top-level** program to await the driver's promises, but it does not rewrite
+the body of an ordinary function declaration. Inside a function, a failing call rejects a promise
+that a synchronous `catch` never sees, so the error escapes the `try` entirely and kills the
+process — the container goes unhealthy with a bare `MongoServerError` and no clue which line
+produced it.
+
+Keep every `try`/`catch` at the top level of that script, including the ones inside the loop. A
+top-level `try` **around** a call to a function does work; one written **inside** the function does
+not. This cost an afternoon; the script's header says so too.
+
 ### Everything is slow, the fan is loud
 
 You are probably running `full` when you need `core`. Check with `docker compose ps` and restart
@@ -260,7 +408,14 @@ docker compose --profile core --profile dev up -d
 ```
 
 The seed data — curricula, buildings, spaces, invitation codes — is reloaded automatically by
-Mongock on startup. User accounts are not; register them again.
+Mongock on startup, and the MongoDB accounts are re-provisioned by the healthcheck. User accounts
+are not; recreate the four development ones:
+
+```bash
+scripts/create-dev-accounts.sh
+```
+
+The passwords will be new, and `.dev-accounts` is overwritten with them.
 
 ---
 
