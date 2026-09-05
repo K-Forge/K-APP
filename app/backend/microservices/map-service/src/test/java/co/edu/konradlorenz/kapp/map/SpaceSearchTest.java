@@ -78,23 +78,57 @@ class SpaceSearchTest {
                 "Ranking fixture building",
                 "Sede Test",
                 null,
-                List.of(new Floor(1, "Piso 1", "/test.png", 100, 100)),
+                List.of(new Floor(1, "Piso 1", 10, 10, List.of())),
                 false,
                 now,
                 now));
 
         // Matches "999" through its code (text index weight 5).
         spaces.save(new SpaceDocument(
-                UUID.randomUUID().toString(), RANK_CODE_EXACT, "Cuarto generico",
-                SpaceType.OTHER, rankBuilding.id(), rankBuilding.code(), rankBuilding.campus(),
-                1, List.of(), 10.0, 10.0, null, false, now, now));
+                UUID.randomUUID().toString(),
+                RANK_CODE_EXACT,
+                SpaceDocument.baseCodeOf(RANK_CODE_EXACT),
+                SpaceDocument.wingOf(RANK_CODE_EXACT),
+                "Cuarto generico",
+                SpaceType.OTHER,
+                rankBuilding.id(),
+                rankBuilding.code(),
+                rankBuilding.campus(),
+                1,
+                List.of(),
+                1,
+                1,
+                1,
+                1,
+                null,
+                null,
+                false,
+                now,
+                now));
 
         // Matches "999" only because its NAME happens to mention the other room (weight 3),
         // never through its own code. Ranking must still put RANK_CODE_EXACT first.
         spaces.save(new SpaceDocument(
-                UUID.randomUUID().toString(), RANK_CODE_MENTION, "Ver salon 999 para informacion",
-                SpaceType.OTHER, rankBuilding.id(), rankBuilding.code(), rankBuilding.campus(),
-                1, List.of(), 20.0, 20.0, null, false, now, now));
+                UUID.randomUUID().toString(),
+                RANK_CODE_MENTION,
+                SpaceDocument.baseCodeOf(RANK_CODE_MENTION),
+                SpaceDocument.wingOf(RANK_CODE_MENTION),
+                "Ver salon 999 para informacion",
+                SpaceType.OTHER,
+                rankBuilding.id(),
+                rankBuilding.code(),
+                rankBuilding.campus(),
+                1,
+                List.of(),
+                2,
+                2,
+                1,
+                1,
+                null,
+                null,
+                false,
+                now,
+                now));
     }
 
     private static org.springframework.test.web.servlet.request.RequestPostProcessor guest() {

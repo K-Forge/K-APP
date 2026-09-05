@@ -29,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -81,7 +82,8 @@ class MapBusinessRulesTest {
                 .andExpect(jsonPath("$.code").value("708"))
                 .andExpect(jsonPath("$.buildingCode").value("A"))
                 .andExpect(jsonPath("$.floor.level").value(7))
-                .andExpect(jsonPath("$.floor.planImageUrl").value("/api/map/plans/bloque-a-p7.webp"))
+                .andExpect(jsonPath("$.floor.gridRows").value(11))
+                .andExpect(jsonPath("$.floor.gridColumns").value(16))
                 .andExpect(jsonPath("$.building.code").value("A"))
                 .andExpect(jsonPath("$.building.name").value("Bloque A"));
     }
@@ -107,13 +109,30 @@ class MapBusinessRulesTest {
         BuildingDocument occupied = buildings.save(new BuildingDocument(
                 UUID.randomUUID().toString(), "OCC", "Occupied Floor Fixture", "Sede Test", null,
                 List.of(
-                        new Floor(1, "Piso 1", "/test.png", 100, 100),
-                        new Floor(2, "Piso 2", "/test.png", 100, 100)),
+                        new Floor(1, "Piso 1", 10, 10, List.of()),
+                        new Floor(2, "Piso 2", 10, 10, List.of())),
                 false, now, now));
         spaces.save(new SpaceDocument(
-                UUID.randomUUID().toString(), "OCCSP", "Occupied fixture space", SpaceType.OFFICE,
-                occupied.id(), occupied.code(), occupied.campus(), 2, List.of(),
-                10.0, 10.0, null, false, now, now));
+                UUID.randomUUID().toString(),
+                "OCCSP",
+                SpaceDocument.baseCodeOf("OCCSP"),
+                SpaceDocument.wingOf("OCCSP"),
+                "Occupied fixture space",
+                SpaceType.OFFICE,
+                occupied.id(),
+                occupied.code(),
+                occupied.campus(),
+                2,
+                List.of(),
+                1,
+                1,
+                1,
+                1,
+                null,
+                null,
+                false,
+                now,
+                now));
 
         String bodyDroppingFloor2 = """
                 {
@@ -121,7 +140,7 @@ class MapBusinessRulesTest {
                   "name": "Occupied Floor Fixture",
                   "campus": "Sede Test",
                   "floors": [
-                    {"level": 1, "name": "Piso 1", "planImageUrl": "/test.png", "imageWidth": 100, "imageHeight": 100}
+                    {"level": 1, "name": "Piso 1", "gridRows": 10, "gridColumns": 10}
                   ]
                 }
                 """;
@@ -142,17 +161,53 @@ class MapBusinessRulesTest {
         Instant now = Instant.now();
         BuildingDocument amb1 = buildings.save(new BuildingDocument(
                 UUID.randomUUID().toString(), "AMB1", "Ambiguity Fixture 1", "Sede Test", null,
-                List.of(new Floor(1, "Piso 1", "/test.png", 100, 100)), false, now, now));
+                List.of(new Floor(1, "Piso 1", 10, 10, List.of())), false, now, now));
         BuildingDocument amb2 = buildings.save(new BuildingDocument(
                 UUID.randomUUID().toString(), "AMB2", "Ambiguity Fixture 2", "Sede Test", null,
-                List.of(new Floor(1, "Piso 1", "/test.png", 100, 100)), false, now, now));
+                List.of(new Floor(1, "Piso 1", 10, 10, List.of())), false, now, now));
 
         spaces.save(new SpaceDocument(
-                UUID.randomUUID().toString(), "AMB", "Shared code, building 1", SpaceType.OFFICE,
-                amb1.id(), amb1.code(), amb1.campus(), 1, List.of(), 10.0, 10.0, null, false, now, now));
+                UUID.randomUUID().toString(),
+                "AMB",
+                SpaceDocument.baseCodeOf("AMB"),
+                SpaceDocument.wingOf("AMB"),
+                "Shared code, building 1",
+                SpaceType.OFFICE,
+                amb1.id(),
+                amb1.code(),
+                amb1.campus(),
+                1,
+                List.of(),
+                1,
+                1,
+                1,
+                1,
+                null,
+                null,
+                false,
+                now,
+                now));
         spaces.save(new SpaceDocument(
-                UUID.randomUUID().toString(), "AMB", "Shared code, building 2", SpaceType.OFFICE,
-                amb2.id(), amb2.code(), amb2.campus(), 1, List.of(), 10.0, 10.0, null, false, now, now));
+                UUID.randomUUID().toString(),
+                "AMB",
+                SpaceDocument.baseCodeOf("AMB"),
+                SpaceDocument.wingOf("AMB"),
+                "Shared code, building 2",
+                SpaceType.OFFICE,
+                amb2.id(),
+                amb2.code(),
+                amb2.campus(),
+                1,
+                List.of(),
+                1,
+                1,
+                1,
+                1,
+                null,
+                null,
+                false,
+                now,
+                now));
 
         mockMvc.perform(get("/api/map/spaces/AMB").with(guest()))
                 .andExpect(status().isConflict())
@@ -165,5 +220,151 @@ class MapBusinessRulesTest {
         mockMvc.perform(get("/api/map/spaces/AMB").param("buildingCode", "AMB2").with(guest()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.building.code").value("AMB2"));
+    }
+
+    // ── The schematic model's own rules ────────────────────────────────────────────
+
+    @Test
+    @DisplayName("a space that would not fit on its floor's grid is refused with 400")
+    void spaceOutsideTheGridIsRejected() throws Exception {
+        // Floor 3 of Bloque A is 11 x 16, so column 20 does not exist.
+        mockMvc.perform(post("/api/map/spaces").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "OUT-1",
+                                  "name": "Fuera de la rejilla",
+                                  "type": "CLASSROOM",
+                                  "buildingCode": "A",
+                                  "floorLevel": 3,
+                                  "gridRow": 2,
+                                  "gridColumn": 20
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field").value("gridRow"));
+    }
+
+    @Test
+    @DisplayName("a space whose span runs off the edge is refused, not silently clipped")
+    void spanRunningOffTheEdgeIsRejected() throws Exception {
+        mockMvc.perform(post("/api/map/spaces").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "OUT-2",
+                                  "name": "Se sale por el borde",
+                                  "type": "AUDITORIUM",
+                                  "buildingCode": "A",
+                                  "floorLevel": 3,
+                                  "gridRow": 2,
+                                  "gridColumn": 14,
+                                  "colSpan": 6
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("two spaces cannot occupy the same cell: the second would be invisible, not obviously wrong")
+    void overlappingSpacesAreRefused() throws Exception {
+        // Room 301 sits at row 5, columns 4-5 of floor 3.
+        mockMvc.perform(post("/api/map/spaces").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "OVER-1",
+                                  "name": "Encima de 301",
+                                  "type": "CLASSROOM",
+                                  "buildingCode": "A",
+                                  "floorLevel": 3,
+                                  "gridRow": 5,
+                                  "gridColumn": 5
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.details[0].issue").value("301"));
+    }
+
+    @Test
+    @DisplayName("the same cell on a different floor is fine")
+    void sameCellOnAnotherFloorIsAllowed() throws Exception {
+        mockMvc.perform(post("/api/map/spaces").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "OK-1",
+                                  "name": "Mismo lugar, otro piso",
+                                  "type": "CLASSROOM",
+                                  "buildingCode": "A",
+                                  "floorLevel": 2,
+                                  "gridRow": 5,
+                                  "gridColumn": 4,
+                                  "colSpan": 2
+                                }
+                                """))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("a space in the basement is accepted: level -1 is a floor like any other")
+    void basementSpacesAreAccepted() throws Exception {
+        mockMvc.perform(post("/api/map/spaces").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "S-99",
+                                  "name": "Cuarto de máquinas",
+                                  "type": "OTHER",
+                                  "buildingCode": "A",
+                                  "floorLevel": -1,
+                                  "gridRow": 0,
+                                  "gridColumn": 0
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.floorLevel").value(-1));
+    }
+
+    @Test
+    @DisplayName("the wing is derived from a -N suffix when the caller does not send one")
+    void wingIsDerivedFromTheCode() throws Exception {
+        mockMvc.perform(post("/api/map/spaces").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "205-N",
+                                  "name": "Aula 205 Norte",
+                                  "type": "CLASSROOM",
+                                  "buildingCode": "A",
+                                  "floorLevel": 2,
+                                  "gridRow": 1,
+                                  "gridColumn": 8
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.wing").value("NORTE"))
+                .andExpect(jsonPath("$.baseCode").value("205"));
+    }
+
+    @Test
+    @DisplayName("an explicit wing wins over what the code implies")
+    void explicitWingWins() throws Exception {
+        mockMvc.perform(post("/api/map/spaces").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "206",
+                                  "name": "Aula 206",
+                                  "type": "CLASSROOM",
+                                  "buildingCode": "A",
+                                  "floorLevel": 2,
+                                  "gridRow": 8,
+                                  "gridColumn": 8,
+                                  "wing": "CENTRAL"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.wing").value("CENTRAL"));
     }
 }

@@ -1,6 +1,7 @@
 package co.edu.konradlorenz.kapp.map.web.dto;
 
 import co.edu.konradlorenz.kapp.map.domain.SpaceType;
+import co.edu.konradlorenz.kapp.map.domain.Wing;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -22,6 +23,8 @@ import java.util.List;
 public record SpaceDetailResponse(
         String id,
         String code,
+        String baseCode,
+        Wing wing,
         String name,
         SpaceType type,
         String buildingId,
@@ -29,8 +32,11 @@ public record SpaceDetailResponse(
         String campus,
         int floorLevel,
         List<String> aliases,
-        double x,
-        double y,
+        int gridRow,
+        int gridColumn,
+        int rowSpan,
+        int colSpan,
+        String accessVia,
         Integer capacity,
         FloorDto floor,
         BuildingSummaryResponse building

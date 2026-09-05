@@ -1,6 +1,7 @@
 package co.edu.konradlorenz.kapp.map.web;
 
 import co.edu.konradlorenz.kapp.map.domain.SpaceType;
+import co.edu.konradlorenz.kapp.map.domain.Wing;
 import co.edu.konradlorenz.kapp.map.service.SpaceService;
 import co.edu.konradlorenz.kapp.map.web.dto.PageResponse;
 import co.edu.konradlorenz.kapp.map.web.dto.SpaceDetailResponse;
@@ -54,16 +55,18 @@ public class SpaceController {
     @Operation(summary = "Search spaces across the campus",
             description = "Matches q against name, code and aliases, case- and "
                     + "accent-insensitively, ordered by descending relevance then code. "
+                    + "Filter by wing to separate 301, 301-N and 301-S. "
                     + "Allowed roles: ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN.")
     public PageResponse<SpaceResponse> search(
             @RequestParam @NotBlank @Size(min = 2, max = 100) String q,
             @RequestParam(required = false) @Size(min = 1, max = 120) String campus,
             @RequestParam(required = false) SpaceType type,
             @RequestParam(required = false) @Size(min = 1, max = 10) String buildingCode,
+            @RequestParam(required = false) Wing wing,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
 
-        return spaces.search(q, campus, type, buildingCode, page, size);
+        return spaces.search(q, campus, type, buildingCode, wing, page, size);
     }
 
     @GetMapping("/{code}")

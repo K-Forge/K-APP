@@ -4,7 +4,11 @@ import co.edu.konradlorenz.kapp.common.error.DuplicateResourceException;
 import co.edu.konradlorenz.kapp.common.error.ResourceNotFoundException;
 import co.edu.konradlorenz.kapp.map.domain.BuildingDocument;
 import co.edu.konradlorenz.kapp.map.domain.Floor;
+import co.edu.konradlorenz.kapp.common.error.ApiError;
+import co.edu.konradlorenz.kapp.common.error.BusinessRuleException;
+import co.edu.konradlorenz.kapp.common.error.ConflictException;
 import co.edu.konradlorenz.kapp.map.domain.SpaceDocument;
+import co.edu.konradlorenz.kapp.map.domain.Wing;
 import co.edu.konradlorenz.kapp.map.domain.SpaceRepository;
 import co.edu.konradlorenz.kapp.map.domain.SpaceType;
 import co.edu.konradlorenz.kapp.map.web.dto.PageResponse;
@@ -44,8 +48,8 @@ public class SpaceService {
     }
 
     public PageResponse<SpaceResponse> search(String q, String campus, SpaceType type,
-                                              String buildingCode, int page, int size) {
-        SpaceSearch.Result result = search.search(q, campus, type, buildingCode, page, size);
+                                              String buildingCode, Wing wing, int page, int size) {
+        SpaceSearch.Result result = search.search(q, campus, type, buildingCode, wing, page, size);
         return PageResponse.of(
                 result.content().stream().map(MapMapper::toSpaceResponse).toList(),
                 page,
@@ -76,11 +80,14 @@ public class SpaceService {
                     "Space %s in building %s".formatted(request.code(), building.code()),
                     request.code());
         }
+        checkFitsTheFloor(building, request, null);
 
         Instant now = Instant.now();
         SpaceDocument saved = spaces.save(new SpaceDocument(
                 UUID.randomUUID().toString(),
                 request.code(),
+                SpaceDocument.baseCodeOf(request.code()),
+                wingOf(request),
                 request.name(),
                 request.type(),
                 building.id(),
@@ -88,8 +95,11 @@ public class SpaceService {
                 building.campus(),
                 request.floorLevel(),
                 request.aliasesOrEmpty(),
-                request.x(),
-                request.y(),
+                request.gridRow(),
+                request.gridColumn(),
+                request.rowSpanOrOne(),
+                request.colSpanOrOne(),
+                request.accessVia(),
                 request.capacity(),
                 false,
                 now,
@@ -101,8 +111,8 @@ public class SpaceService {
     }
 
     /**
-     * Replaces a space. Moving a pin happens here, by sending new {@code x}/{@code y}
-     * percentages - which is exactly what the pin editor's export produces.
+     * Replaces a space. Moving a room happens here, by sending a new grid cell - which is
+     * exactly what the grid editor's export produces.
      */
     public SpaceResponse update(String code, String buildingCode, SpaceRequest request) {
         SpaceDocument current = resolve(code, buildingCode);
@@ -115,10 +125,13 @@ public class SpaceService {
                             "Space %s in building %s".formatted(request.code(), target.code()),
                             request.code());
                 });
+        checkFitsTheFloor(target, request, current.id());
 
         SpaceDocument saved = spaces.save(new SpaceDocument(
                 current.id(),
                 request.code(),
+                SpaceDocument.baseCodeOf(request.code()),
+                wingOf(request),
                 request.name(),
                 request.type(),
                 target.id(),
@@ -126,11 +139,14 @@ public class SpaceService {
                 target.campus(),
                 request.floorLevel(),
                 request.aliasesOrEmpty(),
-                request.x(),
-                request.y(),
+                request.gridRow(),
+                request.gridColumn(),
+                request.rowSpanOrOne(),
+                request.colSpanOrOne(),
+                request.accessVia(),
                 request.capacity(),
-                // Provenance, not content: a corrected pin on an invented plan is still on
-                // an invented plan. The flag clears when the real plans replace the seed.
+                // Provenance, not content: a corrected cell on an invented floor is still on
+                // an invented floor. The flag clears when a real survey replaces the seed.
                 current.placeholder(),
                 current.createdAt(),
                 Instant.now()));
@@ -179,5 +195,67 @@ public class SpaceService {
                     .formatted(request.floorLevel(), building.code()));
         }
         return building;
+    }
+
+    /**
+     * A space has to fit on the floor it claims, and it may not sit on top of another.
+     *
+     * <p>Both are cheap to check and expensive to discover later: a room outside the grid
+     * simply does not render, and two rooms in the same cell render one on top of the other,
+     * so the second one is invisible rather than obviously wrong. Whoever is capturing a
+     * floor finds out immediately instead of when a student cannot find a classroom.
+     *
+     * @param excludeId the space being replaced, so an update does not collide with itself
+     */
+    private void checkFitsTheFloor(BuildingDocument building, SpaceRequest request,
+                                    String excludeId) {
+        Floor floor = building.floorAt(request.floorLevel())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Floor %d of building %s".formatted(request.floorLevel(), building.code())));
+
+        int lastRow = request.gridRow() + request.rowSpanOrOne() - 1;
+        int lastColumn = request.gridColumn() + request.colSpanOrOne() - 1;
+
+        if (lastRow >= floor.gridRows() || lastColumn >= floor.gridColumns()) {
+            throw new BusinessRuleException(
+                    "Space %s does not fit on floor %d of building %s, which is %d x %d"
+                            .formatted(request.code(), floor.level(), building.code(),
+                                    floor.gridRows(), floor.gridColumns()),
+                    List.of(new ApiError.FieldIssue("gridRow",
+                            "the space would occupy rows %d-%d and columns %d-%d"
+                                    .formatted(request.gridRow(), lastRow,
+                                            request.gridColumn(), lastColumn))));
+        }
+
+        SpaceDocument candidate = new SpaceDocument(
+                null, request.code(), null, null, request.name(), request.type(),
+                building.id(), building.code(), building.campus(), request.floorLevel(),
+                List.of(), request.gridRow(), request.gridColumn(),
+                request.rowSpanOrOne(), request.colSpanOrOne(), null, null, false, null, null);
+
+        spaces.findByBuildingIdAndFloorLevelOrderByCodeAsc(building.id(), request.floorLevel()).stream()
+                .filter(other -> excludeId == null || !other.id().equals(excludeId))
+                .filter(candidate::overlaps)
+                .findFirst()
+                .ifPresent(other -> {
+                    throw new ConflictException(
+                            "Space %s would overlap %s on floor %d of building %s"
+                                    .formatted(request.code(), other.code(),
+                                            request.floorLevel(), building.code()),
+                            List.of(new ApiError.FieldIssue("gridRow", other.code())));
+                });
+    }
+
+    /**
+     * The wing the caller sent, or the one implied by a {@code -N} / {@code -S} / {@code -C}
+     * suffix on the code.
+     *
+     * <p>Derived only as a fallback. Deriving it always would be wrong the first time a
+     * building names its wings something else, and refusing to derive it at all would mean
+     * every one of the central building's rooms has to repeat what its own code already
+     * says.
+     */
+    private static Wing wingOf(SpaceRequest request) {
+        return request.wing() != null ? request.wing() : SpaceDocument.wingOf(request.code());
     }
 }

@@ -87,28 +87,33 @@ class SpaceSearchIndexTest {
         String fillerBuildingId = UUID.randomUUID().toString();
         for (int i = 1; i <= FILLER_SPACES; i++) {
             mongoTemplate.save(new SpaceDocument(
-                    UUID.randomUUID().toString(),
-                    "FILL" + i,
-                    "Filler space " + i,
-                    SpaceType.OTHER,
-                    fillerBuildingId,
-                    "FILL",
-                    "Sede Test",
-                    1,
-                    List.of(),
-                    10.0,
-                    10.0,
-                    null,
-                    false,
-                    now,
-                    now));
+                UUID.randomUUID().toString(),
+                "FILL" + i,
+                SpaceDocument.baseCodeOf("FILL" + i),
+                SpaceDocument.wingOf("FILL" + i),
+                "Filler space " + i,
+                SpaceType.OTHER,
+                fillerBuildingId,
+                "FILL",
+                "Sede Test",
+                1,
+                List.of(),
+                1,
+                1,
+                1,
+                1,
+                null,
+                null,
+                false,
+                now,
+                now));
         }
     }
 
     @Test
     @DisplayName("the filter SpaceSearch builds is answered by the text index, not a collection scan")
     void searchAvoidsACollectionScan() {
-        TextQuery filter = SpaceSearch.buildFilter("302", null, null, null);
+        TextQuery filter = SpaceSearch.buildFilter("302", null, null, null, null);
 
         Document plan = winningPlanOf(explain(filter));
 
@@ -120,7 +125,7 @@ class SpaceSearchIndexTest {
     @Test
     @DisplayName("the index scan examines only the matching document, not the filler collection")
     void searchExaminesOnlyMatchingDocuments() {
-        TextQuery filter = SpaceSearch.buildFilter("302", null, null, null);
+        TextQuery filter = SpaceSearch.buildFilter("302", null, null, null, null);
 
         Document stats = executionStatsOf(explain(filter));
 
@@ -138,7 +143,7 @@ class SpaceSearchIndexTest {
     @Test
     @DisplayName("the full paged query (score sort, code sort, skip/limit) still resolves through the index")
     void pagedQueryStillUsesTheIndex() {
-        TextQuery filter = SpaceSearch.buildFilter("302", null, null, null);
+        TextQuery filter = SpaceSearch.buildFilter("302", null, null, null, null);
         filter.sortByScore();
         filter.with(Sort.by(Sort.Direction.ASC, "code"));
         filter.skip(0).limit(20);
@@ -154,7 +159,7 @@ class SpaceSearchIndexTest {
     @Test
     @DisplayName("extra filter criteria (campus/type/buildingCode) still resolve through the same index")
     void combinedCriteriaStillUsesTheIndex() {
-        TextQuery filter = SpaceSearch.buildFilter("302", "Sede Principal", SpaceType.LAB, "A");
+        TextQuery filter = SpaceSearch.buildFilter("302", "Sede Principal", SpaceType.LAB, "A", null);
 
         Document plan = winningPlanOf(explain(filter));
 
@@ -182,7 +187,7 @@ class SpaceSearchIndexTest {
     @Test
     @DisplayName("the public search API returns the same single match the plan proves was examined")
     void searchReturnsTheMatch() {
-        SpaceSearch.Result result = spaceSearch.search("302", null, null, null, 0, 20);
+        SpaceSearch.Result result = spaceSearch.search("302", null, null, null, null, 0, 20);
 
         assertThat(result.totalElements()).isEqualTo(1);
         assertThat(result.content()).extracting(SpaceDocument::code).containsExactly("302");

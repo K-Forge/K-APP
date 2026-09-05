@@ -1,12 +1,16 @@
 package co.edu.konradlorenz.kapp.map.service;
 
 import co.edu.konradlorenz.kapp.map.domain.BuildingDocument;
+import co.edu.konradlorenz.kapp.map.domain.Corridor;
+import co.edu.konradlorenz.kapp.map.domain.GridPoint;
 import co.edu.konradlorenz.kapp.map.domain.Floor;
 import co.edu.konradlorenz.kapp.map.domain.SpaceDocument;
 import co.edu.konradlorenz.kapp.map.web.dto.BuildingResponse;
 import co.edu.konradlorenz.kapp.map.web.dto.BuildingSummaryResponse;
+import co.edu.konradlorenz.kapp.map.web.dto.CorridorDto;
 import co.edu.konradlorenz.kapp.map.web.dto.FloorDetailResponse;
 import co.edu.konradlorenz.kapp.map.web.dto.FloorDto;
+import co.edu.konradlorenz.kapp.map.web.dto.GridPointDto;
 import co.edu.konradlorenz.kapp.map.web.dto.SpaceDetailResponse;
 import co.edu.konradlorenz.kapp.map.web.dto.SpaceResponse;
 
@@ -24,13 +28,27 @@ import java.util.List;
 public final class MapMapper {
 
     public static FloorDto toFloorDto(Floor floor) {
-        return new FloorDto(floor.level(), floor.name(), floor.planImageUrl(),
-                floor.imageWidth(), floor.imageHeight());
+        return new FloorDto(floor.level(), floor.name(), floor.gridRows(), floor.gridColumns(),
+                floor.corridors().stream().map(MapMapper::toCorridorDto).toList());
     }
 
     public static Floor toFloor(FloorDto dto) {
-        return new Floor(dto.level(), dto.name(), dto.planImageUrl(),
-                dto.imageWidth(), dto.imageHeight());
+        return new Floor(dto.level(), dto.name(), dto.gridRows(), dto.gridColumns(),
+                dto.corridorsOrEmpty().stream().map(MapMapper::toCorridor).toList());
+    }
+
+    public static CorridorDto toCorridorDto(Corridor corridor) {
+        return new CorridorDto(corridor.code(), corridor.name(), corridor.color(),
+                corridor.path().stream()
+                        .map(point -> new GridPointDto(point.row(), point.col()))
+                        .toList());
+    }
+
+    public static Corridor toCorridor(CorridorDto dto) {
+        return new Corridor(dto.code(), dto.name(), dto.color(),
+                dto.path().stream()
+                        .map(point -> new GridPoint(point.row(), point.col()))
+                        .toList());
     }
 
     public static BuildingResponse toBuildingResponse(BuildingDocument building) {
@@ -56,6 +74,8 @@ public final class MapMapper {
         return new SpaceResponse(
                 space.id(),
                 space.code(),
+                space.baseCode(),
+                space.wing(),
                 space.name(),
                 space.type(),
                 space.buildingId(),
@@ -63,8 +83,11 @@ public final class MapMapper {
                 space.campus(),
                 space.floorLevel(),
                 space.aliases(),
-                space.x(),
-                space.y(),
+                space.gridRow(),
+                space.gridColumn(),
+                space.rowSpan(),
+                space.colSpan(),
+                space.accessVia(),
                 space.capacity());
     }
 
@@ -74,6 +97,8 @@ public final class MapMapper {
         return new SpaceDetailResponse(
                 space.id(),
                 space.code(),
+                space.baseCode(),
+                space.wing(),
                 space.name(),
                 space.type(),
                 space.buildingId(),
@@ -81,8 +106,11 @@ public final class MapMapper {
                 space.campus(),
                 space.floorLevel(),
                 space.aliases(),
-                space.x(),
-                space.y(),
+                space.gridRow(),
+                space.gridColumn(),
+                space.rowSpan(),
+                space.colSpan(),
+                space.accessVia(),
                 space.capacity(),
                 toFloorDto(floor),
                 toBuildingSummary(building));
@@ -94,9 +122,9 @@ public final class MapMapper {
         return new FloorDetailResponse(
                 floor.level(),
                 floor.name(),
-                floor.planImageUrl(),
-                floor.imageWidth(),
-                floor.imageHeight(),
+                floor.gridRows(),
+                floor.gridColumns(),
+                floor.corridors().stream().map(MapMapper::toCorridorDto).toList(),
                 building.id(),
                 building.code(),
                 building.name(),

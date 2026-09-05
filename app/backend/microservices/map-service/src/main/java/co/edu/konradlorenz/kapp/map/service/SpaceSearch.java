@@ -2,6 +2,7 @@ package co.edu.konradlorenz.kapp.map.service;
 
 import co.edu.konradlorenz.kapp.map.domain.SpaceDocument;
 import co.edu.konradlorenz.kapp.map.domain.SpaceType;
+import co.edu.konradlorenz.kapp.map.domain.Wing;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -69,7 +70,7 @@ public class SpaceSearch {
     }
 
     public Result search(String q, String campus, SpaceType type, String buildingCode,
-                         int page, int size) {
+                          Wing wing, int page, int size) {
 
         String term = sanitize(q);
         if (term.isEmpty()) {
@@ -79,7 +80,7 @@ public class SpaceSearch {
             return new Result(List.of(), 0);
         }
 
-        TextQuery query = buildFilter(term, campus, type, buildingCode);
+        TextQuery query = buildFilter(term, campus, type, buildingCode, wing);
 
         // Counted before skip and limit are set: MongoTemplate folds both into the count's
         // options, so counting afterwards would return at most one page's worth.
@@ -101,7 +102,8 @@ public class SpaceSearch {
      *
      * @param term already sanitized by {@link #sanitize(String)}; not the raw {@code q}
      */
-    static TextQuery buildFilter(String term, String campus, SpaceType type, String buildingCode) {
+    static TextQuery buildFilter(String term, String campus, SpaceType type,
+                                  String buildingCode, Wing wing) {
         TextQuery query = new TextQuery(TextCriteria.forLanguage(LANGUAGE).matching(term));
 
         if (StringUtils.hasText(campus)) {
@@ -112,6 +114,12 @@ public class SpaceSearch {
         }
         if (StringUtils.hasText(buildingCode)) {
             query.addCriteria(Criteria.where("buildingCode").is(buildingCode));
+        }
+        if (wing != null) {
+            // The wing is a stored field, not a suffix parsed out of the code at query
+            // time. Filtering on the last two characters of a string would break the first
+            // time a building names its wings anything but N/S/C.
+            query.addCriteria(Criteria.where("wing").is(wing));
         }
         return query;
     }

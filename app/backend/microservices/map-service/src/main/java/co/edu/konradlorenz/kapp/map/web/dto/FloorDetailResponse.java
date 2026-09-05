@@ -5,19 +5,16 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 /**
- * The {@code FloorDetail} schema: one floor plus every space on it.
- *
- * <p>This is the call that renders a floor plan screen. The client draws
- * {@code planImageUrl} at whatever size the device allows and then places one pin per
- * space from its {@code x}/{@code y} percentages.
+ * Everything a client needs to draw one floor in a single call: the grid's dimensions, the
+ * corridors that cross it, and every space on it.
  */
 @Schema(name = "FloorDetail")
 public record FloorDetailResponse(
         int level,
         String name,
-        String planImageUrl,
-        int imageWidth,
-        int imageHeight,
+        int gridRows,
+        int gridColumns,
+        List<CorridorDto> corridors,
         String buildingId,
         String buildingCode,
         String buildingName,

@@ -108,7 +108,7 @@ class MapAuthorizationMatrixTest {
                 "Matrix fixture " + code,
                 "Sede Test",
                 null,
-                List.of(new Floor(1, "Piso 1", "/test.png", 100, 100)),
+                List.of(new Floor(1, "Piso 1", 10, 10, List.of())),
                 false,
                 now,
                 now));
@@ -119,6 +119,8 @@ class MapAuthorizationMatrixTest {
         spaces.save(new SpaceDocument(
                 UUID.randomUUID().toString(),
                 code,
+                SpaceDocument.baseCodeOf(code),
+                SpaceDocument.wingOf(code),
                 "Matrix fixture space " + code,
                 SpaceType.OFFICE,
                 building.id(),
@@ -126,8 +128,11 @@ class MapAuthorizationMatrixTest {
                 building.campus(),
                 1,
                 List.of(),
-                10.0,
-                10.0,
+                1,
+                1,
+                1,
+                1,
+                null,
                 null,
                 false,
                 now,
@@ -140,7 +145,7 @@ class MapAuthorizationMatrixTest {
               "name": "Auth Matrix Building",
               "campus": "Sede Test",
               "floors": [
-                {"level": 1, "name": "Piso 1", "planImageUrl": "/test.png", "imageWidth": 100, "imageHeight": 100}
+                {"level": 1, "name": "Piso 1", "gridRows": 10, "gridColumns": 10}
               ]
             }
             """;
@@ -152,7 +157,7 @@ class MapAuthorizationMatrixTest {
                   "name": "Renamed fixture",
                   "campus": "Sede Test",
                   "floors": [
-                    {"level": 1, "name": "Piso 1", "planImageUrl": "/test.png", "imageWidth": 100, "imageHeight": 100}
+                    {"level": 1, "name": "Piso 1", "gridRows": 10, "gridColumns": 10}
                   ]
                 }
                 """.formatted(code);
@@ -167,8 +172,8 @@ class MapAuthorizationMatrixTest {
                   "buildingCode": "A",
                   "floorLevel": 1,
                   "aliases": [],
-                  "x": 10.0,
-                  "y": 10.0
+                  "gridRow": 1,
+                  "gridColumn": 1
                 }
                 """.formatted(code);
     }
@@ -182,8 +187,8 @@ class MapAuthorizationMatrixTest {
                   "buildingCode": "A",
                   "floorLevel": 1,
                   "aliases": [],
-                  "x": 20.0,
-                  "y": 20.0
+                  "gridRow": 2,
+                  "gridColumn": 2
                 }
                 """.formatted(code);
     }

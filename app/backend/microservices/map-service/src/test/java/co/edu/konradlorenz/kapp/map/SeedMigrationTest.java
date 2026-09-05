@@ -2,6 +2,8 @@ package co.edu.konradlorenz.kapp.map;
 
 import co.edu.konradlorenz.kapp.map.domain.BuildingRepository;
 import co.edu.konradlorenz.kapp.map.domain.SpaceDocument;
+import co.edu.konradlorenz.kapp.map.domain.SpaceType;
+import co.edu.konradlorenz.kapp.map.domain.Wing;
 import co.edu.konradlorenz.kapp.map.domain.SpaceRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -72,15 +74,78 @@ class SeedMigrationTest {
     }
 
     @Test
-    @DisplayName("seeds the real schedule-service room codes plus a few non-classroom spaces, all flagged placeholder")
+    @DisplayName("seeds the real schedule-service room codes plus the fixtures the schematic model needs")
     void seedsExpectedSpaceCounts() {
-        // 302, 612, 708, 709, 710, 711 in Bloque A; 101, 102, 205 in Bloque B.
-        assertThat(spaces.count()).isEqualTo(9);
-        assertThat(spaces.countByPlaceholderIsTrue()).isEqualTo(9);
+        assertThat(spaces.count()).isEqualTo(21);
+        assertThat(spaces.countByPlaceholderIsTrue()).isEqualTo(21);
 
         List<String> codes = spaces.findAll().stream().map(SpaceDocument::code).sorted().toList();
         assertThat(codes).containsExactlyInAnyOrder(
-                "302", "612", "708", "709", "710", "711", "101", "102", "205");
+                // The codes schedule-service resolves. Carried over unchanged through the
+                // move from pinned plans to a grid: a room does not stop being room 708
+                // because the map is drawn differently.
+                "302", "612", "708", "709", "710", "711", "101", "102", "205",
+                // Circulation, which is what makes accessVia answerable.
+                "ASC-CENTRAL", "ESC-NORTE", "ESC-SUR", "ENT-PRINCIPAL", "B-ASC",
+                // The three wings sharing one base code.
+                "301", "301-N", "301-S",
+                // A multi-cell room, the basement, and a terrace.
+                "310", "S-01", "S-02", "210");
+    }
+
+    @Test
+    @DisplayName("the three wings are three rooms sharing one base code")
+    void wingsShareABaseCode() {
+        List<SpaceDocument> wings = spaces.findAll().stream()
+                .filter(s -> "301".equals(s.baseCode()))
+                .toList();
+
+        assertThat(wings).hasSize(3);
+        assertThat(wings).extracting(SpaceDocument::code)
+                .containsExactlyInAnyOrder("301", "301-N", "301-S");
+        assertThat(wings).extracting(SpaceDocument::wing)
+                .containsExactlyInAnyOrder(null, Wing.NORTE, Wing.SUR);
+    }
+
+    @Test
+    @DisplayName("a code whose suffix is not a wing keeps its whole code as its base code")
+    void nonWingSuffixesAreNotStripped() {
+        SpaceDocument stairs = spaces.findByCodeOrderByBuildingCodeAsc("ESC-SUR").get(0);
+        SpaceDocument basement = spaces.findByCodeOrderByBuildingCodeAsc("S-01").get(0);
+
+        // "ESC-SUR" is a staircase, not a room in the south wing; "S-01" is a basement bay.
+        // Splitting on the last dash unconditionally would have given them base codes of
+        // "ESC" and "S", collapsing unrelated spaces together in search.
+        assertThat(stairs.baseCode()).isEqualTo("ESC-SUR");
+        assertThat(stairs.wing()).isNull();
+        assertThat(basement.baseCode()).isEqualTo("S-01");
+        assertThat(basement.wing()).isNull();
+    }
+
+    @Test
+    @DisplayName("the basement is level -1, and its rooms are reachable")
+    void basementIsAtMinusOne() {
+        SpaceDocument parking = spaces.findByCodeOrderByBuildingCodeAsc("S-01").get(0);
+
+        assertThat(parking.floorLevel()).isEqualTo(-1);
+        assertThat(buildings.findByCode("A").orElseThrow().hasFloor(-1)).isTrue();
+    }
+
+    @Test
+    @DisplayName("every space that is not itself circulation says which lift or staircase serves it")
+    void spacesCarryAccessVia() {
+        List<SpaceDocument> rooms = spaces.findAll().stream()
+                .filter(s -> s.type() != SpaceType.ELEVATOR
+                        && s.type() != SpaceType.STAIRS
+                        && s.type() != SpaceType.ENTRANCE)
+                .toList();
+
+        assertThat(rooms).isNotEmpty();
+        assertThat(rooms).allSatisfy(space ->
+                assertThat(space.accessVia())
+                        .as("%s must say how to reach it - that is what produces "
+                                + "\"piso 3, sube por el ascensor central\"", space.code())
+                        .isNotNull());
     }
 
     @Test
