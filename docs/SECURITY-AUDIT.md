@@ -83,6 +83,9 @@ Severity reflects the impact if this configuration were deployed as-is on a reac
 | S7 | Low | JWT stored in `localStorage`, no refresh or revocation. |
 | S8 | Informational | HS512 key length requirement is undocumented outside this audit. |
 | S9 | Informational | Sample data ships a known password and its hash. |
+| S10 | High | MongoDB ran without authentication; database separation was a convention, not a rule. **Resolved.** |
+| S11 | Moderate | Development accounts hold `ROLE_ADMIN` and two invitation codes ship in the repository. **Open, by decision.** |
+| S12 | Moderate | The visitor day pass will store identity documents, which are personal data under Ley 1581. **Not yet built — Phase 5.** |
 
 ### H1 — Credentials readable in git history (High)
 
@@ -240,6 +243,70 @@ gateway must be configured with the exact same secret. This requirement is docum
 and the file is labeled as development-only in the README.
 
 ---
+
+### S10 — MongoDB ran without authentication (High) — RESOLVED
+
+**Evidence** — the `mongo` container started with no `--auth`, and all five services connected with
+`mongodb://mongo:27017/<database>` and no credentials. Any process that could reach port 27017
+inside the compose network could read and write every database.
+
+**Impact.** The anteproyecto claims *"servicios independientes, con base de datos propia"*. That was
+true of the code — there is no cross-database access anywhere in it — but it was not true of the
+system: nothing stopped a bug, or a future service, from reading another's data. A convention the
+code respects is not an isolation boundary.
+
+**Resolution** (commits `7f85cb8`, `b967597`). `mongod` runs with `--auth` and a keyFile generated
+on first start. Each service has its own account with `readWrite` on exactly one database, created
+inside that database so the database is also its `authSource` — a leaked connection string opens
+one database and names no others. `scripts/verify-db-isolation.sh` proves it: 25 checks, each of the
+five accounts reaching its own database and refused on the other four.
+
+**What this does not cover.** Atlas, once the development cluster exists, stores its users in
+`admin` rather than in the database they can reach. The privilege scoping is the same; the
+connection strings differ, and `docs/ATLAS-SETUP.md` says how.
+
+### S11 — Development accounts and seeded invitation codes (Moderate) — OPEN BY DECISION
+
+**Evidence** — `scripts/create-dev-accounts.sh` creates four accounts holding `ROLE_ADMIN`.
+`V002_InvitationCodes` seeds `KL-20262-STUDENT` and `KL-20262-STAFF`, both readable by anyone who
+can read this public repository.
+
+**Impact.** Anyone who can reach the API and read the repository can create a student or professor
+account. The four development accounts can do anything.
+
+**Why it stands.** The stack runs on one laptop behind Docker, with no route from outside and no
+real data. The team is six people building the thing, and a role split between them now would cost
+more than it protects.
+
+**What has to happen before it is reachable from outside** — all three, not one of them:
+
+1. Revoke both seeded codes in a new Mongock change unit (`active: false`) and mint real per-intake
+   codes through `POST /auth/admin/invitation-codes`.
+2. Re-run `scripts/create-dev-accounts.sh --recreate`, and give only the people who need it
+   `ROLE_ADMIN`.
+3. Rotate everything in `.env` — it was generated for a laptop.
+
+`ROLE_ADMIN` is already impossible to obtain through an invitation code, enforced in
+`InvitationCodeService` as well as in the contract's enum, precisely because the codes are public.
+
+### S12 — Identity documents in the visitor register (Moderate) — NOT YET BUILT
+
+**Planned for Phase 5.** Reception will issue a one-day pass, and each redemption will record the
+visitor's identity document so the desk has a record of who was in the building.
+
+**This changes the project's data profile.** KApp currently stores no institutional or
+government-issued data at all. An identity document is personal data under **Ley 1581 de 2012**
+(habeas data), which brings obligations KApp has not needed so far: a stated purpose, a retention
+period, and deletion when that period ends.
+
+**Decided before building it:**
+
+- The register is deleted automatically after **30 days**. Traceability for reception is a
+  short-horizon need; keeping the records longer serves nobody and increases what a breach exposes.
+- The pass is a token, not an account — no e-mail, no password, nothing that outlives the day.
+- **Dirección de TI must be told.** The technical summary shared with Gabriel Cruz Parra says KApp
+  stores no institutional records. That stops being accurate the day this ships, and they should
+  hear it from us rather than find it.
 
 ## 4. Architectural notes
 

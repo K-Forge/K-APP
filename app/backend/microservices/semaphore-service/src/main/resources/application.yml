@@ -8,6 +8,14 @@ spring:
   application:
     name: semaphore-service
 
+  servlet:
+    multipart:
+      # A 24-program pensum export is roughly 1200 rows, some 200 KB. The default ceiling
+      # is 1 MB, which a file with long course names and a UTF-8 BOM could reach; 5 MB
+      # leaves room without making the endpoint a place to post arbitrary data.
+      max-file-size: 5MB
+      max-request-size: 5MB
+
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/kapp_semaphore}

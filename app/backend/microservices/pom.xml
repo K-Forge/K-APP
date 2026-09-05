@@ -56,6 +56,14 @@
         <mongock.version>5.5.1</mongock.version>
 
         <testcontainers.version>1.21.4</testcontainers.version>
+
+        <!--
+          CSV parsing for the bulk pensum import. A dependency rather than a hand-rolled
+          split(","): the files come out of spreadsheets, so quoted fields containing
+          commas and newlines are the normal case, not the edge case, and getting that
+          subtly wrong would corrupt a course name instead of failing loudly.
+        -->
+        <commons-csv.version>1.12.0</commons-csv.version>
     </properties>
 
     <!--
@@ -97,6 +105,12 @@
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
                 <version>${springdoc.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-csv</artifactId>
+                <version>${commons-csv.version}</version>
             </dependency>
 
             <dependency>

@@ -45,7 +45,11 @@ info:
     |---|---|---|
     | `/api/catalog/**` | any authenticated role except `ROLE_GUEST` | `ROLE_ADMIN` |
     | `/api/semaphore/me/**` | `ROLE_STUDENT` (the caller's own document) | `ROLE_STUDENT` |
+    | `/api/semaphore/me/plans/**` | `ROLE_STUDENT` (the caller's own plans) | `ROLE_STUDENT` |
     | `/api/semaphore/{userId}` | `ROLE_ADMIN` | — |
+
+    `ROLE_PROFESSOR` reads the catalogue and nothing else here. A lecturer has no academic
+    record of their own, so every `/api/semaphore/**` route refuses them — including the plans.
 
     A caller who is authenticated but lacks the required role receives `403`, never `404`.
 
@@ -65,6 +69,11 @@ tags:
     description: |
       The student's semáforo: per-course status, derived summary, eligible courses, and elective
       slot resolution.
+  - name: Academic Plans
+    description: |
+      The student's own arrangements of their pensum. The curriculum is immutable — the
+      *Semáforo Original* — and a plan is a thin layer over it recording only the courses the
+      student moved, so the client can draw both the planned position and the original outline.
 
 paths:
   /api/catalog/programs:
@@ -334,6 +343,73 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+
+  /api/catalog/curricula/import:
+    post:
+      operationId: importCurricula
+      summary: Import pensums in bulk from a CSV
+      description: |
+        Requires `ROLE_ADMIN`. Loads whole pensums from a spreadsheet export — 24 programs and
+        roughly 1200 rows is data-entry work, not programming, and this is what lets somebody do
+        it without touching code.
+
+        One row per pensum item. The columns before `pensumItemCode` describe the pensum and are
+        repeated on every one of its rows; the import checks those repeated values agree with
+        each other rather than letting the first row silently win. One file may carry several
+        pensums.
+
+        **Nothing is written unless the whole file validates.** A partial import would leave the
+        catalogue in a state nobody chose, so every problem is collected first and reported
+        against the line number of the file.
+
+        **Declared totals are checked, not trusted.** The import adds up the courses and compares
+        against `declaredCredits` and `declaredHours` — the latter being the sum of *weekly*
+        hours, which is what a curriculum's `totalHours` means. The seeded Ingeniería de Sistemas
+        plan declares 142 and 194 where its courses give 144 and 197; accepting that silently
+        would put the discrepancy in front of a student months later.
+
+        Column reference and a template: `docs/templates/`.
+      tags: [Catalog]
+      parameters:
+        - name: dryRun
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+          description: Validate the file and report what would happen, without writing anything.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: UTF-8 CSV, at most 5 MB.
+      responses:
+        '200':
+          description: What was imported, or what a dry run would have imported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurriculumImportReport'
+        '400':
+          description: |
+            The file was rejected and nothing was written. `details` carries one entry per
+            problem, labelled with the line of the file or the pensum it belongs to, capped at
+            200 entries with the total stated in `message`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          description: The file is larger than 5 MB.
 
   /api/catalog/curricula/{pensumCode}/courses:
     parameters:
@@ -736,6 +812,201 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/semaphore/me/plans:
+    get:
+      operationId: listMyAcademicPlans
+      summary: List the student's academic plans
+      description: |
+        Requires `ROLE_STUDENT`. Returns the caller's own plans, the primary one first.
+
+        A plan is a layer over the pensum, never a copy of it. The curriculum stays the
+        immutable *Semáforo Original*; a plan records only the courses the student has moved,
+        which is why `placements` is usually short and often empty.
+      tags: [Academic Plans]
+      responses:
+        '200':
+          description: The caller's plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AcademicPlan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createMyAcademicPlan
+      summary: Create an academic plan
+      description: |
+        Requires `ROLE_STUDENT`. The plan starts empty: every course sits where the pensum puts
+        it until the student moves one.
+
+        The first plan a student creates for a pensum becomes their primary automatically.
+        A student may hold at most 10 plans per pensum — enough for "what if I take Cálculo in
+        the summer", far short of an unbounded collection growing under one account.
+      tags: [Academic Plans]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcademicPlanRequest'
+      responses:
+        '201':
+          description: The created plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicPlan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/semaphore/me/plans/{planId}:
+    parameters:
+      - $ref: '#/components/parameters/PlanIdPath'
+    get:
+      operationId: getMyAcademicPlan
+      summary: Get one academic plan
+      description: |
+        Requires `ROLE_STUDENT`. `404` for a plan belonging to somebody else, deliberately: a
+        `403` would confirm that the identifier exists.
+      tags: [Academic Plans]
+      responses:
+        '200':
+          description: The plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicPlan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateMyAcademicPlan
+      summary: Rename a plan or make it the primary one
+      description: |
+        Requires `ROLE_STUDENT`. Both fields are optional; sending neither is a `400`.
+
+        Setting `primary` to `true` demotes whichever plan currently holds it for the same
+        pensum — there is exactly one primary per student and pensum. Setting it to `false` is
+        rejected: a student would be left with none, and something has to be the plan the app
+        opens on.
+      tags: [Academic Plans]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcademicPlanUpdate'
+      responses:
+        '200':
+          description: The updated plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicPlan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteMyAcademicPlan
+      summary: Delete an academic plan
+      description: |
+        Requires `ROLE_STUDENT`. Deleting the primary plan promotes the next one by creation
+        date; deleting the last plan for a pensum is allowed and simply leaves the student with
+        the pensum as published.
+      tags: [Academic Plans]
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/semaphore/me/plans/{planId}/placements/{code}:
+    parameters:
+      - $ref: '#/components/parameters/PlanIdPath'
+      - $ref: '#/components/parameters/CourseCodePath'
+    put:
+      operationId: placeCourseInMyPlan
+      summary: Move a course to a different level
+      description: |
+        Requires `ROLE_STUDENT`. Idempotent: moving a course already at that level returns the
+        plan unchanged.
+
+        **Moving a course does not make it eligible.** `GET /api/semaphore/me/eligible` is
+        computed from prerequisites actually approved, and it ignores plans entirely. Planning
+        is not approving, and a plan that could unlock a course by dragging it would be a
+        semáforo that lies.
+
+        There is **no cap on how many courses may sit at one level**. Students take more or
+        fewer than the nominal six all the time, and a limit here would refuse a real timetable.
+
+        `400` when the course is not in the pensum, or when `plannedLevel` is outside 1–12.
+      tags: [Academic Plans]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlacementRequest'
+      responses:
+        '200':
+          description: The plan, including the new placement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicPlan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: resetCourseInMyPlan
+      summary: Return a course to the level the pensum gives it
+      description: |
+        Requires `ROLE_STUDENT`. Removes the placement, so the course goes back to its published
+        level. `404` when the plan has no placement for that course — it was never moved.
+      tags: [Academic Plans]
+      responses:
+        '200':
+          description: The plan, without that placement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicPlan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -798,6 +1069,146 @@ components:
             This is the pensum that `GET /api/semaphore/me` pins for new students.
           maxLength: 20
           example: "1015"
+
+    CurriculumImportReport:
+      type: object
+      description: What a bulk import did, or what a dry run would have done.
+      required: [dryRun, rowsRead, curricula]
+      properties:
+        dryRun:
+          type: boolean
+          description: When true, nothing was written.
+        rowsRead:
+          type: integer
+          description: Data rows in the file, header excluded.
+          example: 1203
+        curricula:
+          type: array
+          items:
+            type: object
+            required: [pensumCode, programCode, courses]
+            properties:
+              pensumCode: { type: string, example: "1015" }
+              programCode: { type: string, example: "506" }
+              programName: { type: string, example: Ingeniería de Sistemas }
+              courses: { type: integer, example: 48 }
+              declaredCredits:
+                type: integer
+                description: What the file states.
+                example: 142
+              computedCredits:
+                type: integer
+                description: What its courses actually add up to. Equal to `declaredCredits`, or the import would have failed.
+                example: 142
+              declaredHours: { type: integer, example: 194 }
+              computedHours: { type: integer, example: 194 }
+              programCreated:
+                type: boolean
+                description: False when the program already existed and was replaced.
+              curriculumCreated:
+                type: boolean
+                description: False when the pensum already existed and was replaced.
+
+    AcademicPlan:
+      type: object
+      description: |
+        A student's own arrangement of a pensum.
+
+        `placements` carries **only the courses that moved**. Anything absent is taken where the
+        curriculum puts it. That keeps the document small, makes the outline the client draws in
+        the original column fall out for free — it knows both levels — and means a change to the
+        pensum reaches every plan without rewriting any of them.
+      required: [id, name, pensumCode, primary, placements, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          maxLength: 64
+          example: 66f0a1c2e4b0a91d3c5e7f21
+        name:
+          type: string
+          maxLength: 60
+          example: Mi plan
+        pensumCode:
+          type: string
+          maxLength: 20
+          example: "1015"
+        primary:
+          type: boolean
+          description: The plan the app opens on. Exactly one per student and pensum.
+          example: true
+        placements:
+          type: array
+          description: Only the courses the student moved.
+          items:
+            $ref: '#/components/schemas/Placement'
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Placement:
+      type: object
+      description: One course pinned to a level other than the pensum's.
+      required: [code, plannedLevel]
+      properties:
+        code:
+          type: string
+          maxLength: 30
+          description: |
+            The course `code`, or an elective slot's `pensumItemCode` — the same identifier
+            `PUT /api/semaphore/me/courses/{code}` accepts.
+          example: "17085"
+        plannedLevel:
+          type: integer
+          minimum: 1
+          maximum: 12
+          description: The level the student intends to take it in.
+          example: 7
+
+    AcademicPlanRequest:
+      type: object
+      required: [name, pensumCode]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+          example: Mi plan
+        pensumCode:
+          type: string
+          maxLength: 20
+          description: Must be an existing curriculum; `404` otherwise.
+          example: "1015"
+      additionalProperties: false
+
+    AcademicPlanUpdate:
+      type: object
+      description: |
+        At least one field must be present. An empty object is a `400` rather than a silent
+        no-op, so a client bug does not look like a successful save.
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+          example: Plan de verano
+        primary:
+          type: boolean
+          description: |
+            Only `true` is accepted. Demoting a plan without promoting another would leave the
+            student with no primary at all.
+          enum: [true]
+      additionalProperties: false
+
+    PlacementRequest:
+      type: object
+      required: [plannedLevel]
+      properties:
+        plannedLevel:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 7
+      additionalProperties: false
 
     ProgramRequest:
       type: object
@@ -1309,11 +1720,23 @@ components:
       name: userId
       in: path
       required: true
-      description: Identifier of the KApp user whose semáforo is being read.
+      description: |
+        Identifier of the KApp user whose semáforo is being read. This is the `sub` claim of
+        the access token — a UUID string, never a number. A client generated from an earlier
+        revision of this file typed it as `int64`, which no real identifier has ever matched.
       schema:
-        type: integer
-        format: int64
-      example: 1042
+        type: string
+        maxLength: 64
+      example: cb37abf3-7a85-49f4-8bd4-e00726630f53
+    PlanIdPath:
+      name: planId
+      in: path
+      required: true
+      description: Identifier of one of the caller's own academic plans.
+      schema:
+        type: string
+        maxLength: 64
+      example: 66f0a1c2e4b0a91d3c5e7f21
 
   examples:
     CurriculumCourseList:

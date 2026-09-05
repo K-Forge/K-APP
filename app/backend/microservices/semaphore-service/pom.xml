@@ -67,6 +67,12 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
 
+        <!-- Bulk pensum import: 24 programs, roughly 1200 rows, out of a spreadsheet. -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+        </dependency>
+
         <!-- Versioned MongoDB migrations, indexes and seed data. -->
         <dependency>
             <groupId>io.mongock</groupId>
