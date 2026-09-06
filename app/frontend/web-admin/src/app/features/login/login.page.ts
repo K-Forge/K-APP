@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormControl, FormGroup, Validators } from '@angular/forms';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
+import { map } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { ApiConfigService } from '../../core/config/api-config.service';
 import { AppHttpError } from '../../core/http/api-http-error';
@@ -21,9 +23,19 @@ interface LoginForm {
       <div class="card login-card">
         <h1>KApp admin &amp; dev portal</h1>
         <p class="text-muted">
-          Sign in with any KApp account. The token you receive is decoded locally so you can see
-          exactly what it contains.
+          Sign in with an <strong>administrator</strong> account. The token you receive is decoded
+          locally so you can see exactly what it contains.
         </p>
+
+        @if (refusedAsNonAdmin()) {
+          <div class="card api-error" role="alert">
+            <strong>That account is not an administrator.</strong>
+            <p style="margin:0.35rem 0 0">
+              The sign-in itself worked — this console is only for administrators. A student or
+              professor account is for the mobile app.
+            </p>
+          </div>
+        }
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="stack">
           <div class="field" [class.invalid]="isInvalid('email')">
@@ -90,6 +102,22 @@ export class LoginPage {
   private readonly config = inject(ApiConfigService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+
+  /**
+   * Set by the route guard when a valid but non-administrator token was turned away. Without
+   * it, signing in correctly and landing back here reads as a broken login rather than a
+   * refusal.
+   *
+   * <p>Read from the live query parameters, not from `route.snapshot`. The guard redirects
+   * here from a page this component was already mounted behind, so Angular reuses the instance
+   * and never re-runs the constructor — a snapshot read once at construction stays whatever it
+   * was when the user first opened the page, which is to say empty, and the message never
+   * appears at the one moment it exists for.
+   */
+  protected readonly refusedAsNonAdmin = toSignal(
+    this.route.queryParamMap.pipe(map((params) => params.get('reason') === 'admin-only')),
+    { initialValue: false },
+  );
 
   readonly form = new FormGroup<LoginForm>({
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),

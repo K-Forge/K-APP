@@ -84,7 +84,7 @@ Severity reflects the impact if this configuration were deployed as-is on a reac
 | S8 | Informational | HS512 key length requirement is undocumented outside this audit. |
 | S9 | Informational | Sample data ships a known password and its hash. |
 | S10 | High | MongoDB ran without authentication; database separation was a convention, not a rule. **Resolved.** |
-| S11 | Moderate | Development accounts hold `ROLE_ADMIN` and two invitation codes ship in the repository. **Open, by decision.** |
+| S11 | Moderate | Development accounts hold `ROLE_ADMIN` and two invitation codes ship in the repository. **Partly closed** — the seeded codes are deactivated and the portal now requires `ROLE_ADMIN`. |
 | S12 | Moderate | The visitor day pass stores identity documents, which are personal data under Ley 1581. **Built, with a 30-day retention enforced by the database. Dirección de TI has not yet been told.** |
 
 ### H1 — Credentials readable in git history (High)
@@ -277,6 +277,29 @@ account. The four development accounts can do anything.
 **Why it stands.** The stack runs on one laptop behind Docker, with no route from outside and no
 real data. The team is six people building the thing, and a role split between them now would cost
 more than it protects.
+
+**Closed on 6 September 2026, when the databases moved to a shared cluster and the portal became
+reachable over Tailscale.** Two of the three were done then, and the reason is worth recording
+because the chain was not obvious:
+
+An invitation code creates an account **for the mobile app** — that is what it is for, and the
+role it grants is the point of it. But the admin portal's route guard asked only for a *valid*
+token, not for `ROLE_ADMIN`. So a public code plus an open `/auth/register` meant anyone who
+could reach the gateway could create a student account and land inside the administration
+console, seeing a navigation with Users, Invitation codes and Visitor passes on it.
+
+Demonstrated rather than reasoned about: an account was registered from the tailnet address and
+signed in successfully. The API held — every administrative call answered `403`, including the
+visitor register that holds identity documents — so nothing leaked. But a console full of
+screens that answer "forbidden" is not a boundary; it is a boundary that happens to hold.
+
+- **Both seeded codes are now `active: false`** in the shared cluster, so no account can be
+  created at all. Re-enable one, or mint a fresh code, from the portal when the mobile app needs
+  registration to work.
+- **The portal's guard requires `ROLE_ADMIN`**, and says so when it refuses rather than bouncing
+  silently to a sign-in page the user just used successfully. It is a client-side check and not
+  a security control — the control is the `@PreAuthorize` on each endpoint — but it stops the
+  console from being *shown* to somebody who is not an administrator.
 
 **What has to happen before it is reachable from outside** — all three, not one of them:
 

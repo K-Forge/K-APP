@@ -208,7 +208,12 @@ The token that comes back lasts 24 hours, carries `ROLE_GUEST`, and is refused e
 `/api/map/**`. The register is at `GET /auth/admin/visitor-passes` and **deletes itself after 30
 days** — MongoDB does it, not a scheduled job. See `SECURITY-AUDIT.md`, S12.
 
-**To register any other account**, use a seeded invitation code:
+**To register any other account** you need an active invitation code, and **both seeded codes are
+deactivated** — see S11 in `SECURITY-AUDIT.md`. They were the only way into the admin portal that
+did not go through the four accounts above, and the portal now requires `ROLE_ADMIN` anyway.
+
+Mint one from the portal (*Invitation codes → New code*) when the mobile app needs registration,
+then:
 
 ```bash
 curl -X POST http://localhost:8080/auth/register \
