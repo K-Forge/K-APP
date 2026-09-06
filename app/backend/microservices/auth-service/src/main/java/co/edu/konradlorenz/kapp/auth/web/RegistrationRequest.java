@@ -12,7 +12,7 @@ import jakarta.validation.constraints.Size;
  *
  * <p>The institutional domain is checked in the service rather than with a
  * {@code @Pattern} here, even though the spec expresses it as one. The domain is
- * configurable through {@code KAPP_ALLOWED_EMAIL_DOMAIN}, and a hard-coded pattern would
+ * configurable through {@code KAPP_ALLOWED_EMAIL_DOMAINS}, and a hard-coded pattern would
  * quietly win over the setting - rejecting an address the deployment was configured to
  * accept, with a validation message that pointed at neither. Both paths answer 400 either
  * way, so the contract is unaffected.

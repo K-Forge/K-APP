@@ -20,19 +20,36 @@
 # password that provisioned the volume.
 set -euo pipefail
 
-# Edit this list to match the team. The `.dev` in the address is deliberate: it keeps a
-# development account from ever colliding with the person's real institutional address
-# once KApp authenticates against Entra ID.
+# Edit this list to match the team.
+#
+# @kforge.dev, not the university's domain. These are development identities, not people:
+# keeping them off konradlorenz.edu.co means one of them can never collide with somebody's
+# real institutional address once KApp authenticates against Entra ID, and it makes a
+# development account recognisable as one at a glance - in the user directory, in a log line,
+# in a screenshot pasted into a chat.
+#
+# The domain is not registered to us and does not need to be. Nothing sends mail to it: e-mail
+# verification is off, and these accounts are created ACTIVE. If verification is ever turned on,
+# these four have to be reissued on a domain we control, or their confirmation mail goes to
+# whoever owns kforge.dev.
 ACCOUNTS=(
-  "brian.dev@konradlorenz.edu.co|Brian Steven|Vargas Clavijo|506900001"
-  "ivan.dev@konradlorenz.edu.co|Ivan|Desarrollador|506900002"
-  "alejandro.dev@konradlorenz.edu.co|Alejandro|Desarrollador|506900003"
-  "santiago.dev@konradlorenz.edu.co|Santiago|Desarrollador|506900004"
+  "brian@kforge.dev|Brian Steven|Vargas Clavijo|506900001"
+  "ivan@kforge.dev|Ivan|Desarrollador|506900002"
+  "alejandro@kforge.dev|Alejandro|Desarrollador|506900003"
+  "santiago@kforge.dev|Santiago|Desarrollador|506900004"
 )
 
 GATEWAY="${KAPP_GATEWAY:-http://localhost:8080}"
-INVITATION_CODE="${KAPP_INVITATION_CODE:-KL-20262-STUDENT}"
 PROGRAM_CODE="506"
+
+# This script mints its own single-purpose invitation code and deletes it on the way out,
+# rather than leaning on one of the seeded ones.
+#
+# Two reasons. The seeded codes are deactivated on purpose - they ship in a public repository,
+# and while they were active anybody who could reach the gateway could create an account (see
+# S11 in docs/SECURITY-AUDIT.md). And a script that quietly depends on a code somebody may have
+# revoked fails later, confusingly, for a reason unrelated to what it is doing.
+INVITATION_CODE="KF-BOOTSTRAP-$$"
 
 RECREATE=false
 [ "${1:-}" = "--recreate" ] && RECREATE=true
@@ -129,6 +146,26 @@ chmod 600 "$OUT"
 
 created=0
 skipped=0
+
+# Created directly in the database, because on a fresh cluster there is no administrator yet
+# to create one through the API - which is the whole reason this script exists.
+mongo_for AUTH '
+  db.invitation_codes.insertOne({
+    code: "'"$INVITATION_CODE"'", role: "ROLE_STUDENT",
+    maxUses: '"${#ACCOUNTS[@]}"', timesUsed: 0, active: true, expiresAt: null,
+    notes: "Temporary, created by create-dev-accounts.sh. Deleted when it finishes.",
+    createdAt: new Date(), updatedAt: new Date()
+  });
+' > /dev/null
+
+# However this script exits - success, a rate limit, a Ctrl-C - the code goes with it. A
+# bootstrap code left behind and forgotten is exactly the finding this replaced.
+cleanup_code() {
+  mongo_for AUTH '
+    db.invitation_codes.deleteOne({ code: "'"$INVITATION_CODE"'" });
+  ' > /dev/null 2>&1 || true
+}
+trap cleanup_code EXIT
 
 for entry in "${ACCOUNTS[@]}"; do
   IFS='|' read -r email first last student_code <<< "$entry"

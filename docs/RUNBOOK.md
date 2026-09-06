@@ -150,10 +150,20 @@ scripts/create-dev-accounts.sh
 
 | E-mail                              | Role       |
 | ----------------------------------- | ---------- |
-| `brian.dev@konradlorenz.edu.co`     | ADMIN      |
-| `ivan.dev@konradlorenz.edu.co`      | ADMIN      |
-| `alejandro.dev@konradlorenz.edu.co` | ADMIN      |
-| `santiago.dev@konradlorenz.edu.co`  | ADMIN      |
+| `brian@kforge.dev`     | ADMIN |
+| `ivan@kforge.dev`      | ADMIN |
+| `alejandro@kforge.dev` | ADMIN |
+| `santiago@kforge.dev`  | ADMIN |
+
+**`kforge.dev`, not the university's domain.** These are development identities, not people. One
+of them can never collide with somebody's real institutional address once KApp authenticates
+against Entra ID, and a development account is recognisable as one at a glance — in the
+directory, in a log line, in a screenshot pasted into a chat.
+
+The domain is not registered to us and does not need to be: nothing sends mail to it, because
+e-mail verification is off and these accounts are created ACTIVE. **If verification is ever
+turned on, these four have to be reissued on a domain we control**, or their confirmation mail
+goes to whoever owns `kforge.dev`.
 
 All four hold ADMIN because the team is still building KApp and everyone needs to reach
 everything. There is deliberately no admin/developer split yet — and that has to change before

@@ -107,6 +107,41 @@ class RegistrationIntegrationTest extends AbstractAuthIntegrationTest {
         assertThat(credentials.existsByEmailIgnoreCase("someone@gmail.com")).isFalse();
     }
 
+    /**
+     * The allowed domain is a LIST, not one value, and that is the whole point: the team's own
+     * accounts live on kforge.dev while a student registers with their institutional address.
+     * Without this test the list could collapse back to a single domain and only the four
+     * development accounts would notice - by silently failing to be creatable.
+     */
+    @Test
+    @DisplayName("a second configured domain is accepted")
+    void institutionalRegistration_acceptsSecondaryDomain() throws Exception {
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(institutionalPayload("dev.account@kforge.dev",
+                                STUDENT_CODE, "506000222", "506")))
+                .andExpect(status().isCreated());
+
+        assertThat(credentials.existsByEmailIgnoreCase("dev.account@kforge.dev")).isTrue();
+    }
+
+    @Test
+    @DisplayName("a domain that is not configured is still refused, and the message names both")
+    void institutionalRegistration_rejectsUnconfiguredDomain() throws Exception {
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(institutionalPayload("someone@kforge.com",
+                                STUDENT_CODE, "506000333", "506")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field").value("email"))
+                .andExpect(jsonPath("$.details[0].issue")
+                        .value(org.hamcrest.Matchers.allOf(
+                                org.hamcrest.Matchers.containsString("@konradlorenz.edu.co"),
+                                org.hamcrest.Matchers.containsString("@kforge.dev"))));
+
+        assertThat(credentials.existsByEmailIgnoreCase("someone@kforge.com")).isFalse();
+    }
+
     @Test
     @DisplayName("requires studentCode and programCode for a student invitation code")
     void institutionalRegistration_studentCodeRequiresAcademicFields() throws Exception {

@@ -190,13 +190,17 @@ public class RegistrationService {
     }
 
     private void requireAllowedDomain(String email) {
-        String suffix = "@" + properties.allowedEmailDomain();
-        if (!email.endsWith(suffix)) {
-            throw new BusinessRuleException(
-                    "Institutional registration requires a " + suffix + " address",
-                    List.of(new ApiError.FieldIssue("email",
-                            "Must use the " + suffix + " domain. Guests register at /auth/register/guest")));
+        boolean allowed = properties.allowedEmailDomains().stream()
+                .anyMatch(domain -> email.endsWith("@" + domain));
+        if (allowed) {
+            return;
         }
+        String suffixes = properties.allowedEmailDomains().stream()
+                .map(domain -> "@" + domain)
+                .collect(java.util.stream.Collectors.joining(" or "));
+        throw new BusinessRuleException(
+                "Registration requires a " + suffixes + " address",
+                List.of(new ApiError.FieldIssue("email", "Must use " + suffixes)));
     }
 
     private void requireAvailable(String email) {

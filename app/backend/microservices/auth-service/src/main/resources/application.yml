@@ -103,7 +103,7 @@ kapp:
     user-service-url: ${KAPP_USER_SERVICE_URL:}
 
     # Registration and e-mail verification. See RegistrationProperties.
-    allowed-email-domain: ${KAPP_ALLOWED_EMAIL_DOMAIN:konradlorenz.edu.co}
+    allowed-email-domains: ${KAPP_ALLOWED_EMAIL_DOMAINS:konradlorenz.edu.co,kforge.dev}
     # Off by default: there is no SMTP relay yet, and registration is the front door
     # of the product. Accounts are then created ACTIVE while emailVerified stays
     # false, because nothing was actually verified. Turn this on the moment mail works.

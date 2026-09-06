@@ -201,7 +201,7 @@ services:
 
       # Registration gating. Only this domain may use /auth/register; guests are
       # unrestricted and land on ROLE_GUEST.
-      KAPP_ALLOWED_EMAIL_DOMAIN: ${KAPP_ALLOWED_EMAIL_DOMAIN:-konradlorenz.edu.co}
+      KAPP_ALLOWED_EMAIL_DOMAINS: ${KAPP_ALLOWED_EMAIL_DOMAINS:-konradlorenz.edu.co,kforge.dev}
 
       # Off by default because there is no SMTP relay yet, and registration is the front
       # door of the product: requiring an e-mail nobody can send would block the four

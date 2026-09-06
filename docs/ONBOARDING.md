@@ -18,8 +18,8 @@ Dos cosas, y las manda **por mensaje directo — nunca al grupo**:
 
 1. **Cinco líneas** que empiezan por `MONGO_` y terminan en `.mongodb.net/...`. Son las que
    conectan con la base compartida y llevan contraseñas dentro.
-2. **Tu línea** del archivo de cuentas: tu correo `@konradlorenz.edu.co` y tu contraseña para
-   entrar a la app.
+2. **Tu línea** del archivo de cuentas: tu correo `@kforge.dev` y tu contraseña. Ese correo no
+   existe de verdad — es una identidad de desarrollo, y sólo sirve para entrar al portal.
 
 Si te llegaron por el grupo, dile que las rote. Un mensaje en un chat queda en el historial de
 todos para siempre.
@@ -206,8 +206,9 @@ Docker Desktop no está abierto. Ábrelo y espera a la ballena.
 
 ### El portal carga pero no entra
 
-Comprueba que estás en <http://localhost:4300> y no en otro puerto, y que el correo lleva
-`.dev` — es `ivan.dev@konradlorenz.edu.co`, no `ivan@`.
+Comprueba que estás en <http://localhost:4300> y no en otro puerto, y que el correo es el de
+desarrollo: `ivan@kforge.dev`, **no** tu dirección de la universidad. Esas cuentas no existen
+como correo real; son identidades sólo para desarrollo.
 
 ### Todo va lentísimo y el ventilador suena
 

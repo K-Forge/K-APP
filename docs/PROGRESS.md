@@ -30,7 +30,7 @@ production deployment.
 | iOS (Swift) | Not started | — | The product. Unblocked by the mocks |
 | Deployment | Not started | — | Runs locally; university hardware pending |
 
-**616 integration tests**, from a repository that had none in August. Every service asserts its
+**618 integration tests**, from a repository that had none in August. Every service asserts its
 full role-by-endpoint authorization matrix with one assertion per case, including every combination
 that must be refused — those are the ones that matter.
 
@@ -64,7 +64,7 @@ making that migration a change of property value.
 **Contract first.** `docs/api/*.openapi.yaml` are hand-written and served by Prism containers, so
 the mobile team works without waiting for the backend. CI lints them on every push.
 
-**Tests.** 616 integration tests on Testcontainers, from a repository that had none. Beyond the
+**Tests.** 618 integration tests on Testcontainers, from a repository that had none. Beyond the
 authorization matrices, they have already earned their keep by catching real defects:
 
 - In `auth-service`, the role check ran before the `try` block, so an invitation code carrying a
