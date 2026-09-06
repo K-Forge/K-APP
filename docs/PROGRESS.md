@@ -23,14 +23,14 @@ production deployment.
 | **User profiles** | **Merged** | **97** | Profiles, internal upsert, accent-insensitive indexed search |
 | **Catalogue and semáforo** | **Merged** | **214** | Programs and curricula with full CRUD, student progress, personal academic plans, bulk CSV import |
 | **Timetables** | **Merged** | **140** | Enrolments, meetings, overlap detection |
-| **Campus map** | **Merged** | **47** | Schematic floors on a grid, wings, corridors, a basement, and an offline grid editor. No floor plan images |
-| Admin and developer portal | In progress | — | Angular, runs from a compose `dev` profile. Full CRUD is Phase 6 |
+| **Campus map** | **Merged** | **50** | Schematic floors on a grid, wings, corridors, a basement, and an offline grid editor. No floor plan images |
+| **Admin and developer portal** | **Merged** | **30** | Angular, from a compose `dev` profile. Full CRUD, bulk import, an API console driven by the specs, and a role inspector |
 | **Visitor day pass** | **Merged** | **23** | A one-day token that opens the map and nothing else. No account, no e-mail. Identity documents deleted after 30 days by a TTL index |
 | Android (Kotlin) | Not started | — | The product. Unblocked by the mocks |
 | iOS (Swift) | Not started | — | The product. Unblocked by the mocks |
 | Deployment | Not started | — | Runs locally; university hardware pending |
 
-**613 integration tests**, from a repository that had none in August. Every service asserts its
+**616 integration tests**, from a repository that had none in August. Every service asserts its
 full role-by-endpoint authorization matrix with one assertion per case, including every combination
 that must be refused — those are the ones that matter.
 
@@ -43,6 +43,8 @@ that must be refused — those are the ones that matter.
 | 3 · Plans and bulk import | Personal academic plans stored as deltas over the immutable pensum, and a CSV import for the 24 programs that validates the whole file before writing anything |
 | 4 · Schematic map | A floor is a grid the client draws, not a photograph with pins on it. Wings as a field, corridors with the colour they are painted, a basement at level −1, and `accessVia` so the app can say "sube por el ascensor central". **This removed the longest-lead item on the project** — obtaining architectural plans was human latency, and a schematic floor is captured by walking it with `/admin/grid-editor.html` |
 | 5 · Visitor day pass | Reception issues a code; a visitor redeems it with an identity document and gets 24 hours of map-only access. No account is created. The token is an ordinary `ROLE_GUEST` one, so "map only" is the matrix every service already enforces rather than a second mechanism that could drift. Open guest registration is gone. **KApp now stores personal data under Ley 1581** — 30-day retention, enforced by MongoDB rather than by a job |
+| 6 · Admin portal | CRUD over everything administrable, with a `409` shown as its reason rather than a generic error. Fixed a regression the map change caused — the portal's models still carried `planImageUrl` and pin percentages, so editing a building or space through it would have failed. Two pages said a capability did not exist; both were true when written and had stopped being so. Also closed a real defect: `accessVia` was never validated, and a code matching nothing produces directions to a lift that is not there |
+| 7 · Documentation | `REQUIREMENTS.md` rewritten to the real MVP — every entry built or explicitly out of scope. `DESIGN.md` rewritten with current diagrams, its decision table replaced by links to `adr/`. Four new ADRs. `README.md` corrected: it claimed PostgreSQL, HS512, and that role-based authorization was not enforced |
 
 ---
 
@@ -62,7 +64,7 @@ making that migration a change of property value.
 **Contract first.** `docs/api/*.openapi.yaml` are hand-written and served by Prism containers, so
 the mobile team works without waiting for the backend. CI lints them on every push.
 
-**Tests.** 613 integration tests on Testcontainers, from a repository that had none. Beyond the
+**Tests.** 616 integration tests on Testcontainers, from a repository that had none. Beyond the
 authorization matrices, they have already earned their keep by catching real defects:
 
 - In `auth-service`, the role check ran before the `try` block, so an invitation code carrying a
@@ -107,11 +109,13 @@ Tracked in `docs/SECURITY-AUDIT.md`.
 
 ## Next
 
-**Phase 6 — admin portal.** Full CRUD over everything administrable, with the contract's rules
-respected: a delete the server refuses with `409` must show *why*, not a generic error.
+**All seven phases of the September plan are closed.** What remains is not backend work.
 
-**Phase 7 — documentation.** `REQUIREMENTS.md` rewritten to the real MVP scope, `DESIGN.md`
-diagrams, four new ADRs, and the diagrams currently living in `/tmp` moved into `docs/`.
+**The mobile clients.** They are the product and they have not been started. They are unblocked: the
+five contracts are served as Prism mocks, so Kotlin and Swift work does not wait on anything here.
+
+**The data.** The 24 pensums and roughly 40 floors are transcription, not programming — the CSV
+import and the grid editor exist so the team can do it in parallel without touching code.
 
 ### Blocked on somebody else
 
