@@ -53,11 +53,16 @@ MONGO_MAP_PASSWORD=${MAP_PW}
 
 # One connection string per service. Each user lives in the database it owns, so that
 # database is also its authSource and a leaked credential opens only that one.
-MONGO_AUTH_URI=mongodb://kapp_auth_user:${AUTH_PW}@mongo:27017/kapp_auth?replicaSet=rs0&authSource=kapp_auth
-MONGO_USER_URI=mongodb://kapp_user_user:${USER_PW}@mongo:27017/kapp_user?replicaSet=rs0&authSource=kapp_user
-MONGO_SEMAPHORE_URI=mongodb://kapp_semaphore_user:${SEMAPHORE_PW}@mongo:27017/kapp_semaphore?replicaSet=rs0&authSource=kapp_semaphore
-MONGO_SCHEDULE_URI=mongodb://kapp_schedule_user:${SCHEDULE_PW}@mongo:27017/kapp_schedule?replicaSet=rs0&authSource=kapp_schedule
-MONGO_MAP_URI=mongodb://kapp_map_user:${MAP_PW}@mongo:27017/kapp_map?replicaSet=rs0&authSource=kapp_map
+#
+# SINGLE-QUOTED, and that matters. These contain '&', and a shell sourcing this file with
+# `. .env` reads an unquoted one as "assign up to the &, then run the rest in background" -
+# leaving the variable EMPTY. Docker Compose has its own parser and does not care, which is
+# what makes the bug invisible: the services connect fine and only the scripts break.
+MONGO_AUTH_URI='mongodb://kapp_auth_user:${AUTH_PW}@mongo:27017/kapp_auth?replicaSet=rs0&authSource=kapp_auth'
+MONGO_USER_URI='mongodb://kapp_user_user:${USER_PW}@mongo:27017/kapp_user?replicaSet=rs0&authSource=kapp_user'
+MONGO_SEMAPHORE_URI='mongodb://kapp_semaphore_user:${SEMAPHORE_PW}@mongo:27017/kapp_semaphore?replicaSet=rs0&authSource=kapp_semaphore'
+MONGO_SCHEDULE_URI='mongodb://kapp_schedule_user:${SCHEDULE_PW}@mongo:27017/kapp_schedule?replicaSet=rs0&authSource=kapp_schedule'
+MONGO_MAP_URI='mongodb://kapp_map_user:${MAP_PW}@mongo:27017/kapp_map?replicaSet=rs0&authSource=kapp_map'
 
 # ── Services ───────────────────────────────────────────────────────────────────
 # Shared secret for POST /internal/users, the one call auth-service makes to

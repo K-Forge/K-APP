@@ -45,11 +45,13 @@ p = pathlib.Path(path)
 lines = p.read_text().split("\n")
 # The value is written verbatim rather than through a regex replacement: a password can
 # contain any character, and sed would treat several of them as syntax.
-out = [f"{key}={value}" if line.startswith(key + "=") else line for line in lines]
+# Single-quoted: the value contains '&', and a shell sourcing this file would
+# otherwise read it as a background job and leave the variable empty.
+out = [f"{key}='{value}'" if line.startswith(key + "=") else line for line in lines]
 p.write_text("\n".join(out))
 PY
   else
-    printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+    printf "%s='%s'\n" "$key" "$value" >> "$ENV_FILE"
   fi
 }
 

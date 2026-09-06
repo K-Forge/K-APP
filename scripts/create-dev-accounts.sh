@@ -63,19 +63,56 @@ password() {
   ( set +o pipefail; LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 28 )
 }
 
-mongo_root() {
-  docker compose exec -T -e ROOT_PW="$MONGO_ROOT_PASSWORD" mongo mongosh --quiet --eval "$1"
+# Runs a script against ONE service's database, using that service's own credentials.
+#
+# There is deliberately no "connect as root and touch both databases" here any more. That
+# worked only against the local container, which has a root user and is reachable as
+# `mongo`; against Atlas there is no local container and — by design — no account that can
+# reach both kapp_auth and kapp_user. Going through each service's own credential is the
+# only thing that works in both places, and it is also the arrangement the isolation is
+# supposed to have.
+#
+# mongosh runs in a throwaway container attached to the compose network, so a local URI
+# (host `mongo`) resolves and an Atlas URI reaches the internet, without needing mongosh
+# installed on anybody's machine.
+mongo_for() {
+  local service_upper="$1" script="$2"
+  local uri_var="MONGO_${service_upper}_URI"
+  # Indirect expansion WITHOUT a modifier: macOS ships bash 3.2, which rejects
+  # ${!var:-default} as a bad substitution.
+  local uri
+  eval "uri=\${$uri_var}"
+
+  if [ -z "$uri" ]; then
+    echo "  $uri_var is not set in .env - cannot reach that service's database." >&2
+    return 1
+  fi
+
+  docker run --rm --network "$COMPOSE_NETWORK" mongo:7 \
+    mongosh "$uri" --quiet --eval "$script"
 }
+
+# The network the stack is on, taken from a running container rather than assumed: the
+# name is derived from the directory, so it is not the same on every checkout.
+COMPOSE_NETWORK=$(docker inspect kapp-auth \
+  --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null || true)
+if [ -z "$COMPOSE_NETWORK" ]; then
+  echo "The stack does not appear to be running - start it first." >&2
+  exit 1
+fi
 
 if [ "$RECREATE" = true ]; then
   emails=$(printf '%s\n' "${ACCOUNTS[@]}" | cut -d'|' -f1 | paste -sd',' -)
   echo "Deleting the four accounts so they can be created again."
-  mongo_root '
-    db.getSiblingDB("admin").auth("'"${MONGO_ROOT_USER:-kapp_root}"'", process.env.ROOT_PW);
+  mongo_for AUTH '
     const emails = "'"$emails"'".split(",");
-    const a = db.getSiblingDB("kapp_auth").credentials.deleteMany({ email: { $in: emails } });
-    const u = db.getSiblingDB("kapp_user").users.deleteMany({ email: { $in: emails } });
-    print("  removed " + a.deletedCount + " credentials and " + u.deletedCount + " profiles");
+    const a = db.credentials.deleteMany({ email: { $in: emails } });
+    print("  removed " + a.deletedCount + " credentials");
+  '
+  mongo_for USER '
+    const emails = "'"$emails"'".split(",");
+    const u = db.users.deleteMany({ email: { $in: emails } });
+    print("  removed " + u.deletedCount + " profiles");
   '
   echo
 fi
@@ -135,14 +172,17 @@ if [ "$created" -gt 0 ] || [ "$RECREATE" = true ]; then
   echo
   echo "Promoting them to ROLE_ADMIN:"
   emails=$(printf '%s\n' "${ACCOUNTS[@]}" | cut -d'|' -f1 | paste -sd',' -)
-  mongo_root '
-    db.getSiblingDB("admin").auth("'"${MONGO_ROOT_USER:-kapp_root}"'", process.env.ROOT_PW);
+  mongo_for AUTH '
     const emails = "'"$emails"'".split(",");
-    const a = db.getSiblingDB("kapp_auth").credentials.updateMany(
+    const a = db.credentials.updateMany(
       { email: { $in: emails } }, { $set: { roles: ["ROLE_ADMIN"] } });
-    const u = db.getSiblingDB("kapp_user").users.updateMany(
+    print("  " + a.modifiedCount + " credentials now ROLE_ADMIN");
+  '
+  mongo_for USER '
+    const emails = "'"$emails"'".split(",");
+    const u = db.users.updateMany(
       { email: { $in: emails } }, { $set: { role: "ROLE_ADMIN" } });
-    print("  " + a.modifiedCount + " credentials and " + u.modifiedCount + " profiles now ROLE_ADMIN");
+    print("  " + u.modifiedCount + " profiles now ROLE_ADMIN");
   '
 fi
 
