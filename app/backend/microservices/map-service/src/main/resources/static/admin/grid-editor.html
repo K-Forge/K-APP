@@ -115,9 +115,11 @@
     color: var(--text);
     border-radius: 0;
   }
-  .cell[data-occupied="true"] { font-weight: 600; }
+  /* The type colours are pale by design - a floor plan should not shout - so the label needs a
+     dark ink of its own rather than inheriting the theme's text colour, which is near-white in
+     dark mode and vanished against them. */
+  .cell[data-occupied="true"] { font-weight: 700; color: #1c2128; }
   .cell[aria-pressed="true"] { box-shadow: inset 0 0 0 3px var(--accent); }
-  .corridor-dot { display: block; width: 8px; height: 8px; border-radius: 50%; margin: 1px auto 0; }
 
   table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
   th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); }
@@ -346,6 +348,32 @@
     return wingFromCode(code) ? code.slice(0, code.lastIndexOf("-")) : code;
   }
 
+  /**
+   * Every cell a polyline passes through, corners included.
+   *
+   * Only straight segments are interpolated: a diagonal between two corners is left as its
+   * endpoints, because a corridor that runs diagonally through a building is a mistake in the
+   * capture rather than a shape to render.
+   */
+  function walk(path) {
+    const cells = new Set();
+    for (let i = 0; i < path.length; i++) {
+      const a = path[i];
+      cells.add(a.row + ":" + a.col);
+      const b = path[i + 1];
+      if (!b) continue;
+
+      if (a.row === b.row) {
+        const [from, to] = a.col < b.col ? [a.col, b.col] : [b.col, a.col];
+        for (let c = from; c <= to; c++) cells.add(a.row + ":" + c);
+      } else if (a.col === b.col) {
+        const [from, to] = a.row < b.row ? [a.row, b.row] : [b.row, a.row];
+        for (let r = from; r <= to; r++) cells.add(r + ":" + a.col);
+      }
+    }
+    return cells;
+  }
+
   function cellsOf(space) {
     const cells = [];
     for (let r = space.gridRow; r < space.gridRow + space.rowSpan; r++) {
@@ -377,10 +405,14 @@
     grid.style.gridTemplateColumns = `repeat(${state.floor.gridColumns}, 46px)`;
     grid.replaceChildren();
 
+    // A corridor's path stores its CORNERS, not every cell it passes through - that is what
+    // makes it cheap to draw and to edit. Rendering only those points showed a straight
+    // corridor as two dots at its ends, which is not a route anybody can read, so the cells
+    // between consecutive corners are filled in here.
     const corridorAt = new Map();
     for (const corridor of state.corridors) {
-      for (const point of corridor.path) {
-        corridorAt.set(point.row + ":" + point.col, corridor);
+      for (const cell of walk(corridor.path)) {
+        corridorAt.set(cell, corridor);
       }
     }
 
@@ -411,11 +443,10 @@
         }
 
         if (corridor) {
-          const dot = document.createElement("span");
-          dot.className = "corridor-dot";
-          dot.style.background = corridor.color;
-          dot.title = corridor.name;
-          cell.appendChild(dot);
+          // A band across the cell rather than a dot: adjacent cells then join up and the
+          // corridor reads as the route it is.
+          cell.style.boxShadow = `inset 0 -6px 0 ${corridor.color}`;
+          cell.title = corridor.name;
         }
 
         cell.addEventListener("click", () => onCellClick(r, c));

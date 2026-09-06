@@ -16,7 +16,7 @@
 <p align="center">
   <a href="https://github.com/K-Forge/KApp/actions/workflows/ci.yml"><img src="https://github.com/K-Forge/KApp/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"/></a>
   &nbsp;
-  <a href="https://kapp-black.vercel.app"><img src="https://img.shields.io/badge/Live%20demo-kapp--black.vercel.app-000000?logo=vercel&logoColor=white" alt="Live demo"/></a>
+  <a href="https://kapp-black.vercel.app"><img src="https://img.shields.io/badge/Demo-frozen%20prototype-6B7280?logo=vercel&logoColor=white" alt="Demo of the frozen prototype"/></a>
   <br/><br/>
   <img src="https://img.shields.io/badge/Android-Kotlin-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android (Kotlin)"/>
   <img src="https://img.shields.io/badge/iOS-Swift-F05138?style=for-the-badge&logo=swift&logoColor=white" alt="iOS (Swift)"/>
@@ -73,67 +73,80 @@ Prism mocks, so Kotlin and Swift work does not wait on the backend.
 
 ## Project Status
 
-KApp started as an idea intended to become a **degree thesis project**, and it is currently in the
-**pre-proposal and documentation phase** (_anteproyecto_).
+KApp is a **degree thesis project**, due **November 2026**, built by six people in their spare time.
 
 What that means when reading this repository:
 
-- The research and specification work is the primary deliverable at this stage. It lives in [`docs/`](docs/):
-  software requirements specification, functional requirements, system design, and a study of academic database
-  models.
-- The backend published here is a **working architectural reference prototype**, validated locally. Its purpose is
-  to prove that the proposed architecture holds, not to serve production traffic.
-- The native clients are **not implemented yet**, by design: `app/frontend/mobile/kotlin/` and
-  `app/frontend/mobile/swift/` hold placeholders. The current phase is backend plus the web client that tests it;
-  the mobile clients come after the interface design settles, which is why they sit at low priority in
-  [docs/PROGRESS.md](docs/PROGRESS.md) despite being the end product.
-- There is **no production deployment**. Configuration defaults target local development, and the platform has not
-  been hardened for a public-facing environment. See [Security](#security).
-- The original Spring Boot monolith was removed once the migration to microservices completed. It remains
-  retrievable from the git history; `app/backend/microservices/` is the only backend.
-
-Known gaps are not left implicit. [docs/PROGRESS.md](docs/PROGRESS.md#pending-work) lists the pending work —
-governance, presentation, engineering and manual items — with the current state of each and what it needs.
+- **The backend is built and tested.** Five services, **613 integration tests** on Testcontainers,
+  from a repository that had none in August. Every service asserts its full role-by-endpoint
+  authorization matrix — including every combination that must be refused, which are the ones that
+  matter.
+- **The native clients are the product, and they have not been started.** They are unblocked: the
+  five OpenAPI contracts are served as Prism mocks, so Kotlin and Swift work does not wait on the
+  backend.
+- **The scope was narrowed deliberately** in August 2026, because the university's academic data is
+  not available. Courses, assignments and grading are out — not pending.
+  [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) says what is in and what is out, with nothing left
+  implicit.
+- **There is no production deployment.** It runs on the lead developer's machine until university
+  hardware exists, and it has not been hardened for a public network. See [Security](#security).
+- **What is blocked, and on whom**, is listed in [`docs/PROGRESS.md`](docs/PROGRESS.md) — an Atlas
+  cluster, an SMTP relay, an Entra ID application registration, one sketched floor, and the 24
+  pensums as CSV.
+- The original Spring Boot monolith was removed once the migration completed. It remains retrievable
+  from the git history; `app/backend/microservices/` is the only backend.
 
 ---
 
 ## Interface
 
-The web client is where the API is exercised end to end, and it holds the interface design that the Kotlin and
-Swift clients will inherit. The screens below run against the microservices backend; the data shown is sample data.
+**The product's screens do not exist yet.** The Android and iOS clients are the deliverable and they
+have not been built; showing mockups here as if they were shipped would be the wrong impression to
+leave. What exists today are the two tools the team uses to build it.
 
-A **live demo** of these screens runs at **[kapp-black.vercel.app](https://kapp-black.vercel.app)** — sign in with
-any credentials. It is powered by a demo mode ([`js/demo.js`](app/frontend/web/js/demo.js)) that answers the API
-with sample data when no backend is reachable, so the interface can be browsed by anyone. The mode stays inert
-during local development — see [Demo mode](#demo-mode).
+### The floor editor
 
-Captured at phone width (390 x 844), the viewport the layout is designed around: the stylesheets are mobile-first,
-and the desktop arrangement is the enhancement layered on top through breakpoints.
+This is how a floor of the campus gets captured: walk it, count the squares, mark the lifts and
+stairs, trace the corridors in the colour they are actually painted, place the rooms. One
+self-contained HTML file — no server, no network, no build.
 
-<table>
-  <tr>
-    <td width="20%" align="center" valign="top">
-      <img src="./assets/screenshots/01-login.png" alt="Authentication screen" width="100%"/>
-      <br/><sub><b>Authentication</b><br/>Institutional credentials, JWT issued by <code>auth-service</code></sub>
-    </td>
-    <td width="20%" align="center" valign="top">
-      <img src="./assets/screenshots/02-dashboard.png" alt="Student dashboard" width="100%"/>
-      <br/><sub><b>Dashboard</b><br/>Announcements and role-aware navigation</sub>
-    </td>
-    <td width="20%" align="center" valign="top">
-      <img src="./assets/screenshots/03-courses.png" alt="Enrolled courses" width="100%"/>
-      <br/><sub><b>Courses</b><br/>Enrollment served by <code>course-service</code></sub>
-    </td>
-    <td width="20%" align="center" valign="top">
-      <img src="./assets/screenshots/04-assignments.png" alt="Assignments" width="100%"/>
-      <br/><sub><b>Assignments</b><br/>Pending and submitted work from <code>assignment-service</code></sub>
-    </td>
-    <td width="20%" align="center" valign="top">
-      <img src="./assets/screenshots/05-admin.png" alt="Administration panel" width="100%"/>
-      <br/><sub><b>Administration</b><br/>User, course and assignment management, admin role only</sub>
-    </td>
-  </tr>
-</table>
+It matters more than a tool usually would. The map used to be modelled as a photograph of an
+architectural plan, and obtaining those plans depended on other people's calendars — it was the
+project's longest-lead item and the one most likely to slip before November. A schematic floor is
+captured in an afternoon by the people who need it.
+[ADR 0006](docs/adr/0006-schematic-map-not-floor-plan-images.md) records the trade.
+
+<p align="center">
+  <img src="./assets/screenshots/06-grid-editor.png" alt="The floor editor, showing floor 3 of Bloque A" width="100%"/>
+  <br/>
+  <sub>Floor 3 of Bloque A, loaded from the seed. The three <b>301</b> rooms — north, central and
+  south — are three different rooms sharing one base code, which is the case most likely to send a
+  student to the wrong door. Corridors run in the colours the wings are painted; the auditorium
+  spans several cells. The editor refuses a room that would not fit or that would overlap another,
+  so a mistake surfaces while somebody is still standing in the building.</sub>
+</p>
+
+```bash
+open app/backend/microservices/map-service/src/main/resources/static/admin/grid-editor.html
+```
+
+### The admin and developer console
+
+An Angular portal at `localhost:4300`: CRUD over programs, curricula, users, buildings, spaces,
+invitation codes and visitor passes; bulk pensum import; an API console driven by the OpenAPI specs
+themselves; and a role inspector showing what each role may reach. It is a **team console, not a
+product surface** — nothing a student ever sees.
+
+```bash
+cd app/backend/microservices && docker compose --profile core --profile dev up -d
+```
+
+### The frozen prototype
+
+An earlier plain HTML/JS client is still in the tree at `app/frontend/web/`, and the **[live
+demo](https://kapp-black.vercel.app)** runs it. It shows courses, assignments and grading — none of
+which is being built any more. It is kept as the interface study it was, not as a description of the
+product; see [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) for what is and is not in scope.
 
 ---
 
@@ -420,73 +433,100 @@ and the framework preset should be left as "Other".
 KApp/
 ├── app/
 │   ├── backend/
-│   │   ├── microservices/          # Active backend — Maven multi-module project
-│   │   │   ├── discovery-server/   # Eureka registry (:8761)
-│   │   │   ├── api-gateway/        # Routing, JWT filter, CORS, circuit breakers (:8080)
-│   │   │   ├── auth-service/       # Authentication and token issuing (:8081)
-│   │   │   ├── user-service/       # User and profile management (:8082)
-│   │   │   ├── course-service/     # Courses, groups and enrollment (:8083)
-│   │   │   ├── assignment-service/ # Assignments, submissions, grading (:8084)
-│   │   │   ├── common/             # Shared DTOs and global exception handling
-│   │   │   ├── docker-compose.yml  # Containerized topology
-│   │   │   └── pom.xml             # Parent POM (dependency and version management)
-│   │   └── postman/                # API collections (Admin CRUD, user flows)
+│   │   ├── microservices/            # The backend — Maven multi-module project
+│   │   │   ├── discovery-server/     # Eureka registry (:8761)
+│   │   │   ├── api-gateway/          # Routing, CORS, rate limiting (:8080) — the only open port
+│   │   │   ├── auth-service/         # Credentials, RS256 tokens, JWKS, invitation codes,
+│   │   │   │                         #   visitor passes (:8081)
+│   │   │   ├── user-service/         # Profiles and directory search (:8082)
+│   │   │   ├── semaphore-service/    # Catalogue, student progress, academic plans (:8083)
+│   │   │   ├── schedule-service/     # Enrolments, meetings, agenda (:8084)
+│   │   │   ├── map-service/          # Buildings, floors, spaces, search (:8085)
+│   │   │   │   └── src/main/resources/static/admin/grid-editor.html   # The floor editor
+│   │   │   ├── common/               # Error envelope, CurrentUser, role constants
+│   │   │   ├── course-service/       # FROZEN — out of the reactor, compose and CI
+│   │   │   ├── assignment-service/   # FROZEN — same
+│   │   │   ├── mongo-init/rs-init.js # Replica set, service accounts, and the health probe
+│   │   │   ├── docker-compose.yml    # Profiles: mock, core, academic, map, full, dev, cloud
+│   │   │   └── pom.xml               # Parent POM — every version lives here
+│   │   └── postman/                  # API collections
 │   ├── frontend/
-│   │   ├── web/                    # Web client used to test the API (HTML/CSS/JS)
-│   │   │   ├── css/                # base, layout and shell stylesheets
-│   │   │   ├── js/app.js           # Client logic: session, routing, API access
-│   │   │   ├── js/demo.js          # Sample-data mode for backend-less deployments
-│   │   │   └── images/             # Static assets
+│   │   ├── web-admin/                # Admin and developer console (Angular 22)
+│   │   ├── web/                      # FROZEN prototype — the live demo runs this
 │   │   └── mobile/
-│   │       ├── kotlin/             # Android client (planned)
-│   │       └── swift/              # iOS client (planned)
-│   └── database/
-│       ├── init.sql                # Schema: enums, tables, triggers, audit_log
-│       ├── test_data.sql           # Sample data — development only
-│       └── delete_all_data.sql     # Database reset helper
-├── docs/                           # Specification, design and research
-│   └── researches/                 # Academic article reviews (PDF)
-├── scripts/                        # Local orchestration scripts (bash)
-├── assets/                         # Branding assets
-│   └── screenshots/                # Interface captures used in this README
-├── .github/workflows/ci.yml        # Build pipeline (JDK 21, Maven)
-├── vercel.json                     # Static deployment of the web client
-├── AGENTS.md                       # Operational context for AI agents
-├── LICENSE                         # Internal use license
-└── package.json                    # Repository tooling and scripts
+│   │       ├── kotlin/               # Android client — the product, not started
+│   │       └── swift/                # iOS client — the product, not started
+│   └── database/init.sql             # Legacy PostgreSQL schema. Reference only; nothing reads it
+├── docs/
+│   ├── api/                          # Five OpenAPI 3.1 contracts — the source of truth
+│   ├── adr/                          # Architecture decision records
+│   ├── templates/                    # The pensum import CSV and its column reference
+│   ├── PROGRESS.md                   # What is built, and what is blocked on whom
+│   ├── RUNBOOK.md                    # How to start, stop and troubleshoot it
+│   ├── SECURITY-AUDIT.md             # Findings S1–S12 and what closed each
+│   ├── REQUIREMENTS.md · DESIGN.md   # Scope and architecture
+│   └── ATLAS-SETUP.md                # Standing up the shared development cluster
+├── scripts/
+│   ├── generate-dev-secrets.sh       # Writes .env — secrets never leave the machine
+│   ├── create-dev-accounts.sh        # The four team accounts
+│   ├── verify-db-isolation.sh        # Proves each service reaches its own database and no other
+│   └── verify-visitor-pass.py        # End-to-end check of the day pass through the gateway
+├── .github/workflows/ci.yml          # Backend, contracts and portal
+├── AGENTS.md                         # Operational context for AI agents
+└── package.json                      # Repository tooling
 ```
 
 ---
 
 ## Documentation
 
-| Document                                                   | Content                                               |
-| ---------------------------------------------------------- | ----------------------------------------------------- |
-| [docs/SRS.md](docs/SRS.md)                                 | Software requirements specification.                  |
-| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)               | Functional and non-functional requirements.           |
-| [docs/DESIGN.md](docs/DESIGN.md)                           | System and interface design decisions.                |
-| [docs/MICROSERVICES-IDEAS.md](docs/MICROSERVICES-IDEAS.md) | Service decomposition analysis.                       |
-| [docs/DOCKER-GUIDE.md](docs/DOCKER-GUIDE.md)               | Container setup and operation guide.                  |
-| [docs/PROGRESS.md](docs/PROGRESS.md)                       | Implementation progress and the explicit list of pending work. |
-| [docs/K-COLORS.md](docs/K-COLORS.md)                       | Brand color palette.                                  |
-| [docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md)           | Security audit findings and public-release checklist. |
-| [docs/researches/](docs/researches/)                       | Academic research: article reviews on university mobile apps and student engagement (ScienceDirect, Taylor & Francis, Scopus). |
-| [AGENTS.md](AGENTS.md)                                     | Repository context and rules for AI agents.           |
+**Start here** depending on what you came for:
+
+| Document | Content |
+| --- | --- |
+| [docs/RUNBOOK.md](docs/RUNBOOK.md) | **How to run it.** Profiles, accounts, and a troubleshooting section where every entry is a failure we actually hit. |
+| [docs/PROGRESS.md](docs/PROGRESS.md) | **What is built**, what each phase delivered, and what is blocked on whom. |
+| [docs/api/](docs/api/) | The five OpenAPI 3.1 contracts. **The source of truth** — linted in CI and served as mocks. |
+| [docs/adr/](docs/adr/) | Architecture decision records: what was decided, what else was considered, and the consequences including the bad ones. |
+| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Scope. Every entry is built or explicitly out — no pending requirements nobody intends to implement. |
+| [docs/DESIGN.md](docs/DESIGN.md) | The system as it is, with diagrams. |
+| [docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md) | Findings S1–S12, what closed each, and what must happen before this is reachable from outside. |
+| [docs/ATLAS-SETUP.md](docs/ATLAS-SETUP.md) | Standing up the shared development cluster. |
+| [docs/templates/](docs/templates/) | The pensum import CSV and its column reference. |
+| [docs/INTEGRATION-NOTES.md](docs/INTEGRATION-NOTES.md) | Findings worth carrying forward — the kind that cost a day to learn. |
+| [docs/SRS.md](docs/SRS.md) | The original software requirements specification. Predates the August narrowing. |
+| [docs/MICROSERVICES-IDEAS.md](docs/MICROSERVICES-IDEAS.md) | Service decomposition analysis. Ideas, not commitments. |
+| [docs/DOCKER-GUIDE.md](docs/DOCKER-GUIDE.md) · [docs/K-COLORS.md](docs/K-COLORS.md) | Container guide; brand palette. |
+| [docs/researches/](docs/researches/) | Academic article reviews on university mobile apps and student engagement. |
+| [AGENTS.md](AGENTS.md) | Repository context and rules for AI agents. |
 
 ---
 
 ## Security
 
-This repository is published for reading and technical evaluation. **Nothing here is deployed**: there is no server,
-no hosted environment and no user data. The configuration targets local development and has not been hardened —
-role-based authorization is not enforced, CORS is permissive, and domain services trust identity headers set by the
-gateway.
+**Nothing here is deployed**: no server, no hosted environment, no user data. It runs on one laptop.
 
-Rather than leave that implicit, the prototype was audited against itself and the findings written down:
-[docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md) lists every issue with severity, evidence at file and line, and the
-remediation each one needs. It doubles as the design checklist for the planned re-architecture. Secrets are read
-from environment variables (see [.env.example](.env.example)) and the working tree carries no credential literal;
-two development credentials from the deleted monolith remain readable in the git history and are recorded there.
+The prototype was audited against itself in August and the findings written down, with severity, evidence at file
+and line, and what each needed: [docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md). **That description used to say
+role-based authorization was not enforced, CORS was permissive, and services trusted an identity header set by the
+gateway. All three were findings, and all three are closed** — every service now validates the token itself, every
+endpoint carries an explicit rule asserted per role in tests, and the CORS wildcard is an allow-list.
+
+Three findings remain open, deliberately, and each says what has to happen before KApp is reachable from outside a
+laptop:
+
+- **S7** — tokens simply expire after an hour; there is no refresh and no revocation.
+- **S11** — the four development accounts hold `ROLE_ADMIN`, and the two seeded invitation codes ship in this
+  repository. Both are correct while this runs on one machine and **must be revoked before it does not**.
+- **H1** — two development credentials from the deleted monolith remain readable in the git history.
+
+Secrets are generated per machine by `scripts/generate-dev-secrets.sh` and never committed; the working tree carries
+no credential literal.
+
+KApp stores one piece of personal data: the identity document a visitor presents for a day pass. It is readable only
+by an administrator and **deleted automatically after 30 days** by a database TTL index —
+[ADR 0007](docs/adr/0007-visitor-day-pass-instead-of-guest-accounts.md) records the Ley 1581 obligations and how each
+is met.
 
 To report a vulnerability, follow the security policy published by the
 [K-Forge organization](https://github.com/K-Forge) or write to kforge.dev@gmail.com. Please do not open a public
