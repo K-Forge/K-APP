@@ -120,12 +120,35 @@ const NAV_LINKS: NavLink[] = [
       .shell-body {
         flex-direction: column;
       }
+      /* One scrolling strip rather than a wrapped block. Wrapped, eleven links
+         took four rows and a third of a phone screen before any content. */
       .shell-nav {
         width: 100%;
         flex-direction: row;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 0.25rem;
+        padding: 0.5rem;
         border-right: none;
         border-bottom: 1px solid var(--border);
+        scrollbar-width: none;
+      }
+      .shell-nav::-webkit-scrollbar {
+        display: none;
+      }
+      .nav-link {
+        white-space: nowrap;
+        flex: 0 0 auto;
+      }
+      .shell-content {
+        padding: 1rem;
+      }
+      /* The header carries four separate things; stacked they cost three lines
+         before the page starts. */
+      .shell-header {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.6rem 1rem;
       }
     }
   `,

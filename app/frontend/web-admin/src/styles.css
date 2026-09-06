@@ -467,3 +467,124 @@ dialog::backdrop {
 .scroll-x {
   overflow-x: auto;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Phones
+
+   The portal is a team console, not a product surface, so it is laid out for a
+   desktop. But it does get opened from a phone - to check something while away
+   from the machine running the stack - and a six-column table at 375px is not
+   a degraded experience, it is an unusable one: the row actions sit off-screen
+   with nothing to suggest they exist.
+
+   Below 640px a table stops being a table. Each row becomes a card and each
+   cell a labelled line, with the label taken from the column heading by
+   DataTableComponent rather than written by hand on every page.
+   ───────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .scroll-x {
+    overflow-x: visible;
+  }
+
+  /* The heading row is what the labels came from; showing it as well would say
+     everything twice. Kept in the accessibility tree, not on screen. */
+  .data-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .data-table table,
+  .data-table tbody,
+  .data-table tr,
+  .data-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .data-table tbody tr {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 0.25rem;
+    margin-bottom: 0.75rem;
+    background: var(--panel);
+  }
+
+  .data-table tbody tr:hover {
+    background: var(--panel);
+  }
+
+  .data-table td {
+    border-bottom: none;
+    padding: 0.3rem 0.75rem;
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    justify-content: space-between;
+    text-align: right;
+    /* An institutional e-mail is longer than a phone is wide, and without this it
+       runs off the edge rather than wrapping. `anywhere` and not `break-word`:
+       the address has no spaces to break at. */
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+
+  .data-table td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    text-align: left;
+    color: var(--text-muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  /* The action cell has no heading, so it gets the full width and its buttons
+     become reachable targets rather than a row squeezed against the edge. */
+  .data-table td:not([data-label]) {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    padding-top: 0.6rem;
+  }
+
+  .data-table td:not([data-label]) .btn {
+    flex: 1 1 auto;
+    min-height: 2.25rem;
+  }
+
+  /* An empty or loading state is one cell spanning the table; it must not
+     inherit the label layout. */
+  .data-table td .empty-state {
+    text-align: center;
+  }
+
+  /* Forms and dialogs */
+  .modal,
+  .modal-body {
+    max-width: 100%;
+  }
+
+  .row.spread > .field {
+    flex-basis: 100%;
+  }
+
+  /* Inputs at 16px or iOS zooms the whole page when one is focused. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  h1 {
+    font-size: 1.375rem;
+  }
+
+  .row-between {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}

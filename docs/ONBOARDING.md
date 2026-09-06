@@ -3,6 +3,9 @@
 Para Iván, Alejandro, Santiago y quien entre después. Unos diez minutos, y no tienes que
 instalar MongoDB.
 
+**Tú trabajas el front.** El backend lo levantas para tener contra qué programar, no para
+modificarlo.
+
 El backend corre en tu computador; **la base de datos vive en la nube y la compartimos los
 seis**. Eso significa que ves los mismos datos que todos: si alguien carga un pensum, lo tienes
 tú también.
@@ -40,8 +43,14 @@ nada de lo de abajo funciona.
 ```bash
 git clone https://github.com/K-Forge/KApp.git
 cd KApp
-git checkout feature/mvp-backend
 ```
+
+**Pregúntale a Brian en qué rama o versión ponerte.** El backend se va a publicar como una
+versión etiquetada en cuanto el portal de administración esté verificado; hasta entonces vive en
+una rama de trabajo y no quieres construir encima de algo que todavía se mueve.
+
+Tú no vas a tocar el backend: lo levantas para tener contra qué programar. Cuando empieces a
+escribir código del móvil, sácate tu propia rama desde la que te haya dicho.
 
 ## 3. Generar tus propios secretos
 

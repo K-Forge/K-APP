@@ -12,7 +12,7 @@ const STORAGE_KEY = 'kapp-admin:api-base-url';
 @Injectable({ providedIn: 'root' })
 export class ApiConfigService {
   private readonly stored = readStoredBaseUrl();
-  private readonly baseUrlSignal = signal(this.stored ?? environment.apiBaseUrl);
+  private readonly baseUrlSignal = signal(this.stored ?? defaultBaseUrl());
 
   readonly baseUrl = this.baseUrlSignal.asReadonly();
 
@@ -30,10 +30,29 @@ export class ApiConfigService {
   }
 
   resetToDefault(): void {
-    this.baseUrlSignal.set(environment.apiBaseUrl);
+    this.baseUrlSignal.set(defaultBaseUrl());
     this.isDefault.set(true);
     localStorage.removeItem(STORAGE_KEY);
   }
+}
+
+/**
+ * Where to look for the gateway when nobody has said otherwise.
+ *
+ * On localhost that is the build-time default. Opened from anywhere else — a phone on the
+ * Tailscale network, a teammate's laptop — `localhost` would mean *that* device, which is not
+ * running anything, so the portal would sit there failing to connect with no obvious reason.
+ * Serving host plus the gateway's port is right whenever the two are served from the same
+ * machine, which is every arrangement we actually have.
+ *
+ * Still overridable from the UI; this only changes the starting point.
+ */
+function defaultBaseUrl(): string {
+  const host = typeof window === 'undefined' ? '' : window.location.hostname;
+  if (!host || host === 'localhost' || host === '127.0.0.1' || host === '::1') {
+    return environment.apiBaseUrl;
+  }
+  return `${window.location.protocol}//${host}:8080`;
 }
 
 function readStoredBaseUrl(): string | null {
