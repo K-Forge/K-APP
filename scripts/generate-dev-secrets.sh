@@ -57,12 +57,18 @@ MONGO_MAP_PASSWORD=${MAP_PW}
 # SINGLE-QUOTED, and that matters. These contain '&', and a shell sourcing this file with
 # `. .env` reads an unquoted one as "assign up to the &, then run the rest in background" -
 # leaving the variable EMPTY. Docker Compose has its own parser and does not care, which is
-# what makes the bug invisible: the services connect fine and only the scripts break.
-MONGO_AUTH_URI='mongodb://kapp_auth_user:${AUTH_PW}@mongo:27017/kapp_auth?replicaSet=rs0&authSource=kapp_auth'
-MONGO_USER_URI='mongodb://kapp_user_user:${USER_PW}@mongo:27017/kapp_user?replicaSet=rs0&authSource=kapp_user'
-MONGO_SEMAPHORE_URI='mongodb://kapp_semaphore_user:${SEMAPHORE_PW}@mongo:27017/kapp_semaphore?replicaSet=rs0&authSource=kapp_semaphore'
-MONGO_SCHEDULE_URI='mongodb://kapp_schedule_user:${SCHEDULE_PW}@mongo:27017/kapp_schedule?replicaSet=rs0&authSource=kapp_schedule'
-MONGO_MAP_URI='mongodb://kapp_map_user:${MAP_PW}@mongo:27017/kapp_map?replicaSet=rs0&authSource=kapp_map'
+# what makes the bug invisible: the services connect fine and only the scripts break.#
+# maxPoolSize=10 is not arbitrary. An M0 cluster allows 500 concurrent connections and the
+# driver's default pool is 100 PER SERVICE - five services is 500 for one developer, and six
+# developers sharing the cluster could ask for 3000. The pool only grows under load, so this
+# has never bitten us, which is exactly why it would bite at the worst possible moment. Six
+# developers times five services times ten is 300, with room to spare, and ten connections is
+# far more than a development service ever needs.
+MONGO_AUTH_URI='mongodb://kapp_auth_user:${AUTH_PW}@mongo:27017/kapp_auth?replicaSet=rs0&authSource=kapp_auth&maxPoolSize=10'
+MONGO_USER_URI='mongodb://kapp_user_user:${USER_PW}@mongo:27017/kapp_user?replicaSet=rs0&authSource=kapp_user&maxPoolSize=10'
+MONGO_SEMAPHORE_URI='mongodb://kapp_semaphore_user:${SEMAPHORE_PW}@mongo:27017/kapp_semaphore?replicaSet=rs0&authSource=kapp_semaphore&maxPoolSize=10'
+MONGO_SCHEDULE_URI='mongodb://kapp_schedule_user:${SCHEDULE_PW}@mongo:27017/kapp_schedule?replicaSet=rs0&authSource=kapp_schedule&maxPoolSize=10'
+MONGO_MAP_URI='mongodb://kapp_map_user:${MAP_PW}@mongo:27017/kapp_map?replicaSet=rs0&authSource=kapp_map&maxPoolSize=10'
 
 # ── Services ───────────────────────────────────────────────────────────────────
 # Shared secret for POST /internal/users, the one call auth-service makes to

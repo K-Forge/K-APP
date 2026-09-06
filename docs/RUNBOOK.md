@@ -4,6 +4,9 @@ How to start, stop and troubleshoot KApp locally. Organised by what you are tryi
 
 Everything runs in Docker. You almost never need all of it at once — see [Profiles](#profiles).
 
+> **Setting up for the first time?** Start with [`ONBOARDING.md`](ONBOARDING.md) — it walks through
+> a fresh machine in ten minutes. This document is the reference you come back to.
+
 ---
 
 ## Prerequisites
@@ -55,20 +58,34 @@ All commands run from `app/backend/microservices/`.
 cd app/backend/microservices
 ```
 
-**Start**
+**Start** — `cloud` is the normal one now. The databases live in the shared Atlas cluster, so
+there is nothing local to start and nothing to seed:
 
 ```bash
-docker compose --profile core --profile dev up -d      # the usual combination
-docker compose --profile mock up -d                    # mobile work, no backend needed
-docker compose --profile full --profile dev up -d      # everything
+docker compose --profile cloud --profile dev up -d     # the usual combination
+docker compose --profile mock up -d                    # mobile work, no backend at all
+docker compose --profile full --profile dev up -d      # everything, with a LOCAL database
 ```
+
+**The Atlas cluster is always on.** You do not start or stop it, and nothing has to be running on
+anybody's machine for the data to be there. A free M0 cluster only pauses after **60 days with no
+connection at all**, which will not happen while anyone is working.
 
 **Stop**
 
 ```bash
-docker compose --profile full --profile dev down       # stop, keep the data
-docker compose --profile full --profile dev down -v    # stop and WIPE the database
+docker compose --profile cloud --profile dev down      # stop your containers
 ```
+
+**Never `down -v` against the shared cluster.** It does not delete anything in Atlas — the `-v`
+removes local volumes — but it is a habit worth not having, because the same reflex against
+`--profile full` wipes a local database, and one day it will be the wrong one.
+
+**M0 has no backups.** If somebody drops a collection there is no restore: the data is gone. What
+makes that survivable is that almost everything is reproducible — Mongock re-seeds the buildings,
+spaces and invitation codes on startup, and the pensums reload from the CSVs in
+`docs/templates/pensums/`. What is *not* reproducible is anything typed straight into the portal.
+Keep the CSV as the source and import it; do not treat the cluster as the only copy.
 
 `down` only stops what the named profiles cover, so pass the same profiles you started with, or
 just pass `full` and `dev` to catch everything.

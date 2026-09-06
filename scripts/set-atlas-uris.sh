@@ -77,7 +77,7 @@ if [ "${1:-}" = "--local" ]; then
     # Local DOES take both: the container is a single-node replica set, and the user lives
     # inside the database it owns, so that database is its authSource.
     set_var "MONGO_$(printf '%s' "$svc" | tr '[:lower:]' '[:upper:]')_URI" \
-      "mongodb://kapp_${svc}_user:${encoded}@mongo:27017/kapp_${svc}?replicaSet=rs0&authSource=kapp_${svc}"
+      "mongodb://kapp_${svc}_user:${encoded}@mongo:27017/kapp_${svc}?replicaSet=rs0&authSource=kapp_${svc}&maxPoolSize=10"
   done
 
   echo
@@ -127,7 +127,7 @@ i=0
 for svc in "${SERVICES[@]}"; do
   upper=$(printf '%s' "$svc" | tr '[:lower:]' '[:upper:]')
   set_var "MONGO_${upper}_URI" \
-    "mongodb+srv://kapp_${svc}_user:${ENCODED[$i]}@${HOST}/kapp_${svc}?retryWrites=true&w=majority"
+    "mongodb+srv://kapp_${svc}_user:${ENCODED[$i]}@${HOST}/kapp_${svc}?retryWrites=true&w=majority&maxPoolSize=10"
   printf '  MONGO_%s_URI -> mongodb+srv://kapp_%s_user:********@%s/kapp_%s\n' \
     "$upper" "$svc" "$HOST" "$svc"
   i=$((i + 1))

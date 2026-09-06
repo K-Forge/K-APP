@@ -484,6 +484,7 @@ KApp/
 
 | Document | Content |
 | --- | --- |
+| [docs/ONBOARDING.md](docs/ONBOARDING.md) | **Start here on a new machine.** Ten minutes, in Spanish, no Java or MongoDB to install. |
 | [docs/RUNBOOK.md](docs/RUNBOOK.md) | **How to run it.** Profiles, accounts, and a troubleshooting section where every entry is a failure we actually hit. |
 | [docs/PROGRESS.md](docs/PROGRESS.md) | **What is built**, what each phase delivered, and what is blocked on whom. |
 | [docs/api/](docs/api/) | The five OpenAPI 3.1 contracts. **The source of truth** — linted in CI and served as mocks. |
