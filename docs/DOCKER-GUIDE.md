@@ -86,7 +86,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 
 ### 5.1 Configure environment variables
 
-Create a `.env` file in `app/backend/microservices/` (see [`.env.example`](../.env.example) at the repository root
+Create a `.env` file in `app/backend/microservices/` (see [`.env.example`](../app/backend/microservices/.env.example) beside it
 for the full list):
 
 ```env

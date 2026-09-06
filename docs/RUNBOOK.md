@@ -146,6 +146,19 @@ The passwords are **not** shared here, in the repository or in the group chat: a
 one of those stays in its history forever, and rotating the password later does not remove it.
 Give each teammate their line from `.dev-accounts` privately.
 
+### Switching between the local database and Atlas
+
+```bash
+scripts/set-atlas-uris.sh          # point the five services at the shared cluster
+scripts/set-atlas-uris.sh --local  # and back, for a plane or bad Wi-Fi
+```
+
+It rewrites only the five `MONGO_*_URI` lines in `.env` and saves the previous one as `.env.bak`.
+The local passwords are left alone, so switching back is one command and not a regeneration.
+
+With Atlas, start the stack with `--profile cloud` instead of `--profile full`: it runs every
+service and no local database.
+
 `--recreate` deletes the four and issues new passwords:
 
 ```bash

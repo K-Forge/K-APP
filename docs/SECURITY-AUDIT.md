@@ -233,7 +233,7 @@ signs with `SignatureAlgorithm.HS512`.
 
 **Note.** JJWT requires at least a 64-byte key for HS512 and throws `WeakKeyException` at runtime otherwise. The
 gateway must be configured with the exact same secret. This requirement is documented in
-[`.env.example`](../.env.example).
+[`.env.example`](../app/backend/microservices/.env.example).
 
 ### S9 — Sample data credentials (Informational)
 

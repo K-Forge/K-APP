@@ -9,7 +9,7 @@ of us share one development database and nobody has to run MongoDB on their mach
 > **What I cannot do for you.** Every step below needs your Atlas account. I am not going to handle
 > your credentials or an API key with permissions over your organisation, so the cluster and its
 > users are yours to create. Everything on this side is already written and waiting for the
-> connection strings — step 6 is the only place your work meets mine.
+> connection strings — step 5 is the only place your work meets mine, and it is one command.
 
 ---
 
@@ -52,8 +52,8 @@ avoiding — and add one privilege:
 | `kapp_schedule_user`    | `readWrite` | `kapp_schedule`  | *(leave blank)* |
 | `kapp_map_user`         | `readWrite` | `kapp_map`       | *(leave blank)* |
 
-Use **Autogenerate Secure Password** and copy each one as you go — Atlas shows it once. Paste them
-straight into `.env` (step 6); do not put them in a chat, an issue or a commit.
+Use **Autogenerate Secure Password** and copy each one as you go — Atlas shows it once. You will
+type them into step 5; do not put them in a chat, an issue or a commit.
 
 You do not need to create the databases first. The first write creates them, and Mongock does that
 on startup.
@@ -78,44 +78,36 @@ holds nothing real — no institutional records, no personal data, no production
 that the only way in is still a per-service password. It stops being acceptable the moment real
 data lands there, and a production cluster must use an IP list or VPC peering instead.
 
-## 5. The connection strings
+## 5. Point the stack at it
 
-**Database → kapp-dev → Connect → Drivers → Java 5.2 or later.** Copy the string. It looks like:
+Do **not** assemble the connection strings by hand. Every mistake listed at the bottom of this
+document comes from that, and two of the three fail with `Authentication failed`, which reads
+exactly like a wrong password:
 
-```
-mongodb+srv://<db_username>:<db_password>@kapp-dev.xxxxx.mongodb.net/?retryWrites=true&w=majority&appName=kapp-dev
-```
-
-Build five from it — one per service — by putting in the username, the password, and the database
-name after the host:
-
-```
-mongodb+srv://kapp_auth_user:PASSWORD@kapp-dev.xxxxx.mongodb.net/kapp_auth?retryWrites=true&w=majority
+```bash
+scripts/set-atlas-uris.sh
 ```
 
-Three things to keep right:
+It asks for the cluster host — **paste the whole string from Connect → Drivers if you like**, it
+takes the host out of it — and then for the five passwords, one at a time, without echoing them.
+Then it writes the five `MONGO_*_URI` lines into `app/backend/microservices/.env`.
 
-- **No `replicaSet` parameter.** The SRV record carries it; passing it as well is an error.
-- **No `authSource`.** See the note in step 3.
-- **Percent-encode the password** if Atlas generated one containing `@ : / ? # [ ] %`. Regenerating
-  until you get a purely alphanumeric one is easier and just as strong.
+What it does that hand-assembly gets wrong:
 
-## 6. Point the stack at it
+- **No `authSource`.** Atlas keeps every user in `admin` regardless of which database it can reach,
+  so pinning it to the service's own database fails. Our local container does the opposite — it
+  creates each user inside its own database — which is why the two shapes differ at all.
+- **No `replicaSet`.** The SRV record carries it; passing it as well is an error.
+- **The password is percent-encoded**, so an Atlas-generated one containing `@ : / ? # %` works
+  instead of the string being parsed at the wrong character.
 
-In `app/backend/microservices/.env`, replace the five URI values:
+Passwords are typed, never passed as arguments — an argument would land in your shell history.
 
-```
-MONGO_AUTH_URI=mongodb+srv://kapp_auth_user:...@kapp-dev.xxxxx.mongodb.net/kapp_auth?retryWrites=true&w=majority
-MONGO_USER_URI=mongodb+srv://kapp_user_user:...@kapp-dev.xxxxx.mongodb.net/kapp_user?retryWrites=true&w=majority
-MONGO_SEMAPHORE_URI=mongodb+srv://kapp_semaphore_user:...@kapp-dev.xxxxx.mongodb.net/kapp_semaphore?retryWrites=true&w=majority
-MONGO_SCHEDULE_URI=mongodb+srv://kapp_schedule_user:...@kapp-dev.xxxxx.mongodb.net/kapp_schedule?retryWrites=true&w=majority
-MONGO_MAP_URI=mongodb+srv://kapp_map_user:...@kapp-dev.xxxxx.mongodb.net/kapp_map?retryWrites=true&w=majority
-```
+Your previous `.env` is saved as `.env.bak`, and `MONGO_*_PASSWORD` and `MONGO_ROOT_*` are left
+alone on purpose: they provision the **local** container and have nothing to do with Atlas. You want
+them working for the days you are offline.
 
-Leave the `MONGO_*_PASSWORD` and `MONGO_ROOT_*` values alone. They provision the **local**
-container and are unrelated to Atlas; you still want them working for the days you run offline.
-
-Then start the stack without a local database:
+## 6. Start it without a local database
 
 ```bash
 cd app/backend/microservices
@@ -124,6 +116,13 @@ docker compose --profile cloud --profile dev up -d
 ```
 
 `cloud` starts every service **except** MongoDB.
+
+To go back — on a plane, or with bad Wi-Fi — one command and the local stack is yours again:
+
+```bash
+scripts/set-atlas-uris.sh --local
+docker compose --profile full --profile dev up -d
+```
 
 ## 7. Check it worked
 
@@ -148,14 +147,24 @@ curl -s http://localhost:8080/api/catalog/programs \
 
 ## 8. Tell the others
 
-Each teammate needs the same five lines in their own `.env`. Send the file privately — one person,
-one message — not in the group chat. They then run:
+Each teammate needs the same five `MONGO_*_URI` lines in their own `.env`. Two ways, and the second
+is better:
+
+**Send them the five lines** privately — one person, one message, never the group chat. Fastest, but
+it puts five passwords in five chat histories.
+
+**Or send them the cluster host and their own copy of the passwords**, and let them run the same
+command you did:
 
 ```bash
+../../../scripts/generate-dev-secrets.sh > .env    # only if they have no .env yet
+scripts/set-atlas-uris.sh
 docker compose --profile cloud --profile dev up -d
 ```
 
-and have a working backend without installing MongoDB.
+Either way they end up with a working backend without installing MongoDB. Nobody needs to run
+`create-dev-accounts.sh` again — the accounts live in the shared cluster now, so you run it once in
+step 7 and everyone signs in with the same four.
 
 ---
 
@@ -176,7 +185,7 @@ bad Wi-Fi, the local stack is the one that works.
 
 | What you see | What it is |
 | --- | --- |
-| `Authentication failed` | Almost always `authSource=` left in the string. Remove it — Atlas users live in `admin`. |
+| `Authentication failed` | If you used `set-atlas-uris.sh`, the password is genuinely wrong — re-run it. If you wrote the string by hand, it is almost always `authSource=` left in it, or a password with `@` or `/` that was not percent-encoded. |
 | `Timed out ... no primary` | Your IP is not on the Network Access list, or the entry is still "pending". |
 | `not authorized on kapp_auth` | The user was created with a privilege on the wrong database, or with a built-in role instead of Specific Privileges. |
 | `Unable to look up TXT record` | A network that blocks SRV DNS lookups — some campus and captive-portal Wi-Fi does. Use the non-SRV `mongodb://` string Atlas also offers. |
