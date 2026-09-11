@@ -16,10 +16,10 @@ import { ProgramsService } from './programs.service';
  * <p>This screen was read-only until the contract grew its admin endpoints, and said so. It does
  * not any more.
  *
- * <p>A program's code cannot be changed once created: it is the key every curriculum and every
+ * <p>A program's code cannot be changed once created: it is the key every pensum and every
  * student profile points at, and editing it here would silently orphan all of them. Delete the
  * program and create a new one if the code itself is wrong — which the server will refuse while
- * curricula still reference it, naming them.
+ * pensums still reference it, naming them.
  */
 @Component({
   selector: 'app-programs-page',
@@ -91,7 +91,7 @@ import { ProgramsService } from './programs.service';
           <input id="p-code" type="text" formControlName="code" [readonly]="editing()" />
           @if (editing()) {
             <span class="hint">
-              Fixed. Every curriculum and student profile points at this code.
+              Fixed. Every pensum and student profile points at this code.
             </span>
           }
           @if (invalid('code')) {
@@ -241,7 +241,7 @@ export class ProgramsPage {
   }
 
   remove(program: Program): void {
-    if (!window.confirm(`Delete program ${program.code} — ${program.name}? Deleting never cascades: if it still has curricula, the server refuses and says which.`)) {
+    if (!window.confirm(`Delete program ${program.code} — ${program.name}? Deleting never cascades: if it still has pensums, the server refuses and says which.`)) {
       return;
     }
     this.busyCode.set(program.code);

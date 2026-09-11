@@ -4,8 +4,8 @@ package co.edu.konradlorenz.kapp.semaphore.domain;
  * One item of a student's semaforo: the status of a single pensum item, plus the elective
  * resolution when the item is a slot.
  *
- * <p>The entry mirrors a {@link CurriculumCourse} one-to-one and is keyed by the same
- * {@code pensumItemCode}. {@code code} is copied from the curriculum item so a client can
+ * <p>The entry mirrors a {@link PensumCourse} one-to-one and is keyed by the same
+ * {@code pensumItemCode}. {@code code} is copied from the pensum item so a client can
  * render the grid without a second lookup, and stays {@code null} for an elective slot
  * even after the slot has been resolved - the real course lives in {@code resolvedCode},
  * because the slot itself is what the pensum contains.
@@ -33,7 +33,7 @@ public record StudentProgressCourse(
     public static final int MAX_GRADE = 50;
 
     /** @return a PENDING entry for a freshly materialised pensum item */
-    public static StudentProgressCourse pendingFor(CurriculumCourse item) {
+    public static StudentProgressCourse pendingFor(PensumCourse item) {
         return new StudentProgressCourse(
                 item.code(), item.pensumItemCode(), CourseStatus.PENDING, null, null, null, null);
     }

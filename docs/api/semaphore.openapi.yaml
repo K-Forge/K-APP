@@ -2,10 +2,10 @@ openapi: 3.1.0
 info:
   title: KApp Semaphore API
   version: 1.0.0
-  summary: Academic catalog and student curriculum progress (semáforo) for Fundación Universitaria Konrad Lorenz.
+  summary: Academic catalog and student pensum progress (semáforo) for Fundación Universitaria Konrad Lorenz.
   description: |
-    The Semaphore service owns both the **academic catalog** (programs and curricula) and each
-    student's **curriculum progress**, because at Konrad Lorenz the curriculum *is* the semáforo.
+    The Semaphore service owns both the **academic catalog** (programs and pensums) and each
+    student's **pensum progress**, because at Konrad Lorenz the pensum *is* the semáforo.
 
     A *semáforo* renders a whole degree plan — the *malla curricular*, also called the *pensum* —
     as a grid: columns are levels (semesters, `1..9`), rows are knowledge areas, and every pensum
@@ -21,7 +21,7 @@ info:
       2026.
     - **Hours.** A course carries `weeklyHours` (contact hours per week) and, derived from it,
       `totalHours` for the full 16-week semester. The invariant is `weeklyHours * 16 == totalHours`.
-      At *curriculum* and *area* level, `totalHours` and `hours` are sums of **weekly** hours across
+      At *pensum* and *area* level, `totalHours` and `hours` are sums of **weekly** hours across
       the plan (the Ingeniería de Sistemas plan totals 142 credits and 194 weekly hours).
     - **Elective slots are slots, not courses.** The Reforma 2018 plan carries six of them
       (Electiva I..VI). A slot has credits and hours but no fixed content: its `code` is `null`,
@@ -63,7 +63,7 @@ security:
 tags:
   - name: Catalog
     description: |
-      Programs and curricula (pensums). Readable by any authenticated role except `ROLE_GUEST`;
+      Programs and pensums (pensums). Readable by any authenticated role except `ROLE_GUEST`;
       mutations require `ROLE_ADMIN`.
   - name: Student Progress
     description: |
@@ -71,7 +71,7 @@ tags:
       slot resolution.
   - name: Academic Plans
     description: |
-      The student's own arrangements of their pensum. The curriculum is immutable — the
+      The student's own arrangements of their pensum. The pensum is immutable — the
       *Semáforo Original* — and a plan is a thin layer over it recording only the courses the
       student moved, so the client can draw both the planned position and the original outline.
 
@@ -84,7 +84,7 @@ paths:
       summary: List academic programs
       description: |
         Returns every academic program in the catalog, each with the code of its currently
-        `ACTIVE` pensum. `activePensumCode` is `null` for a program whose only curricula are
+        `ACTIVE` pensum. `activePensumCode` is `null` for a program whose only pensums are
         `DRAFT` or `OBSOLETE`.
       tags: [Catalog]
       responses:
@@ -201,8 +201,8 @@ paths:
       operationId: deleteProgram
       summary: Delete an academic program
       description: |
-        Requires `ROLE_ADMIN`. Refused with `409` while any curriculum still references it:
-        removing the program would orphan every student following those curricula, and a
+        Requires `ROLE_ADMIN`. Refused with `409` while any pensum still references it:
+        removing the program would orphan every student following those pensums, and a
         silent cascade is worse than an error a human can read.
       tags: [Catalog]
       responses:
@@ -216,14 +216,14 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-  /api/catalog/curricula/{pensumCode}:
+  /api/catalog/pensums/{pensumCode}:
     parameters:
       - $ref: '#/components/parameters/PensumCodePath'
     get:
       # Authorization as the code enforces it, not as prose describes it.
       x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
-      operationId: getCurriculum
-      summary: Get a full curriculum
+      operationId: getPensum
+      summary: Get a full pensum
       description: |
         Returns the whole pensum document: header, knowledge areas, and **every** pensum item
         (roughly 51 for the Ingeniería de Sistemas Reforma 2018 plan), including the six elective
@@ -234,14 +234,14 @@ paths:
       tags: [Catalog]
       responses:
         '200':
-          description: The full curriculum
+          description: The full pensum
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Curriculum'
+                $ref: '#/components/schemas/Pensum'
               examples:
                 ingenieriaDeSistemas2018:
-                  $ref: '#/components/examples/Curriculum1015'
+                  $ref: '#/components/examples/Pensum1015'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -251,15 +251,15 @@ paths:
     put:
       # Authorization as the code enforces it, not as prose describes it.
       x-roles: [ROLE_ADMIN]
-      operationId: replaceCurriculum
-      summary: Replace a curriculum
+      operationId: replacePensum
+      summary: Replace a pensum
       description: |
         Full replacement of an existing pensum. Requires `ROLE_ADMIN`.
 
         The `pensumCode` in the body must equal the one in the path; a mismatch is rejected with
         `400`.
 
-        Replacing a curriculum does **not** rewrite the progress documents that pin it. Students
+        Replacing a pensum does **not** rewrite the progress documents that pin it. Students
         whose plan diverged learn about it through the `reconciliation` block on
         `GET /api/semaphore/me`.
       tags: [Catalog]
@@ -268,20 +268,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Curriculum'
+              $ref: '#/components/schemas/Pensum'
             examples:
               ingenieriaDeSistemas2018:
-                $ref: '#/components/examples/Curriculum1015'
+                $ref: '#/components/examples/Pensum1015'
       responses:
         '200':
-          description: The stored curriculum after replacement
+          description: The stored pensum after replacement
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Curriculum'
+                $ref: '#/components/schemas/Pensum'
               examples:
                 ingenieriaDeSistemas2018:
-                  $ref: '#/components/examples/Curriculum1015'
+                  $ref: '#/components/examples/Pensum1015'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -294,8 +294,8 @@ paths:
     delete:
       # Authorization as the code enforces it, not as prose describes it.
       x-roles: [ROLE_ADMIN]
-      operationId: deleteCurriculum
-      summary: Delete a curriculum
+      operationId: deletePensum
+      summary: Delete a pensum
       description: |
         Requires `ROLE_ADMIN`. Refused with `409` while any student still follows it —
         deleting it would leave their progress pointing at a pensum that no longer exists.
@@ -311,12 +311,12 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-  /api/catalog/curricula:
+  /api/catalog/pensums:
     post:
       # Authorization as the code enforces it, not as prose describes it.
       x-roles: [ROLE_ADMIN]
-      operationId: createCurriculum
-      summary: Create a curriculum
+      operationId: createPensum
+      summary: Create a pensum
       description: |
         Creates a new pensum. Requires `ROLE_ADMIN`.
 
@@ -326,33 +326,33 @@ paths:
         supplied `totalHours` breaks the `weeklyHours * 16 == totalHours` invariant.
 
         Rejected with `409` when `pensumCode` already exists — use
-        `PUT /api/catalog/curricula/{pensumCode}` to replace it.
+        `PUT /api/catalog/pensums/{pensumCode}` to replace it.
       tags: [Catalog]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Curriculum'
+              $ref: '#/components/schemas/Pensum'
             examples:
               ingenieriaDeSistemas2018:
-                $ref: '#/components/examples/Curriculum1015'
+                $ref: '#/components/examples/Pensum1015'
       responses:
         '201':
-          description: Curriculum created
+          description: Pensum created
           headers:
             Location:
-              description: URI of the created curriculum
+              description: URI of the created pensum
               schema:
                 type: string
-                example: /api/catalog/curricula/1015
+                example: /api/catalog/pensums/1015
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Curriculum'
+                $ref: '#/components/schemas/Pensum'
               examples:
                 ingenieriaDeSistemas2018:
-                  $ref: '#/components/examples/Curriculum1015'
+                  $ref: '#/components/examples/Pensum1015'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -362,11 +362,11 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
-  /api/catalog/curricula/import:
+  /api/catalog/pensums/import:
     post:
       # Authorization as the code enforces it, not as prose describes it.
       x-roles: [ROLE_ADMIN]
-      operationId: importCurricula
+      operationId: importPensums
       summary: Import pensums in bulk from a CSV
       description: |
         Requires `ROLE_ADMIN`. Loads whole pensums from a spreadsheet export — 24 programs and
@@ -384,7 +384,7 @@ paths:
 
         **Declared totals are checked, not trusted.** The import adds up the courses and compares
         against `declaredCredits` and `declaredHours` — the latter being the sum of *weekly*
-        hours, which is what a curriculum's `totalHours` means. The seeded Ingeniería de Sistemas
+        hours, which is what a pensum's `totalHours` means. The seeded Ingeniería de Sistemas
         plan declares 142 and 194 where its courses give 144 and 197; accepting that silently
         would put the discrepancy in front of a student months later.
 
@@ -414,7 +414,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CurriculumImportReport'
+                $ref: '#/components/schemas/PensumImportReport'
         '400':
           description: |
             The file was rejected and nothing was written. `details` carries one entry per
@@ -431,18 +431,18 @@ paths:
         '413':
           description: The file is larger than 5 MB.
 
-  /api/catalog/curricula/{pensumCode}/courses:
+  /api/catalog/pensums/{pensumCode}/courses:
     parameters:
       - $ref: '#/components/parameters/PensumCodePath'
     get:
       # Authorization as the code enforces it, not as prose describes it.
       x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
-      operationId: listCurriculumCourses
-      summary: List the items of a curriculum
+      operationId: listPensumCourses
+      summary: List the items of a pensum
       description: |
-        Returns the pensum items of one curriculum, optionally narrowed by level, knowledge area,
+        Returns the pensum items of one pensum, optionally narrowed by level, knowledge area,
         or elective-slot flag. Filters combine with AND. Omitting every filter returns the same
-        list as the `courses` array of `GET /api/catalog/curricula/{pensumCode}`.
+        list as the `courses` array of `GET /api/catalog/pensums/{pensumCode}`.
 
         Useful for rendering one column of the grid (`?level=8`) or one row (`?area=ISA`), and for
         listing the elective slots a student still has to resolve (`?isElectiveSlot=true`).
@@ -480,10 +480,10 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/CurriculumCourse'
+                  $ref: '#/components/schemas/PensumCourse'
               examples:
                 allItems:
-                  $ref: '#/components/examples/CurriculumCourseList'
+                  $ref: '#/components/examples/PensumCourseList'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -516,13 +516,13 @@ paths:
         ## Reconciliation
 
         The document pins the `pensumCode` it was created from. If an administrator later edits
-        that curriculum, the stored progress can diverge from it, so every response carries a
+        that pensum, the stored progress can diverge from it, so every response carries a
         `reconciliation` block. Nothing is ever silently dropped or invented:
 
-        - `addedCourses` — pensum items present in the curriculum but missing from the stored
+        - `addedCourses` — pensum items present in the pensum but missing from the stored
           document. They are materialised as `PENDING` and reported here, so the client can tell
           the student their plan grew.
-        - `removedCourses` — stored entries whose pensum item no longer exists in the curriculum.
+        - `removedCourses` — stored entries whose pensum item no longer exists in the pensum.
           They are **kept** in `courses` (a passed grade is never destroyed) and reported here, so
           the client can show them as no longer counting toward the degree. They are excluded from
           `GET /api/semaphore/me/summary`.
@@ -556,7 +556,7 @@ paths:
       summary: Get the caller's progress summary
       description: |
         Credit totals derived from the caller's semáforo. **Never stored** — recomputed on every
-        call from the progress document and the pinned curriculum, so it cannot drift from the
+        call from the progress document and the pinned pensum, so it cannot drift from the
         grid the student is looking at.
 
         Counting rules:
@@ -567,7 +567,7 @@ paths:
           `FAILED` items therefore both count as remaining.
         - Entries reported in `reconciliation.removedCourses` are excluded from every figure, as
           they no longer belong to the plan.
-        - `byArea` carries one row per area declared by the curriculum, in the curriculum's order.
+        - `byArea` carries one row per area declared by the pensum, in the pensum's order.
       tags: [Student Progress]
       responses:
         '200':
@@ -622,7 +622,7 @@ paths:
           already identifiable by their status on the progress document.
         - Unresolved elective slots are returned like any other item; resolve one with
           `POST /api/semaphore/me/electives/{pensumItemCode}`.
-        - Items are returned in curriculum form (`CurriculumCourse`), not progress form, so the
+        - Items are returned in pensum form (`PensumCourse`), not progress form, so the
           client has credits, hours and area available without a second lookup.
       tags: [Student Progress]
       responses:
@@ -633,7 +633,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/CurriculumCourse'
+                  $ref: '#/components/schemas/PensumCourse'
               example:
                 - code: "56201"
                   pensumItemCode: "1806"
@@ -746,7 +746,7 @@ paths:
         Binds one of the caller's elective slots to the course the student actually took or
         enrolled in. The slot keeps its credits, hours, area and level — only its content is
         decided — so `resolvedCode` and `resolvedName` are recorded on the progress entry while the
-        curriculum stays untouched.
+        pensum stays untouched.
 
         Calling this on an already-resolved slot overwrites the previous resolution; use `DELETE`
         to clear it instead.
@@ -857,7 +857,7 @@ paths:
       description: |
         Requires `ROLE_STUDENT`. Returns the caller's own plans, the primary one first.
 
-        A plan is a layer over the pensum, never a copy of it. The curriculum stays the
+        A plan is a layer over the pensum, never a copy of it. The pensum stays the
         immutable *Semáforo Original*; a plan records only the courses the student has moved,
         which is why `placements` is usually short and often empty.
       tags: [Academic Plans]
@@ -1115,15 +1115,15 @@ components:
         activePensumCode:
           type: [string, "null"]
           description: |
-            Code of the program's currently `ACTIVE` curriculum, or `null` if it has none.
+            Code of the program's currently `ACTIVE` pensum, or `null` if it has none.
             This is the pensum that `GET /api/semaphore/me` pins for new students.
           maxLength: 20
           example: "1015"
 
-    CurriculumImportReport:
+    PensumImportReport:
       type: object
       description: What a bulk import did, or what a dry run would have done.
-      required: [dryRun, rowsRead, curricula]
+      required: [dryRun, rowsRead, pensums]
       properties:
         dryRun:
           type: boolean
@@ -1132,7 +1132,7 @@ components:
           type: integer
           description: Data rows in the file, header excluded.
           example: 1203
-        curricula:
+        pensums:
           type: array
           items:
             type: object
@@ -1155,7 +1155,7 @@ components:
               programCreated:
                 type: boolean
                 description: False when the program already existed and was replaced.
-              curriculumCreated:
+              pensumCreated:
                 type: boolean
                 description: False when the pensum already existed and was replaced.
 
@@ -1165,7 +1165,7 @@ components:
         A student's own arrangement of a pensum.
 
         `placements` carries **only the courses that moved**. Anything absent is taken where the
-        curriculum puts it. That keeps the document small, makes the outline the client draws in
+        pensum puts it. That keeps the document small, makes the outline the client draws in
         the original column fall out for free — it knows both levels — and means a change to the
         pensum reaches every plan without rewriting any of them.
       required: [id, name, pensumCode, primary, placements, createdAt, updatedAt]
@@ -1225,7 +1225,7 @@ components:
         pensumCode:
           type: string
           maxLength: 20
-          description: Must be an existing curriculum; `404` otherwise.
+          description: Must be an existing pensum; `404` otherwise.
           example: "1015"
       additionalProperties: false
 
@@ -1264,7 +1264,7 @@ components:
       type: object
       description: >-
         The writable half of a program. `activePensumCode` is absent on purpose: it is
-        derived from whichever curriculum is currently `ACTIVE`, so letting a caller set it
+        derived from whichever pensum is currently `ACTIVE`, so letting a caller set it
         would allow the two to disagree.
       required: [code, name, faculty, level]
       properties:
@@ -1288,16 +1288,16 @@ components:
           example: PREGRADO
       additionalProperties: false
 
-    CurriculumArea:
+    PensumArea:
       type: object
       description: |
-        A knowledge area — one row of the semáforo grid. Area codes are defined per curriculum;
+        A knowledge area — one row of the semáforo grid. Area codes are defined per pensum;
         the Ingeniería de Sistemas Reforma 2018 plan uses `CB`, `BIS`, `ISA` and `SI`.
       required: [code, name, color, credits, hours]
       properties:
         code:
           type: string
-          description: Short area code, unique within the curriculum. Twenty characters, because a printed pensum's area column holds words (COMPLEMENTARIA), not slugs.
+          description: Short area code, unique within the pensum. Twenty characters, because a printed pensum's area column holds words (COMPLEMENTARIA), not slugs.
           maxLength: 20
           example: CB
         name:
@@ -1320,7 +1320,7 @@ components:
           minimum: 0
           example: 44
 
-    CurriculumCourse:
+    PensumCourse:
       type: object
       description: |
         One item of a pensum — a fixed course, or an elective slot with no fixed content.
@@ -1388,13 +1388,13 @@ components:
           description: |
             Codes of the courses that must all be `PASSED` before this item can be taken. Empty
             when the item has none. Every entry must be the `code` of another item of the same
-            curriculum.
+            pensum.
           items:
             type: string
             maxLength: 20
           example: ["48022"]
 
-    Curriculum:
+    Pensum:
       type: object
       description: |
         A pensum — the whole degree plan a semáforo is drawn from.
@@ -1450,14 +1450,14 @@ components:
           type: array
           description: The knowledge areas of the plan — the grid rows, in display order.
           items:
-            $ref: '#/components/schemas/CurriculumArea'
+            $ref: '#/components/schemas/PensumArea'
         courses:
           type: array
           description: |
             Every item of the plan, fixed courses and elective slots alike. Roughly 51 items for
             the Ingeniería de Sistemas Reforma 2018 plan.
           items:
-            $ref: '#/components/schemas/CurriculumCourse'
+            $ref: '#/components/schemas/PensumCourse'
 
     CourseStatus:
       type: string
@@ -1530,8 +1530,8 @@ components:
     Reconciliation:
       type: object
       description: |
-        How the stored progress document compares with the curriculum it pins, after an
-        administrator edited that curriculum. Nothing is dropped or invented silently: every
+        How the stored progress document compares with the pensum it pins, after an
+        administrator edited that pensum. Nothing is dropped or invented silently: every
         divergence is reported here.
 
         Identifiers are course `code`s, except for elective slots, which have no `code` and are
@@ -1541,7 +1541,7 @@ components:
         addedCourses:
           type: array
           description: |
-            Items the curriculum now has and the document did not. They have been materialised as
+            Items the pensum now has and the document did not. They have been materialised as
             `PENDING`.
           items:
             type: string
@@ -1550,7 +1550,7 @@ components:
         removedCourses:
           type: array
           description: |
-            Entries the document holds whose pensum item no longer exists in the curriculum. They
+            Entries the document holds whose pensum item no longer exists in the pensum. They
             are kept in `courses` so no grade is lost, and are excluded from the summary.
           items:
             type: string
@@ -1586,8 +1586,8 @@ components:
         pensumCode:
           type: string
           description: |
-            The curriculum this document is pinned to. It does not follow later edits of that
-            curriculum on its own — see the `reconciliation` block of `GET /api/semaphore/me`.
+            The pensum this document is pinned to. It does not follow later edits of that
+            pensum on its own — see the `reconciliation` block of `GET /api/semaphore/me`.
           maxLength: 20
           example: "1015"
         currentLevel:
@@ -1621,7 +1621,7 @@ components:
       description: |
         A student's semáforo together with its reconciliation status. Returned by
         `GET /api/semaphore/me`, which is the only caller that can reconcile the document against
-        its curriculum on read.
+        its pensum on read.
 
     ProgressSummary:
       type: object
@@ -1644,7 +1644,7 @@ components:
           example: 21
         totalCredits:
           type: integer
-          description: Total credits of the pinned curriculum.
+          description: Total credits of the pinned pensum.
           minimum: 0
           example: 142
         percentComplete:
@@ -1656,7 +1656,7 @@ components:
           example: 83.1
         byArea:
           type: array
-          description: One row per area of the curriculum, in the curriculum's order.
+          description: One row per area of the pensum, in the pensum's order.
           items:
             $ref: '#/components/schemas/AreaProgress'
         currentLevel:
@@ -1672,7 +1672,7 @@ components:
       properties:
         area:
           type: string
-          description: Area code, as declared by the curriculum.
+          description: Area code, as declared by the pensum.
           maxLength: 10
           example: ISA
         creditsPassed:
@@ -1741,7 +1741,7 @@ components:
       name: pensumCode
       in: path
       required: true
-      description: Institutional curriculum (pensum) code.
+      description: Institutional pensum (pensum) code.
       schema:
         type: string
         maxLength: 20
@@ -1789,12 +1789,12 @@ components:
       example: 66f0a1c2e4b0a91d3c5e7f21
 
   examples:
-    CurriculumCourseList:
+    PensumCourseList:
       summary: Representative items of the Ingeniería de Sistemas Reforma 2018 plan
       description: |
         A slice of the plan spanning levels 1 to 9 and all four areas, including one elective slot
         and both real prerequisite chains.
-      value: &curriculumCourses
+      value: &pensumCourses
         - code: "10011"
           pensumItemCode: "1001"
           name: Precálculo
@@ -1906,7 +1906,7 @@ components:
           isElectiveSlot: true
           prerequisites: []
 
-    Curriculum1015:
+    Pensum1015:
       summary: Ingeniería de Sistemas, Reforma 2018 (pensum 1015)
       description: |
         The active plan of program 506: 9 levels, 142 credits, 194 weekly hours, four knowledge
@@ -1942,14 +1942,14 @@ components:
             color: "#D51A65"
             credits: 12
             hours: 18
-        courses: *curriculumCourses
+        courses: *pensumCourses
 
     MySemaphore:
       summary: A level-8 student, one item behind and one plan change to report
       description: |
         Student 506232730 of program 506, pinned to pensum 1015. Estadística Descriptiva was
         failed and awaits a retake, Desarrollo de Aplicaciones Móviles is being taken this period,
-        and Metodología de la Investigación was added to the curriculum after this document was
+        and Metodología de la Investigación was added to the pensum after this document was
         created — hence `inSync: false`.
       value:
         userId: '507f1f77bcf86cd799439011'

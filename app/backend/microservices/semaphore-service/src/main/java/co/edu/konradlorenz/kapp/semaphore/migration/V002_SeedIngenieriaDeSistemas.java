@@ -1,6 +1,6 @@
 package co.edu.konradlorenz.kapp.semaphore.migration;
 
-import co.edu.konradlorenz.kapp.semaphore.domain.Curriculum;
+import co.edu.konradlorenz.kapp.semaphore.domain.Pensum;
 import co.edu.konradlorenz.kapp.semaphore.domain.Program;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.mongock.api.annotations.ChangeUnit;
@@ -30,7 +30,7 @@ import java.util.List;
  * {@code sinuCode}. Everything else uses a generated {@code IS-*} slug so that nobody can
  * mistake a reconstruction for institutional data. The declared header totals - 142
  * credits and 194 weekly hours - are kept exactly as the printed plan states them even
- * though the seeded items do not sum to them. {@code CurriculumSeedTotalsTest} measures
+ * though the seeded items do not sum to them. {@code PensumSeedTotalsTest} measures
  * the gap and {@code NEEDS_VERIFICATION.md} lists every mismatch, because a semaforo that
  * quietly lies is worse than one that reports a discrepancy.
  *
@@ -42,7 +42,7 @@ public class V002_SeedIngenieriaDeSistemas {
     private static final Logger log = LoggerFactory.getLogger(V002_SeedIngenieriaDeSistemas.class);
 
     private static final String PROGRAMS_RESOURCE = "db/seed/programs.json";
-    private static final String CURRICULUM_RESOURCE = "db/seed/curriculum-1015.json";
+    private static final String PENSUM_RESOURCE = "db/seed/pensum-1015.json";
 
     static final String SEEDED_PROGRAM_CODE = "506";
     static final String SEEDED_PENSUM_CODE = "1015";
@@ -52,7 +52,7 @@ public class V002_SeedIngenieriaDeSistemas {
     @Execution
     public void execute(MongoTemplate mongo) {
         List<Program> programs = readList(PROGRAMS_RESOURCE, Program[].class);
-        Curriculum curriculum = read(CURRICULUM_RESOURCE, Curriculum.class);
+        Pensum pensum = read(PENSUM_RESOURCE, Pensum.class);
 
         // Idempotent by hand rather than by upsert: a change unit runs once, but a
         // developer who drops the changelog collection without dropping the data would
@@ -62,17 +62,17 @@ public class V002_SeedIngenieriaDeSistemas {
                 mongo.insert(program);
             }
         });
-        if (!mongo.exists(queryById("_id", curriculum.pensumCode()), Curriculum.class)) {
-            mongo.insert(curriculum);
+        if (!mongo.exists(queryById("_id", pensum.pensumCode()), Pensum.class)) {
+            mongo.insert(pensum);
         }
 
         log.info("Seeded {} program(s) and pensum {} with {} items",
-                programs.size(), curriculum.pensumCode(), curriculum.courses().size());
+                programs.size(), pensum.pensumCode(), pensum.courses().size());
     }
 
     @RollbackExecution
     public void rollback(MongoTemplate mongo) {
-        mongo.remove(queryById("_id", SEEDED_PENSUM_CODE), Curriculum.class);
+        mongo.remove(queryById("_id", SEEDED_PENSUM_CODE), Pensum.class);
         mongo.remove(queryById("_id", SEEDED_PROGRAM_CODE), Program.class);
     }
 

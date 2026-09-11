@@ -14,9 +14,9 @@ import java.util.Optional;
  * A student's semaforo: one entry per item of the pinned pensum.
  *
  * <h2>The pensum is pinned, not followed</h2>
- * {@code pensumCode} records the curriculum this document was created from and does not
+ * {@code pensumCode} records the pensum this document was created from and does not
  * track later edits of it on its own. A student who enrolled under one plan is assessed
- * against that plan; silently re-pointing them at an edited curriculum would change what
+ * against that plan; silently re-pointing them at an edited pensum would change what
  * they owe for their degree without anyone deciding to. Divergence is instead surfaced on
  * every read of {@code GET /api/semaphore/me} as a reconciliation block.
  *
@@ -31,10 +31,10 @@ import java.util.Optional;
  * @param userId       the JWT subject of the student who owns this semaforo
  * @param studentCode  institutional student code
  * @param programCode  the student's program
- * @param pensumCode   the curriculum this document is pinned to
+ * @param pensumCode   the pensum this document is pinned to
  * @param currentLevel the level the student is enrolled in
  * @param courses      one entry per pinned pensum item, plus entries retained from items
- *                     that the curriculum has since dropped
+ *                     that the pensum has since dropped
  * @param updatedAt    when the document was last written
  */
 @Document(collection = "studentProgress")
@@ -54,15 +54,15 @@ public record StudentProgress(
     }
 
     /**
-     * Materialises a fresh semaforo: every item of the curriculum as PENDING.
+     * Materialises a fresh semaforo: every item of the pensum as PENDING.
      */
     public static StudentProgress materialise(String userId, String studentCode,
-                                              Curriculum curriculum, int currentLevel) {
-        List<StudentProgressCourse> entries = curriculum.coursesInDisplayOrder().stream()
+                                              Pensum pensum, int currentLevel) {
+        List<StudentProgressCourse> entries = pensum.coursesInDisplayOrder().stream()
                 .map(StudentProgressCourse::pendingFor)
                 .toList();
-        return new StudentProgress(null, userId, studentCode, curriculum.programCode(),
-                curriculum.pensumCode(), currentLevel, entries, Instant.now());
+        return new StudentProgress(null, userId, studentCode, pensum.programCode(),
+                pensum.pensumCode(), currentLevel, entries, Instant.now());
     }
 
     public Optional<StudentProgressCourse> findByAddressableCode(String identifier) {

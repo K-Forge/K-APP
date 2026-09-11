@@ -1,7 +1,7 @@
 package co.edu.konradlorenz.kapp.semaphore.service;
 
 import co.edu.konradlorenz.kapp.semaphore.domain.CourseStatus;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumCourse;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumCourse;
 import co.edu.konradlorenz.kapp.semaphore.domain.StudentProgressCourse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +22,7 @@ class PrerequisiteWalkerTest {
     @Test
     @DisplayName("an item with no prerequisites is always eligible")
     void noPrerequisitesIsEligible() {
-        CurriculumCourse item = course("20015", List.of());
+        PensumCourse item = course("20015", List.of());
 
         assertThat(walker.allPrerequisitesPassed(item, Map.of())).isTrue();
     }
@@ -30,7 +30,7 @@ class PrerequisiteWalkerTest {
     @Test
     @DisplayName("a prerequisite recorded PASSED unlocks the item")
     void passedPrerequisiteUnlocks() {
-        CurriculumCourse item = course("10024", List.of("10011"));
+        PensumCourse item = course("10024", List.of("10011"));
         Map<String, StudentProgressCourse> byCode = Map.of(
                 "10011", entry("10011", CourseStatus.PASSED));
 
@@ -40,7 +40,7 @@ class PrerequisiteWalkerTest {
     @Test
     @DisplayName("IN_PROGRESS does not unlock - a course being taken has not settled")
     void inProgressPrerequisiteDoesNotUnlock() {
-        CurriculumCourse item = course("10024", List.of("10011"));
+        PensumCourse item = course("10024", List.of("10011"));
         Map<String, StudentProgressCourse> byCode = Map.of(
                 "10011", entry("10011", CourseStatus.IN_PROGRESS));
 
@@ -50,7 +50,7 @@ class PrerequisiteWalkerTest {
     @Test
     @DisplayName("a FAILED prerequisite does not unlock")
     void failedPrerequisiteDoesNotUnlock() {
-        CurriculumCourse item = course("10024", List.of("10011"));
+        PensumCourse item = course("10024", List.of("10011"));
         Map<String, StudentProgressCourse> byCode = Map.of(
                 "10011", entry("10011", CourseStatus.FAILED));
 
@@ -60,7 +60,7 @@ class PrerequisiteWalkerTest {
     @Test
     @DisplayName("a PENDING prerequisite does not unlock")
     void pendingPrerequisiteDoesNotUnlock() {
-        CurriculumCourse item = course("10024", List.of("10011"));
+        PensumCourse item = course("10024", List.of("10011"));
         Map<String, StudentProgressCourse> byCode = Map.of(
                 "10011", entry("10011", CourseStatus.PENDING));
 
@@ -70,7 +70,7 @@ class PrerequisiteWalkerTest {
     @Test
     @DisplayName("a missing prerequisite entry does not unlock")
     void missingPrerequisiteEntryDoesNotUnlock() {
-        CurriculumCourse item = course("10024", List.of("10011"));
+        PensumCourse item = course("10024", List.of("10011"));
 
         assertThat(walker.allPrerequisitesPassed(item, Map.of())).isFalse();
     }
@@ -78,7 +78,7 @@ class PrerequisiteWalkerTest {
     @Test
     @DisplayName("all of several prerequisites must be PASSED, not just some")
     void allOfSeveralPrerequisitesMustBePassed() {
-        CurriculumCourse item = course("IS-ARQSOFT", List.of("46018", "20037"));
+        PensumCourse item = course("IS-ARQSOFT", List.of("46018", "20037"));
         Map<String, StudentProgressCourse> byCode = Map.of(
                 "46018", entry("46018", CourseStatus.PASSED),
                 "20037", entry("20037", CourseStatus.IN_PROGRESS));
@@ -86,8 +86,8 @@ class PrerequisiteWalkerTest {
         assertThat(walker.allPrerequisitesPassed(item, byCode)).isFalse();
     }
 
-    private static CurriculumCourse course(String code, List<String> prerequisites) {
-        return new CurriculumCourse(code, code, "Course " + code, 1, 3, 4, "BIS", false,
+    private static PensumCourse course(String code, List<String> prerequisites) {
+        return new PensumCourse(code, code, "Course " + code, 1, 3, 4, "BIS", false,
                 prerequisites, null);
     }
 

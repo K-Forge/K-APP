@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
  * The administrative view of another student's semaforo.
  *
  * <p>Unlike {@code GET /api/semaphore/me}, this is a plain read: it never lazily creates
- * a document and never reconciles it against its curriculum, so it carries no
+ * a document and never reconciles it against its pensum, so it carries no
  * {@code reconciliation} block. {@code 404} therefore means either that no such user
  * exists or that the student has never opened their own semaforo yet.
  */

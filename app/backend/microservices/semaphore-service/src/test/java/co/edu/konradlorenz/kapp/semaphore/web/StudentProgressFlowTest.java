@@ -2,11 +2,11 @@ package co.edu.konradlorenz.kapp.semaphore.web;
 
 import co.edu.konradlorenz.kapp.semaphore.client.UserProfileClient;
 import co.edu.konradlorenz.kapp.semaphore.client.UserProfileResponse;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumStatus;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumStatus;
 import co.edu.konradlorenz.kapp.semaphore.repository.StudentProgressRepository;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumAreaDto;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumCourseDto;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumAreaDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumCourseDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,7 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * concurrent race two simultaneous first calls create, grade range validation as
  * enforced by {@code @Valid} (not the service's own cross-field rules, which
  * {@code StudentProgressServiceTest} already covers), and reconciliation after an admin
- * edits a pinned curriculum.
+ * edits a pinned pensum.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -206,28 +206,28 @@ class StudentProgressFlowTest {
     }
 
     @Test
-    @DisplayName("reconciliation reports an admin's curriculum edit without losing existing progress")
+    @DisplayName("reconciliation reports an admin's pensum edit without losing existing progress")
     void reconciliationReportsAnAdminEdit() throws Exception {
         String dedicatedProgram = "999";
         String pensumCode = "RECON-TEST";
 
-        mockMvc.perform(post("/api/catalog/curricula").with(admin("recon-admin"))
+        mockMvc.perform(post("/api/catalog/pensums").with(admin("recon-admin"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(twoItemCurriculumJson(pensumCode, dedicatedProgram)))
+                        .content(twoItemPensumJson(pensumCode, dedicatedProgram)))
                 .andExpect(status().isCreated());
 
         stubProfile("flow-recon-student", dedicatedProgram, "999000001", 1);
 
-        // First read: lazily creates from the two-item curriculum, fully in sync.
+        // First read: lazily creates from the two-item pensum, fully in sync.
         mockMvc.perform(get("/api/semaphore/me").with(student("flow-recon-student")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.courses.length()").value(2))
                 .andExpect(jsonPath("$.reconciliation.inSync").value(true));
 
         // The admin drops item RB and adds item RC.
-        mockMvc.perform(put("/api/catalog/curricula/{code}", pensumCode).with(admin("recon-admin"))
+        mockMvc.perform(put("/api/catalog/pensums/{code}", pensumCode).with(admin("recon-admin"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(editedCurriculumJson(pensumCode, dedicatedProgram)))
+                        .content(editedPensumJson(pensumCode, dedicatedProgram)))
                 .andExpect(status().isOk());
 
         // The student's next read reports exactly that divergence and keeps RB's entry.
@@ -250,26 +250,26 @@ class StudentProgressFlowTest {
         // wired up right before the request(s) that need it.
     }
 
-    private String twoItemCurriculumJson(String pensumCode, String programCode) throws Exception {
-        CurriculumAreaDto area = new CurriculumAreaDto("GA", "General Area", "#539392", 6, 8);
-        CurriculumCourseDto itemA = new CurriculumCourseDto(
+    private String twoItemPensumJson(String pensumCode, String programCode) throws Exception {
+        PensumAreaDto area = new PensumAreaDto("GA", "General Area", "#539392", 6, 8);
+        PensumCourseDto itemA = new PensumCourseDto(
                 "RA", "RA", "Recon Item A", 1, 3, 4, null, "GA", false, List.of(), null);
-        CurriculumCourseDto itemB = new CurriculumCourseDto(
+        PensumCourseDto itemB = new PensumCourseDto(
                 "RB", "RB", "Recon Item B", 1, 3, 4, null, "GA", false, List.of(), null);
-        CurriculumDto dto = new CurriculumDto(pensumCode, programCode, "Recon Test Program",
-                "Test Faculty", "Test Reform", CurriculumStatus.ACTIVE, 6, 8, 1,
+        PensumDto dto = new PensumDto(pensumCode, programCode, "Recon Test Program",
+                "Test Faculty", "Test Reform", PensumStatus.ACTIVE, 6, 8, 1,
                 List.of(area), List.of(itemA, itemB));
         return mapper.writeValueAsString(dto);
     }
 
-    private String editedCurriculumJson(String pensumCode, String programCode) throws Exception {
-        CurriculumAreaDto area = new CurriculumAreaDto("GA", "General Area", "#539392", 6, 8);
-        CurriculumCourseDto itemA = new CurriculumCourseDto(
+    private String editedPensumJson(String pensumCode, String programCode) throws Exception {
+        PensumAreaDto area = new PensumAreaDto("GA", "General Area", "#539392", 6, 8);
+        PensumCourseDto itemA = new PensumCourseDto(
                 "RA", "RA", "Recon Item A", 1, 3, 4, null, "GA", false, List.of(), null);
-        CurriculumCourseDto itemC = new CurriculumCourseDto(
+        PensumCourseDto itemC = new PensumCourseDto(
                 "RC", "RC", "Recon Item C", 1, 3, 4, null, "GA", false, List.of(), null);
-        CurriculumDto dto = new CurriculumDto(pensumCode, programCode, "Recon Test Program",
-                "Test Faculty", "Test Reform", CurriculumStatus.ACTIVE, 6, 8, 1,
+        PensumDto dto = new PensumDto(pensumCode, programCode, "Recon Test Program",
+                "Test Faculty", "Test Reform", PensumStatus.ACTIVE, 6, 8, 1,
                 List.of(area), List.of(itemA, itemC));
         return mapper.writeValueAsString(dto);
     }

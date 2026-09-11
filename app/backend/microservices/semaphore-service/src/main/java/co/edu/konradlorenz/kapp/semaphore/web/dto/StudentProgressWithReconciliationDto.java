@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * The student's own read: the semaforo plus how it compares with its curriculum.
+ * The student's own read: the semaforo plus how it compares with its pensum.
  *
  * <p>Flattened rather than nested, because the contract declares it as an {@code allOf}
  * of {@code StudentProgress} and a {@code reconciliation} property - one object, not two.

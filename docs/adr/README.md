@@ -26,7 +26,7 @@ Decisions already taken whose reasoning currently lives only in commit messages 
 - Seven services, with `auth` and `user` kept separate because authentication is the seam an
   external identity provider replaces
 - Contract-first OpenAPI with Prism mocks, so client and server work proceed in parallel
-- `semaphore-service` owning the academic catalogue, because the curriculum is what the progress
+- `semaphore-service` owning the academic catalogue, because the pensum is what the progress
   view displays
 - Freezing `course-service` and `assignment-service` rather than deleting or migrating them
 - Personal academic plans stored as deltas over an immutable pensum, rather than as copies of it

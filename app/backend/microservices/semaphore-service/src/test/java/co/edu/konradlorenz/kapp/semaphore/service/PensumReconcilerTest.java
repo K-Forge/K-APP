@@ -1,10 +1,10 @@
 package co.edu.konradlorenz.kapp.semaphore.service;
 
 import co.edu.konradlorenz.kapp.semaphore.domain.CourseStatus;
-import co.edu.konradlorenz.kapp.semaphore.domain.Curriculum;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumArea;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumCourse;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumStatus;
+import co.edu.konradlorenz.kapp.semaphore.domain.Pensum;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumArea;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumCourse;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumStatus;
 import co.edu.konradlorenz.kapp.semaphore.domain.StudentProgress;
 import co.edu.konradlorenz.kapp.semaphore.domain.StudentProgressCourse;
 import co.edu.konradlorenz.kapp.semaphore.repository.StudentProgressRepository;
@@ -25,12 +25,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit coverage for reconciling a pinned progress document against the curriculum it
+ * Unit coverage for reconciling a pinned progress document against the pensum it
  * names: what gets added, what gets kept-but-reported as removed, and that an unchanged
  * document is never rewritten.
  */
 @ExtendWith(MockitoExtension.class)
-class CurriculumReconcilerTest {
+class PensumReconcilerTest {
 
     @Mock
     private StudentProgressRepository progressRepository;
@@ -38,22 +38,22 @@ class CurriculumReconcilerTest {
     // Built in @BeforeEach, not as a field initializer: MockitoExtension injects @Mock
     // fields via a post-processor that runs after instance construction, so a field
     // initializer here would still see progressRepository as null.
-    private CurriculumReconciler reconciler;
+    private PensumReconciler reconciler;
 
     @BeforeEach
     void setUp() {
-        reconciler = new CurriculumReconciler(progressRepository);
+        reconciler = new PensumReconciler(progressRepository);
     }
 
     @Test
-    @DisplayName("an item the curriculum gained is materialised as PENDING and reported as added")
-    void addsAndReportsNewCurriculumItems() {
-        Curriculum curriculum = curriculum(List.of(
+    @DisplayName("an item the pensum gained is materialised as PENDING and reported as added")
+    void addsAndReportsNewPensumItems() {
+        Pensum pensum = pensum(List.of(
                 course("10011", "1001", 1), course("20015", "1004", 1)));
         StudentProgress progress = progress(List.of(passed("10011", "1001")));
         when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        CurriculumReconciler.Result result = reconciler.reconcile(progress, curriculum);
+        PensumReconciler.Result result = reconciler.reconcile(progress, pensum);
 
         assertThat(result.reconciliation().addedCourses()).containsExactly("20015");
         assertThat(result.reconciliation().removedCourses()).isEmpty();
@@ -66,12 +66,12 @@ class CurriculumReconcilerTest {
     @Test
     @DisplayName("an entry whose pensum item was dropped is kept, not deleted, and reported as removed")
     void keepsAndReportsRemovedEntries() {
-        Curriculum curriculum = curriculum(List.of(course("10011", "1001", 1)));
+        Pensum pensum = pensum(List.of(course("10011", "1001", 1)));
         StudentProgressCourse droppedButPassed = passed("20015", "1004");
         StudentProgress progress = progress(List.of(passed("10011", "1001"), droppedButPassed));
         when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        CurriculumReconciler.Result result = reconciler.reconcile(progress, curriculum);
+        PensumReconciler.Result result = reconciler.reconcile(progress, pensum);
 
         assertThat(result.reconciliation().removedCourses()).containsExactly("20015");
         assertThat(result.reconciliation().addedCourses()).isEmpty();
@@ -80,26 +80,26 @@ class CurriculumReconcilerTest {
     }
 
     @Test
-    @DisplayName("a document that already mirrors its curriculum is returned unchanged and never rewritten")
+    @DisplayName("a document that already mirrors its pensum is returned unchanged and never rewritten")
     void noOpWhenAlreadyInSync() {
-        Curriculum curriculum = curriculum(List.of(course("10011", "1001", 1)));
+        Pensum pensum = pensum(List.of(course("10011", "1001", 1)));
         StudentProgress progress = progress(List.of(passed("10011", "1001")));
 
-        CurriculumReconciler.Result result = reconciler.reconcile(progress, curriculum);
+        PensumReconciler.Result result = reconciler.reconcile(progress, pensum);
 
         assertThat(result.reconciliation().inSync()).isTrue();
         assertThat(result.progress()).isSameAs(progress);
         verify(progressRepository, never()).save(any());
     }
 
-    private static Curriculum curriculum(List<CurriculumCourse> courses) {
-        return new Curriculum("1015", "506", "Ingenieria de Sistemas", "Facultad",
-                "Reforma 2018", CurriculumStatus.ACTIVE, 142, 194, 9,
-                List.of(new CurriculumArea("CB", "Ciencias Basicas", "#539392", 36, 44)), courses);
+    private static Pensum pensum(List<PensumCourse> courses) {
+        return new Pensum("1015", "506", "Ingenieria de Sistemas", "Facultad",
+                "Reforma 2018", PensumStatus.ACTIVE, 142, 194, 9,
+                List.of(new PensumArea("CB", "Ciencias Basicas", "#539392", 36, 44)), courses);
     }
 
-    private static CurriculumCourse course(String code, String pensumItemCode, int level) {
-        return new CurriculumCourse(code, pensumItemCode, "Course " + code, level, 3, 4, "CB",
+    private static PensumCourse course(String code, String pensumItemCode, int level) {
+        return new PensumCourse(code, pensumItemCode, "Course " + code, level, 3, 4, "CB",
                 false, List.of(), null);
     }
 

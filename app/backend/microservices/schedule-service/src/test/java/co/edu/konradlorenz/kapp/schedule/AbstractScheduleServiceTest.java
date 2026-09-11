@@ -38,7 +38,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
  * <p>{@link CatalogClient} is replaced with a Mockito mock rather than left to resolve
  * through Eureka: semaphore-service is being built in parallel and is not guaranteed to be
  * up, and the contract only asks this service to fail open when it isn't - see
- * {@code catalog.CurriculumCatalogService}. Left unstubbed, the mock's default answer for
+ * {@code catalog.PensumCatalogService}. Left unstubbed, the mock's default answer for
  * a {@code List}-returning method is an empty list, which is exactly the "catalogue not
  * reachable" case.
  */

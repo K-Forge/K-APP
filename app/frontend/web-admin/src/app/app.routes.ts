@@ -40,10 +40,11 @@ export const routes: Routes = [
       },
       {
         path: 'data/pensums',
-        loadComponent: () => import('./features/data/pensums/curricula.page').then((m) => m.CurriculaPage),
+        loadComponent: () => import('./features/data/pensums/pensums.page').then((m) => m.PensumsPage),
       },
-      // The screen was called Curricula until somebody pointed out that nobody in the building
-      // says that - it is a pensum. Kept as a redirect because Programs links here by path.
+      // The screen, the API and the classes behind them were all called "curricula" until
+      // somebody pointed out that nobody in the building says that - it is a pensum. Kept as a
+      // redirect so a link somebody already bookmarked still lands somewhere.
       { path: 'data/curricula', redirectTo: 'data/pensums' },
       { path: 'identity', redirectTo: 'my-token' },
       { path: 'roles', redirectTo: 'who-can-do-what' },

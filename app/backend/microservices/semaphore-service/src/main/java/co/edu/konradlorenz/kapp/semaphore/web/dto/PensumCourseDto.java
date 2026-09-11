@@ -1,6 +1,6 @@
 package co.edu.konradlorenz.kapp.semaphore.web.dto;
 
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumCourse;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumCourse;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -22,7 +22,7 @@ import java.util.List;
  * nullable field that clients may ignore. It exists so a generated placeholder code is
  * never mistaken for an institutional one.
  */
-public record CurriculumCourseDto(
+public record PensumCourseDto(
         @Size(max = 20) String code,
         @NotBlank @Size(max = 30) String pensumItemCode,
         @NotBlank @Size(max = 120) String name,
@@ -36,8 +36,8 @@ public record CurriculumCourseDto(
         @Size(max = 20) String sinuCode
 ) {
 
-    public static CurriculumCourseDto from(CurriculumCourse course) {
-        return new CurriculumCourseDto(
+    public static PensumCourseDto from(PensumCourse course) {
+        return new PensumCourseDto(
                 course.code(),
                 course.pensumItemCode(),
                 course.name(),
@@ -51,8 +51,8 @@ public record CurriculumCourseDto(
                 course.sinuCode());
     }
 
-    public CurriculumCourse toDomain() {
-        return new CurriculumCourse(code, pensumItemCode, name, level, credits, weeklyHours,
+    public PensumCourse toDomain() {
+        return new PensumCourse(code, pensumItemCode, name, level, credits, weeklyHours,
                 area, isElectiveSlot, prerequisites, sinuCode);
     }
 }

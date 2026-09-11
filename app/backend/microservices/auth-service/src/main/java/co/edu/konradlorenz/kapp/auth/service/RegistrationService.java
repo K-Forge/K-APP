@@ -171,7 +171,7 @@ public class RegistrationService {
         }
         // pensumCode and currentLevel are not in the registration contract but are
         // mandatory on the profile, so the deployment supplies them. A new student starts
-        // on the current curriculum, at semester one.
+        // on the current pensum, at semester one.
         return new InternalUserUpsert.AcademicInfo(
                 request.studentCode().trim(), request.programCode().trim(),
                 properties.defaultPensumCode(), properties.defaultCurrentLevel());

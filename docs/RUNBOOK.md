@@ -36,7 +36,7 @@ or Android Studio you actively do not want it.
 | ---------- | ------------------------------------- | ------- | ------------------------------------------------- |
 | `mock`     | one Prism mock server per contract                  | ~200 MB | Building a mobile screen against the API contract |
 | `core`     | mongo, discovery, gateway, auth, user | ~2.5 GB | Working on sign-in or profiles                    |
-| `academic` | core + semaphore, schedule            | ~3.5 GB | Working on curricula or timetables                |
+| `academic` | core + semaphore, schedule            | ~3.5 GB | Working on pensums or timetables                |
 | `map`      | core + map                            | ~3 GB   | Working on the campus map                         |
 | `full`     | everything                            | ~5 GB   | End-to-end checks before a merge                  |
 | `dev`      | the admin portal                      | ~50 MB  | Any time you want the web console                 |
@@ -497,7 +497,7 @@ docker compose --profile full --profile dev down -v    # wipes the database
 docker compose --profile core --profile dev up -d
 ```
 
-The seed data — curricula, buildings, spaces, invitation codes — is reloaded automatically by
+The seed data — pensums, buildings, spaces, invitation codes — is reloaded automatically by
 Mongock on startup, and the MongoDB accounts are re-provisioned by the healthcheck. User accounts
 are not; recreate the four development ones:
 

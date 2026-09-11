@@ -69,7 +69,7 @@ public class GatewayConfig {
                         .uri("lb://user-service"))
 
                 // semaphore-service owns the academic catalogue as well as student
-                // progress, because the curriculum is what the semaforo displays.
+                // progress, because the pensum is what the semaforo displays.
                 .route("semaphore-service", r -> r
                         .path("/api/semaphore/**", "/api/catalog/**")
                         .uri("lb://semaphore-service"))

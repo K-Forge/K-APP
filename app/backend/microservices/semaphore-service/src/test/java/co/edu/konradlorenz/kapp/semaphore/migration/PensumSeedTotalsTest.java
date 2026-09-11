@@ -1,8 +1,8 @@
 package co.edu.konradlorenz.kapp.semaphore.migration;
 
-import co.edu.konradlorenz.kapp.semaphore.domain.Curriculum;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumCourse;
-import co.edu.konradlorenz.kapp.semaphore.repository.CurriculumRepository;
+import co.edu.konradlorenz.kapp.semaphore.domain.Pensum;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumCourse;
+import co.edu.konradlorenz.kapp.semaphore.repository.PensumRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <h2>Why these assertions do not equal the declared totals</h2>
  * The Ingenieria de Sistemas pensum was reconstructed from a printed diagram, and the
- * task that produced {@code curriculum-1015.json} was explicit: level assignments in
+ * task that produced {@code pensum-1015.json} was explicit: level assignments in
  * that reconstruction are sometimes wrong, and the fix is to report the discrepancy, not
  * to quietly adjust the seed until the numbers agree with the printed plan. So this test
  * asserts what the seed <strong>actually</strong> contains - the honest, currently-true
@@ -32,8 +32,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * with the old number, which is the point: it forces the fix to also update this test
  * and the mismatch list together, rather than one silently drifting from the other.
  *
- * <p>{@code Curriculum.totalCredits()} and {@code totalHours()} are separately asserted
- * to still equal the printed plan's own declared 142 / 194 - see {@link Curriculum}'s
+ * <p>{@code Pensum.totalCredits()} and {@code totalHours()} are separately asserted
+ * to still equal the printed plan's own declared 142 / 194 - see {@link Pensum}'s
  * javadoc on why those fields are never recomputed from {@link #courses()}.
  */
 @SpringBootTest
@@ -42,17 +42,17 @@ import static org.assertj.core.api.Assertions.assertThat;
         "eureka.client.enabled=false",
         "spring.cloud.discovery.enabled=false"
 })
-class CurriculumSeedTotalsTest {
+class PensumSeedTotalsTest {
 
     @Container
     @ServiceConnection
     static final MongoDBContainer MONGO = new MongoDBContainer("mongo:7.0");
 
     @Autowired
-    private CurriculumRepository curricula;
+    private PensumRepository pensums;
 
-    private Curriculum pensum1015() {
-        return curricula.findById("1015").orElseThrow();
+    private Pensum pensum1015() {
+        return pensums.findById("1015").orElseThrow();
     }
 
     @Test
@@ -66,23 +66,23 @@ class CurriculumSeedTotalsTest {
     @Test
     @DisplayName("header totals are kept verbatim from the printed plan, never recomputed")
     void declaredHeaderTotalsAreUnchanged() {
-        Curriculum curriculum = pensum1015();
-        assertThat(curriculum.totalCredits()).isEqualTo(142);
-        assertThat(curriculum.totalHours()).isEqualTo(194);
-        assertThat(curriculum.levels()).isEqualTo(9);
+        Pensum pensum = pensum1015();
+        assertThat(pensum.totalCredits()).isEqualTo(142);
+        assertThat(pensum.totalHours()).isEqualTo(194);
+        assertThat(pensum.levels()).isEqualTo(9);
     }
 
     @Test
     @DisplayName("reconstructed items sum to 144 credits, 2 over the declared 142")
     void grandTotalCredits() {
-        int sum = pensum1015().courses().stream().mapToInt(CurriculumCourse::credits).sum();
+        int sum = pensum1015().courses().stream().mapToInt(PensumCourse::credits).sum();
         assertThat(sum).isEqualTo(144);
     }
 
     @Test
     @DisplayName("reconstructed items sum to 197 weekly hours, 3 over the declared 194")
     void grandTotalWeeklyHours() {
-        int sum = pensum1015().courses().stream().mapToInt(CurriculumCourse::weeklyHours).sum();
+        int sum = pensum1015().courses().stream().mapToInt(PensumCourse::weeklyHours).sum();
         assertThat(sum).isEqualTo(197);
     }
 
@@ -142,8 +142,8 @@ class CurriculumSeedTotalsTest {
 
     private void assertLevelTotals(int level, int expectedCredits, int expectedHours) {
         var itemsAtLevel = pensum1015().courses().stream().filter(c -> c.level() == level).toList();
-        int credits = itemsAtLevel.stream().mapToInt(CurriculumCourse::credits).sum();
-        int hours = itemsAtLevel.stream().mapToInt(CurriculumCourse::weeklyHours).sum();
+        int credits = itemsAtLevel.stream().mapToInt(PensumCourse::credits).sum();
+        int hours = itemsAtLevel.stream().mapToInt(PensumCourse::weeklyHours).sum();
         assertThat(credits).as("level %d credits", level).isEqualTo(expectedCredits);
         assertThat(hours).as("level %d weekly hours", level).isEqualTo(expectedHours);
     }

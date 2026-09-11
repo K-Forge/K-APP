@@ -6,7 +6,7 @@ import java.util.List;
  * Credit totals derived from a semaforo.
  *
  * <p><strong>Never stored.</strong> Recomputed on every call from the progress document
- * and the pinned curriculum, so it cannot drift from the grid the student is looking at.
+ * and the pinned pensum, so it cannot drift from the grid the student is looking at.
  * A stored summary would be a second source of truth that goes stale the moment a grade
  * is recorded and nobody notices for a semester.
  *

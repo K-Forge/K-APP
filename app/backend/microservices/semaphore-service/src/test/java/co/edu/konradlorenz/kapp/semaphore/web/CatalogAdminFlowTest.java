@@ -1,14 +1,14 @@
 package co.edu.konradlorenz.kapp.semaphore.web;
 
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumStatus;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumStatus;
 import co.edu.konradlorenz.kapp.semaphore.domain.ProgramLevel;
 import co.edu.konradlorenz.kapp.semaphore.domain.StudentProgress;
-import co.edu.konradlorenz.kapp.semaphore.repository.CurriculumRepository;
+import co.edu.konradlorenz.kapp.semaphore.repository.PensumRepository;
 import co.edu.konradlorenz.kapp.semaphore.repository.ProgramRepository;
 import co.edu.konradlorenz.kapp.semaphore.repository.StudentProgressRepository;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumAreaDto;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumCourseDto;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumAreaDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumCourseDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumDto;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.ProgramRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
@@ -42,10 +42,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Administration of the catalog: creating, replacing and deleting programs, and deleting
- * curricula.
+ * pensums.
  *
  * <p>The rule these tests exist for is that <strong>deleting never cascades</strong>. A
- * program with curricula and a curriculum with students both refuse with {@code 409}, and
+ * program with pensums and a pensum with students both refuse with {@code 409}, and
  * they name what is blocking them - an administrator who is told only "conflict" has to go
  * and find out for themselves, which is the point at which people start deleting things by
  * hand in mongosh.
@@ -74,7 +74,7 @@ class CatalogAdminFlowTest {
     @Autowired
     private ProgramRepository programs;
     @Autowired
-    private CurriculumRepository curricula;
+    private PensumRepository pensums;
     @Autowired
     private StudentProgressRepository progress;
 
@@ -86,9 +86,9 @@ class CatalogAdminFlowTest {
         programs.findAll().stream()
                 .filter(p -> p.code().startsWith("T-"))
                 .forEach(p -> programs.deleteById(p.code()));
-        curricula.findAll().stream()
+        pensums.findAll().stream()
                 .filter(c -> c.pensumCode().startsWith("T-"))
-                .forEach(c -> curricula.deleteById(c.pensumCode()));
+                .forEach(c -> pensums.deleteById(c.pensumCode()));
         progress.findAll().stream()
                 .filter(p -> p.userId().startsWith("T-"))
                 .forEach(p -> progress.deleteById(p.id()));
@@ -189,8 +189,8 @@ class CatalogAdminFlowTest {
     // ── Deleting a program ─────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("a program with no curricula deletes cleanly")
-    void deleteProgramWithoutCurricula() throws Exception {
+    @DisplayName("a program with no pensums deletes cleanly")
+    void deleteProgramWithoutPensums() throws Exception {
         mockMvc.perform(post("/api/catalog/programs").with(admin("del-seed"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(programJson("T-DEL", "Borrable", ProgramLevel.PREGRADO)))
@@ -204,8 +204,8 @@ class CatalogAdminFlowTest {
     }
 
     @Test
-    @DisplayName("deleting a program that still has curricula is refused, and names them")
-    void deleteProgramWithCurriculaIsConflictNamingThem() throws Exception {
+    @DisplayName("deleting a program that still has pensums is refused, and names them")
+    void deleteProgramWithPensumsIsConflictNamingThem() throws Exception {
         mockMvc.perform(delete("/api/catalog/programs/{code}", SEEDED_PROGRAM).with(admin("blocked")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.details[?(@.issue=='%s')]".formatted(SEEDED_PENSUM))
@@ -229,54 +229,54 @@ class CatalogAdminFlowTest {
                 .andExpect(status().isNotFound());
     }
 
-    // ── Deleting a curriculum ──────────────────────────────────────────────────────
+    // ── Deleting a pensum ──────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("a curriculum nobody follows deletes cleanly")
-    void deleteCurriculumWithoutStudents() throws Exception {
-        mockMvc.perform(post("/api/catalog/curricula").with(admin("cur-seed"))
+    @DisplayName("a pensum nobody follows deletes cleanly")
+    void deletePensumWithoutStudents() throws Exception {
+        mockMvc.perform(post("/api/catalog/pensums").with(admin("cur-seed"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(minimalCurriculumJson("T-CUR")))
+                        .content(minimalPensumJson("T-CUR")))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(delete("/api/catalog/curricula/{code}", "T-CUR").with(admin("cur-del")))
+        mockMvc.perform(delete("/api/catalog/pensums/{code}", "T-CUR").with(admin("cur-del")))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/catalog/curricula/{code}", "T-CUR").with(admin("cur-check")))
+        mockMvc.perform(get("/api/catalog/pensums/{code}", "T-CUR").with(admin("cur-check")))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    @DisplayName("deleting a curriculum a student still follows is refused with the count")
-    void deleteCurriculumWithStudentsIsConflict() throws Exception {
-        mockMvc.perform(post("/api/catalog/curricula").with(admin("used-seed"))
+    @DisplayName("deleting a pensum a student still follows is refused with the count")
+    void deletePensumWithStudentsIsConflict() throws Exception {
+        mockMvc.perform(post("/api/catalog/pensums").with(admin("used-seed"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(minimalCurriculumJson("T-USED")))
+                        .content(minimalPensumJson("T-USED")))
                 .andExpect(status().isCreated());
 
         progress.save(new StudentProgress(null, "T-follower", "506900500", "506",
                 "T-USED", 1, List.of(), Instant.now()));
 
-        mockMvc.perform(delete("/api/catalog/curricula/{code}", "T-USED").with(admin("used-del")))
+        mockMvc.perform(delete("/api/catalog/pensums/{code}", "T-USED").with(admin("used-del")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.details[0].field").value("students"))
                 .andExpect(jsonPath("$.details[0].issue").value("1"));
     }
 
     @Test
-    @DisplayName("the refused curriculum and the student's progress both survive")
-    void refusedCurriculumDeleteChangesNothing() throws Exception {
-        mockMvc.perform(post("/api/catalog/curricula").with(admin("survive-seed"))
+    @DisplayName("the refused pensum and the student's progress both survive")
+    void refusedPensumDeleteChangesNothing() throws Exception {
+        mockMvc.perform(post("/api/catalog/pensums").with(admin("survive-seed"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(minimalCurriculumJson("T-SURVIVE")))
+                        .content(minimalPensumJson("T-SURVIVE")))
                 .andExpect(status().isCreated());
         progress.save(new StudentProgress(null, "T-survivor", "506900501", "506",
                 "T-SURVIVE", 1, List.of(), Instant.now()));
 
-        mockMvc.perform(delete("/api/catalog/curricula/{code}", "T-SURVIVE").with(admin("survive-del")))
+        mockMvc.perform(delete("/api/catalog/pensums/{code}", "T-SURVIVE").with(admin("survive-del")))
                 .andExpect(status().isConflict());
 
-        mockMvc.perform(get("/api/catalog/curricula/{code}", "T-SURVIVE").with(admin("survive-check")))
+        mockMvc.perform(get("/api/catalog/pensums/{code}", "T-SURVIVE").with(admin("survive-check")))
                 .andExpect(status().isOk());
         org.junit.jupiter.api.Assertions.assertEquals(
                 1, progress.countByPensumCode("T-SURVIVE"),
@@ -284,9 +284,9 @@ class CatalogAdminFlowTest {
     }
 
     @Test
-    @DisplayName("deleting an unknown curriculum is 404")
-    void deleteOfUnknownCurriculumIs404() throws Exception {
-        mockMvc.perform(delete("/api/catalog/curricula/{code}", "T-NEVER").with(admin("cur-404")))
+    @DisplayName("deleting an unknown pensum is 404")
+    void deleteOfUnknownPensumIs404() throws Exception {
+        mockMvc.perform(delete("/api/catalog/pensums/{code}", "T-NEVER").with(admin("cur-404")))
                 .andExpect(status().isNotFound());
     }
 
@@ -297,12 +297,12 @@ class CatalogAdminFlowTest {
                 new ProgramRequest(code, name, "Facultad de Pruebas", level));
     }
 
-    private String minimalCurriculumJson(String pensumCode) throws Exception {
-        CurriculumAreaDto area = new CurriculumAreaDto("CB", "Ciencias Basicas", "#539392", 3, 4);
-        CurriculumCourseDto course = new CurriculumCourseDto(
+    private String minimalPensumJson(String pensumCode) throws Exception {
+        PensumAreaDto area = new PensumAreaDto("CB", "Ciencias Basicas", "#539392", 3, 4);
+        PensumCourseDto course = new PensumCourseDto(
                 "M1", "M1", "Minimal Course", 1, 3, 4, null, "CB", false, List.of(), null);
-        CurriculumDto dto = new CurriculumDto(pensumCode, "506", "Test Program",
-                "Test Faculty", "Test Reform", CurriculumStatus.ACTIVE, 3, 4, 1,
+        PensumDto dto = new PensumDto(pensumCode, "506", "Test Program",
+                "Test Faculty", "Test Reform", PensumStatus.ACTIVE, 3, 4, 1,
                 List.of(area), List.of(course));
         return mapper.writeValueAsString(dto);
     }

@@ -169,7 +169,7 @@ describe('PastePensumComponent · what the import needs before it will run', () 
     expect(f.componentInstance.ready()).toBe(true);
   });
 
-  // Every one of these is required() in CurriculumCsvImporter.readHeader.
+  // Every one of these is required() in PensumCsvImporter.readHeader.
   it('names the header fields still missing rather than silently refusing', async () => {
     const f = await ready({ programCode: '999' });
     expect(f.componentInstance.missingHeaderFields()).toEqual([

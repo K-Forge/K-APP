@@ -35,7 +35,7 @@ import java.util.List;
  *                       generated slug as their {@code code} and leave this null so
  *                       nobody mistakes a reconstruction for institutional data.
  */
-public record CurriculumCourse(
+public record PensumCourse(
         String code,
         String pensumItemCode,
         String name,
@@ -43,7 +43,7 @@ public record CurriculumCourse(
         int credits,
         int weeklyHours,
         String area,
-        // @JsonProperty mirrors CurriculumCourseDto's own alias: the wire and seed JSON
+        // @JsonProperty mirrors PensumCourseDto's own alias: the wire and seed JSON
         // both use "isElectiveSlot" (the OpenAPI field name), while the Java field keeps
         // the grammatical "electiveSlot" spelling. V002_SeedIngenieriaDeSistemas reads
         // seed JSON straight into this record, so without the alias it fails to parse.
@@ -55,7 +55,7 @@ public record CurriculumCourse(
     /** Weeks in a Konrad Lorenz semester. */
     public static final int WEEKS_PER_SEMESTER = 16;
 
-    public CurriculumCourse {
+    public PensumCourse {
         prerequisites = prerequisites == null ? List.of() : List.copyOf(prerequisites);
     }
 

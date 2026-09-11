@@ -24,7 +24,7 @@ public record InternalUserUpsert(
     /**
      * @param studentCode  university student code
      * @param programCode  academic program, {@code 506} is Ingenieria de Sistemas
-     * @param pensumCode   curriculum version; not carried by the registration contract, so
+     * @param pensumCode   pensum version; not carried by the registration contract, so
      *                     auth-service supplies a configured default
      * @param currentLevel semester, 1..12
      */

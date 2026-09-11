@@ -21,7 +21,7 @@ export class ProgramsService {
   }
 
   /**
-   * Never cascades. A program that still has curricula comes back as `409` naming them, which
+   * Never cascades. A program that still has pensums comes back as `409` naming them, which
    * the error banner renders from the envelope's `details`.
    */
   delete(code: string): Observable<void> {

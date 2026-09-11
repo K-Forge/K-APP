@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
  * The writable half of a program.
  *
  * <p>{@code activePensumCode} is absent on purpose. It is derived from whichever
- * curriculum is currently {@code ACTIVE}, so accepting it here would let a caller put the
+ * pensum is currently {@code ACTIVE}, so accepting it here would let a caller put the
  * two into disagreement - see {@link Program}, which does not store it either.
  *
  * @param code institutional program code. Supplied by the caller rather than generated:

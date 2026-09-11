@@ -5,16 +5,16 @@ import co.edu.konradlorenz.kapp.common.error.ResourceNotFoundException;
 import co.edu.konradlorenz.kapp.semaphore.client.UserProfileClient;
 import co.edu.konradlorenz.kapp.semaphore.client.UserProfileResponse;
 import co.edu.konradlorenz.kapp.semaphore.domain.CourseStatus;
-import co.edu.konradlorenz.kapp.semaphore.domain.Curriculum;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumArea;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumCourse;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumStatus;
+import co.edu.konradlorenz.kapp.semaphore.domain.Pensum;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumArea;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumCourse;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumStatus;
 import co.edu.konradlorenz.kapp.semaphore.domain.StudentProgress;
 import co.edu.konradlorenz.kapp.semaphore.domain.StudentProgressCourse;
-import co.edu.konradlorenz.kapp.semaphore.repository.CurriculumRepository;
+import co.edu.konradlorenz.kapp.semaphore.repository.PensumRepository;
 import co.edu.konradlorenz.kapp.semaphore.repository.StudentProgressRepository;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.CourseProgressUpdateRequest;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumCourseDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumCourseDto;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.ElectiveResolutionRequest;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.ProgressSummaryDto;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +46,7 @@ import static org.mockito.Mockito.when;
  *
  * <h2>The fixture</h2>
  * Pensum "TEST" has three levels and two areas, CB (declared 7 credits) and ISA
- * (declared 9 credits), totalling the curriculum's declared 16 credits:
+ * (declared 9 credits), totalling the pensum's declared 16 credits:
  * <pre>
  * C1 (level 1, CB, 3cr, no prereqs)              -&gt; PASSED
  * C2 (level 2, CB, 4cr, prereq C1)                -&gt; PASSED
@@ -64,21 +64,21 @@ class StudentProgressServiceTest {
     @Mock
     private StudentProgressRepository progressRepository;
     @Mock
-    private CurriculumRepository curriculumRepository;
+    private PensumRepository pensumRepository;
     @Mock
     private UserProfileClient userProfileClient;
     @Mock
     private ActivePensumResolver activePensumResolver;
 
     private StudentProgressService service;
-    private Curriculum curriculum;
+    private Pensum pensum;
 
     @BeforeEach
     void setUp() {
-        curriculum = fixtureCurriculum();
-        CurriculumReconciler reconciler = new CurriculumReconciler(progressRepository);
+        pensum = fixturePensum();
+        PensumReconciler reconciler = new PensumReconciler(progressRepository);
         PrerequisiteWalker walker = new PrerequisiteWalker();
-        service = new StudentProgressService(progressRepository, curriculumRepository,
+        service = new StudentProgressService(progressRepository, pensumRepository,
                 userProfileClient, activePensumResolver, reconciler, walker);
     }
 
@@ -91,7 +91,7 @@ class StudentProgressServiceTest {
         UserProfileResponse profile = new UserProfileResponse("u", "ROLE_STUDENT",
                 new UserProfileResponse.Academic("506232730", "506", 1));
         when(userProfileClient.getMyProfile()).thenReturn(profile);
-        when(activePensumResolver.resolveActiveOrThrow("506")).thenReturn(curriculum);
+        when(activePensumResolver.resolveActiveOrThrow("506")).thenReturn(pensum);
         when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         StudentProgress created = service.getOrCreate(USER_ID);
@@ -125,7 +125,7 @@ class StudentProgressServiceTest {
         UserProfileResponse profile = new UserProfileResponse("u", "ROLE_STUDENT",
                 new UserProfileResponse.Academic("506232730", "506", 1));
         when(userProfileClient.getMyProfile()).thenReturn(profile);
-        when(activePensumResolver.resolveActiveOrThrow("506")).thenReturn(curriculum);
+        when(activePensumResolver.resolveActiveOrThrow("506")).thenReturn(pensum);
         when(progressRepository.save(any())).thenThrow(new DuplicateKeyException("E11000 duplicate key"));
 
         StudentProgress result = service.getOrCreate(USER_ID);
@@ -226,9 +226,9 @@ class StudentProgressServiceTest {
     void eligibleRespectsPrerequisitesAndOwnStatus() {
         stubExistingProgress();
 
-        List<CurriculumCourseDto> eligible = service.getEligible(USER_ID);
+        List<PensumCourseDto> eligible = service.getEligible(USER_ID);
 
-        assertThat(eligible).extracting(CurriculumCourseDto::code).containsExactly("C4");
+        assertThat(eligible).extracting(PensumCourseDto::code).containsExactly("C4");
     }
 
     @Test
@@ -236,9 +236,9 @@ class StudentProgressServiceTest {
     void inProgressPrerequisiteBlocksEligibility() {
         stubExistingProgress();
 
-        List<CurriculumCourseDto> eligible = service.getEligible(USER_ID);
+        List<PensumCourseDto> eligible = service.getEligible(USER_ID);
 
-        assertThat(eligible).extracting(CurriculumCourseDto::code).doesNotContain("C5");
+        assertThat(eligible).extracting(PensumCourseDto::code).doesNotContain("C5");
     }
 
     // ---- elective resolution -------------------------------------------------------
@@ -313,7 +313,7 @@ class StudentProgressServiceTest {
 
     private void stubExistingProgress() {
         when(progressRepository.findByUserId(USER_ID)).thenReturn(Optional.of(fixtureProgress()));
-        when(curriculumRepository.findById(PENSUM_CODE)).thenReturn(Optional.of(curriculum));
+        when(pensumRepository.findById(PENSUM_CODE)).thenReturn(Optional.of(pensum));
     }
 
     /**
@@ -326,13 +326,13 @@ class StudentProgressServiceTest {
     }
 
     private void stubElectiveFixture(boolean electiveAlreadyResolved) {
-        CurriculumCourse fixed = new CurriculumCourse("F1", "F1", "Fixed Course", 1, 3, 4, "CB",
+        PensumCourse fixed = new PensumCourse("F1", "F1", "Fixed Course", 1, 3, 4, "CB",
                 false, List.of(), null);
-        CurriculumCourse elective = new CurriculumCourse(null, "ELEC1", "Elective Slot", 1, 3, 3,
+        PensumCourse elective = new PensumCourse(null, "ELEC1", "Elective Slot", 1, 3, 3,
                 "CB", true, List.of(), null);
-        Curriculum electiveCurriculum = new Curriculum(PENSUM_CODE, "506", "Ingenieria de Sistemas",
-                "Facultad", "Reforma test", CurriculumStatus.ACTIVE, 6, 7, 1,
-                List.of(new CurriculumArea("CB", "Ciencias Basicas", "#539392", 6, 7)),
+        Pensum electivePensum = new Pensum(PENSUM_CODE, "506", "Ingenieria de Sistemas",
+                "Facultad", "Reforma test", PensumStatus.ACTIVE, 6, 7, 1,
+                List.of(new PensumArea("CB", "Ciencias Basicas", "#539392", 6, 7)),
                 List.of(fixed, elective));
 
         StudentProgressCourse fixedEntry = new StudentProgressCourse(
@@ -345,26 +345,26 @@ class StudentProgressServiceTest {
                 PENSUM_CODE, 1, List.of(fixedEntry, electiveEntry), Instant.now());
 
         when(progressRepository.findByUserId(USER_ID)).thenReturn(Optional.of(progress));
-        when(curriculumRepository.findById(PENSUM_CODE)).thenReturn(Optional.of(electiveCurriculum));
+        when(pensumRepository.findById(PENSUM_CODE)).thenReturn(Optional.of(electivePensum));
     }
 
-    private static Curriculum fixtureCurriculum() {
-        List<CurriculumCourse> courses = List.of(
+    private static Pensum fixturePensum() {
+        List<PensumCourse> courses = List.of(
                 item("C1", 1, "CB", 3, List.of()),
                 item("C2", 2, "CB", 4, List.of("C1")),
                 item("C3", 2, "ISA", 3, List.of()),
                 item("C4", 3, "ISA", 3, List.of("C2")),
                 item("C5", 3, "ISA", 3, List.of("C3")));
-        List<CurriculumArea> areas = List.of(
-                new CurriculumArea("CB", "Ciencias Basicas", "#539392", 7, 7),
-                new CurriculumArea("ISA", "Ing. de Sistemas Aplicada", "#C9D329", 9, 9));
-        return new Curriculum(PENSUM_CODE, "506", "Ingenieria de Sistemas", "Facultad",
-                "Reforma test", CurriculumStatus.ACTIVE, 16, 16, 3, areas, courses);
+        List<PensumArea> areas = List.of(
+                new PensumArea("CB", "Ciencias Basicas", "#539392", 7, 7),
+                new PensumArea("ISA", "Ing. de Sistemas Aplicada", "#C9D329", 9, 9));
+        return new Pensum(PENSUM_CODE, "506", "Ingenieria de Sistemas", "Facultad",
+                "Reforma test", PensumStatus.ACTIVE, 16, 16, 3, areas, courses);
     }
 
-    private static CurriculumCourse item(String code, int level, String area, int credits,
+    private static PensumCourse item(String code, int level, String area, int credits,
                                           List<String> prerequisites) {
-        return new CurriculumCourse(code, code, "Course " + code, level, credits, credits, area,
+        return new PensumCourse(code, code, "Course " + code, level, credits, credits, area,
                 false, prerequisites, null);
     }
 

@@ -3,10 +3,11 @@ package co.edu.konradlorenz.kapp.semaphore.web;
 import co.edu.konradlorenz.kapp.semaphore.security.AdminOnly;
 import co.edu.konradlorenz.kapp.semaphore.security.CatalogRead;
 import co.edu.konradlorenz.kapp.semaphore.service.CatalogService;
-import co.edu.konradlorenz.kapp.semaphore.service.CurriculumCsvImporter;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumCourseDto;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumDto;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumImportReport;
+import co.edu.konradlorenz.kapp.semaphore.service.PensumCsvImporter;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumCourseDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumSummary;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumImportReport;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.ProgramRequest;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.ProgramResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,7 +41,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
- * The academic catalog: programs and curricula (pensums).
+ * The academic catalog: programs and pensums (pensums).
  *
  * <p>Reads are open to any authenticated role except {@code ROLE_GUEST}; mutations
  * require {@code ROLE_ADMIN}. See {@code docs/api/semaphore.openapi.yaml}.
@@ -52,9 +53,9 @@ import java.util.List;
 public class CatalogController {
 
     private final CatalogService catalog;
-    private final CurriculumCsvImporter importer;
+    private final PensumCsvImporter importer;
 
-    public CatalogController(CatalogService catalog, CurriculumCsvImporter importer) {
+    public CatalogController(CatalogService catalog, PensumCsvImporter importer) {
         this.catalog = catalog;
         this.importer = importer;
     }
@@ -98,36 +99,46 @@ public class CatalogController {
         catalog.deleteProgram(programCode);
     }
 
-    @GetMapping("/curricula/{pensumCode}")
+    @GetMapping("/pensums")
     @CatalogRead
-    @Operation(summary = "Get a full curriculum")
-    public CurriculumDto getCurriculum(@PathVariable String pensumCode) {
-        return catalog.getCurriculum(pensumCode);
+    @Operation(summary = "List every pensum, without their courses",
+            description = "Summaries, for a listing or a picker. The full document is one call "
+                    + "away at GET /api/catalog/pensums/{pensumCode}. Not paginated: the whole "
+                    + "catalogue is a few dozen rows.")
+    public List<PensumSummary> listPensums() {
+        return catalog.listPensums();
     }
 
-    @PutMapping("/curricula/{pensumCode}")
-    @AdminOnly
-    @Operation(summary = "Replace a curriculum")
-    public CurriculumDto replaceCurriculum(@PathVariable String pensumCode,
-                                            @Valid @RequestBody CurriculumDto body) {
-        return catalog.replaceCurriculum(pensumCode, body);
+    @GetMapping("/pensums/{pensumCode}")
+    @CatalogRead
+    @Operation(summary = "Get a full pensum")
+    public PensumDto getPensum(@PathVariable String pensumCode) {
+        return catalog.getPensum(pensumCode);
     }
 
-    @PostMapping("/curricula")
+    @PutMapping("/pensums/{pensumCode}")
     @AdminOnly
-    @Operation(summary = "Create a curriculum")
-    public ResponseEntity<CurriculumDto> createCurriculum(@Valid @RequestBody CurriculumDto body) {
-        CurriculumDto created = catalog.createCurriculum(body);
-        return ResponseEntity.created(URI.create("/api/catalog/curricula/" + created.pensumCode()))
+    @Operation(summary = "Replace a pensum")
+    public PensumDto replacePensum(@PathVariable String pensumCode,
+                                            @Valid @RequestBody PensumDto body) {
+        return catalog.replacePensum(pensumCode, body);
+    }
+
+    @PostMapping("/pensums")
+    @AdminOnly
+    @Operation(summary = "Create a pensum")
+    public ResponseEntity<PensumDto> createPensum(@Valid @RequestBody PensumDto body) {
+        PensumDto created = catalog.createPensum(body);
+        return ResponseEntity.created(URI.create("/api/catalog/pensums/" + created.pensumCode()))
                 .body(created);
     }
 
-    @DeleteMapping("/curricula/{pensumCode}")
+    @DeleteMapping("/pensums/{pensumCode}")
     @AdminOnly
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Delete a curriculum")
-    public void deleteCurriculum(@PathVariable String pensumCode) {
-        catalog.deleteCurriculum(pensumCode);
+    @Operation(summary = "Delete a pensum")
+    public void deletePensum(@PathVariable String pensumCode) {
+        catalog.deletePensum(pensumCode);
     }
 
     /**
@@ -137,12 +148,12 @@ public class CatalogController {
      * off machines whose default may be anything, and a mis-decoded "Matemáticas" would be
      * stored wrong and only noticed by a student reading their own semáforo.
      */
-    @PostMapping(value = "/curricula/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/pensums/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @AdminOnly
     @Operation(summary = "Import pensums in bulk from a CSV",
             description = "Validates the whole file first; nothing is written unless everything "
                     + "passes. Use dryRun=true to check a file without importing it.")
-    public CurriculumImportReport importCurricula(
+    public PensumImportReport importPensums(
             @RequestPart("file") MultipartFile file,
             @RequestParam(defaultValue = "false") boolean dryRun) throws IOException {
         try (Reader reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8)) {
@@ -150,14 +161,14 @@ public class CatalogController {
         }
     }
 
-    @GetMapping("/curricula/{pensumCode}/courses")
+    @GetMapping("/pensums/{pensumCode}/courses")
     @CatalogRead
-    @Operation(summary = "List the items of a curriculum")
-    public List<CurriculumCourseDto> listCurriculumCourses(
+    @Operation(summary = "List the items of a pensum")
+    public List<PensumCourseDto> listPensumCourses(
             @PathVariable String pensumCode,
             @RequestParam(required = false) @Min(1) @Max(12) Integer level,
             @RequestParam(required = false) @Size(max = 20) String area,
             @RequestParam(required = false) Boolean isElectiveSlot) {
-        return catalog.listCurriculumCourses(pensumCode, level, area, isElectiveSlot);
+        return catalog.listPensumCourses(pensumCode, level, area, isElectiveSlot);
     }
 }

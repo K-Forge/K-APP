@@ -2,10 +2,10 @@ package co.edu.konradlorenz.kapp.semaphore.web;
 
 import co.edu.konradlorenz.kapp.semaphore.client.UserProfileClient;
 import co.edu.konradlorenz.kapp.semaphore.client.UserProfileResponse;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumStatus;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumAreaDto;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumCourseDto;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumDto;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumStatus;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumAreaDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumCourseDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -158,80 +158,121 @@ class AuthorizationMatrixTest {
     }
 
     // ==================================================================================
-    // GET /api/catalog/curricula/{pensumCode}
+    // GET /api/catalog/pensums - same rule as the rest of the catalogue: any authenticated
+    // role except GUEST. Added so the portal can offer a picker instead of asking somebody to
+    // type a pensum code from memory.
     // ==================================================================================
 
     @Test
-    @DisplayName("getCurriculum: anonymous is refused with 401")
-    void getCurriculum_anonymous_401() throws Exception {
-        mockMvc.perform(get("/api/catalog/curricula/{code}", SEEDED_PENSUM))
+    @DisplayName("listPensums: anonymous is refused with 401")
+    void listPensums_anonymous_401() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("getCurriculum: GUEST is refused with 403")
-    void getCurriculum_guest_403() throws Exception {
-        mockMvc.perform(get("/api/catalog/curricula/{code}", SEEDED_PENSUM).with(guest()))
+    @DisplayName("listPensums: GUEST is refused with 403")
+    void listPensums_guest_403() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums").with(guest()))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("getCurriculum: STUDENT is allowed")
-    void getCurriculum_student_200() throws Exception {
-        mockMvc.perform(get("/api/catalog/curricula/{code}", SEEDED_PENSUM).with(student("s3")))
+    @DisplayName("listPensums: STUDENT is allowed")
+    void listPensums_student_200() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums").with(student("sc1")))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("getCurriculum: PROFESSOR is allowed")
-    void getCurriculum_professor_200() throws Exception {
-        mockMvc.perform(get("/api/catalog/curricula/{code}", SEEDED_PENSUM).with(professor("p3")))
+    @DisplayName("listPensums: PROFESSOR is allowed")
+    void listPensums_professor_200() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums").with(professor("pc1")))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("getCurriculum: ADMIN is allowed")
-    void getCurriculum_admin_200() throws Exception {
-        mockMvc.perform(get("/api/catalog/curricula/{code}", SEEDED_PENSUM).with(admin("a3")))
+    @DisplayName("listPensums: ADMIN is allowed")
+    void listPensums_admin_200() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums").with(admin("ac1")))
                 .andExpect(status().isOk());
     }
 
     // ==================================================================================
-    // GET /api/catalog/curricula/{pensumCode}/courses
+    // GET /api/catalog/pensums/{pensumCode}
     // ==================================================================================
 
     @Test
-    @DisplayName("listCurriculumCourses: anonymous is refused with 401")
-    void listCurriculumCourses_anonymous_401() throws Exception {
-        mockMvc.perform(get("/api/catalog/curricula/{code}/courses", SEEDED_PENSUM))
+    @DisplayName("getPensum: anonymous is refused with 401")
+    void getPensum_anonymous_401() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums/{code}", SEEDED_PENSUM))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("listCurriculumCourses: GUEST is refused with 403")
-    void listCurriculumCourses_guest_403() throws Exception {
-        mockMvc.perform(get("/api/catalog/curricula/{code}/courses", SEEDED_PENSUM).with(guest()))
+    @DisplayName("getPensum: GUEST is refused with 403")
+    void getPensum_guest_403() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums/{code}", SEEDED_PENSUM).with(guest()))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("listCurriculumCourses: STUDENT is allowed")
-    void listCurriculumCourses_student_200() throws Exception {
-        mockMvc.perform(get("/api/catalog/curricula/{code}/courses", SEEDED_PENSUM).with(student("s4")))
+    @DisplayName("getPensum: STUDENT is allowed")
+    void getPensum_student_200() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums/{code}", SEEDED_PENSUM).with(student("s3")))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("listCurriculumCourses: PROFESSOR is allowed")
-    void listCurriculumCourses_professor_200() throws Exception {
-        mockMvc.perform(get("/api/catalog/curricula/{code}/courses", SEEDED_PENSUM).with(professor("p4")))
+    @DisplayName("getPensum: PROFESSOR is allowed")
+    void getPensum_professor_200() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums/{code}", SEEDED_PENSUM).with(professor("p3")))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("listCurriculumCourses: ADMIN is allowed")
-    void listCurriculumCourses_admin_200() throws Exception {
-        mockMvc.perform(get("/api/catalog/curricula/{code}/courses", SEEDED_PENSUM).with(admin("a4")))
+    @DisplayName("getPensum: ADMIN is allowed")
+    void getPensum_admin_200() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums/{code}", SEEDED_PENSUM).with(admin("a3")))
+                .andExpect(status().isOk());
+    }
+
+    // ==================================================================================
+    // GET /api/catalog/pensums/{pensumCode}/courses
+    // ==================================================================================
+
+    @Test
+    @DisplayName("listPensumCourses: anonymous is refused with 401")
+    void listPensumCourses_anonymous_401() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums/{code}/courses", SEEDED_PENSUM))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("listPensumCourses: GUEST is refused with 403")
+    void listPensumCourses_guest_403() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums/{code}/courses", SEEDED_PENSUM).with(guest()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("listPensumCourses: STUDENT is allowed")
+    void listPensumCourses_student_200() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums/{code}/courses", SEEDED_PENSUM).with(student("s4")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("listPensumCourses: PROFESSOR is allowed")
+    void listPensumCourses_professor_200() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums/{code}/courses", SEEDED_PENSUM).with(professor("p4")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("listPensumCourses: ADMIN is allowed")
+    void listPensumCourses_admin_200() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums/{code}/courses", SEEDED_PENSUM).with(admin("a4")))
                 .andExpect(status().isOk());
     }
 
@@ -373,146 +414,146 @@ class AuthorizationMatrixTest {
     }
 
     // ==================================================================================
-    // DELETE /api/catalog/curricula/{pensumCode} - ADMIN only
+    // DELETE /api/catalog/pensums/{pensumCode} - ADMIN only
     // ==================================================================================
 
     @Test
-    @DisplayName("deleteCurriculum: anonymous is refused with 401")
-    void deleteCurriculum_anonymous_401() throws Exception {
-        mockMvc.perform(delete("/api/catalog/curricula/{code}", "MX-CD-ANON"))
+    @DisplayName("deletePensum: anonymous is refused with 401")
+    void deletePensum_anonymous_401() throws Exception {
+        mockMvc.perform(delete("/api/catalog/pensums/{code}", "MX-CD-ANON"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("deleteCurriculum: GUEST is refused with 403")
-    void deleteCurriculum_guest_403() throws Exception {
-        mockMvc.perform(delete("/api/catalog/curricula/{code}", "MX-CD-GUEST").with(guest()))
+    @DisplayName("deletePensum: GUEST is refused with 403")
+    void deletePensum_guest_403() throws Exception {
+        mockMvc.perform(delete("/api/catalog/pensums/{code}", "MX-CD-GUEST").with(guest()))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("deleteCurriculum: STUDENT is refused with 403")
-    void deleteCurriculum_student_403() throws Exception {
-        mockMvc.perform(delete("/api/catalog/curricula/{code}", "MX-CD-STUDENT").with(student("s12")))
+    @DisplayName("deletePensum: STUDENT is refused with 403")
+    void deletePensum_student_403() throws Exception {
+        mockMvc.perform(delete("/api/catalog/pensums/{code}", "MX-CD-STUDENT").with(student("s12")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("deleteCurriculum: PROFESSOR is refused with 403")
-    void deleteCurriculum_professor_403() throws Exception {
-        mockMvc.perform(delete("/api/catalog/curricula/{code}", "MX-CD-PROF").with(professor("p12")))
+    @DisplayName("deletePensum: PROFESSOR is refused with 403")
+    void deletePensum_professor_403() throws Exception {
+        mockMvc.perform(delete("/api/catalog/pensums/{code}", "MX-CD-PROF").with(professor("p12")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("deleteCurriculum: ADMIN is allowed (404 for an unknown code proves the gate passed)")
-    void deleteCurriculum_admin_404() throws Exception {
-        mockMvc.perform(delete("/api/catalog/curricula/{code}", "MX-CD-ADMIN").with(admin("a12")))
+    @DisplayName("deletePensum: ADMIN is allowed (404 for an unknown code proves the gate passed)")
+    void deletePensum_admin_404() throws Exception {
+        mockMvc.perform(delete("/api/catalog/pensums/{code}", "MX-CD-ADMIN").with(admin("a12")))
                 .andExpect(status().isNotFound());
     }
 
     // ==================================================================================
-    // POST /api/catalog/curricula - ADMIN only
+    // POST /api/catalog/pensums - ADMIN only
     // ==================================================================================
 
     @Test
-    @DisplayName("createCurriculum: anonymous is refused with 401")
-    void createCurriculum_anonymous_401() throws Exception {
-        mockMvc.perform(post("/api/catalog/curricula")
+    @DisplayName("createPensum: anonymous is refused with 401")
+    void createPensum_anonymous_401() throws Exception {
+        mockMvc.perform(post("/api/catalog/pensums")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validCurriculumJson("MATRIX-ANON")))
+                        .content(validPensumJson("MATRIX-ANON")))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("createCurriculum: GUEST is refused with 403")
-    void createCurriculum_guest_403() throws Exception {
-        mockMvc.perform(post("/api/catalog/curricula").with(guest())
+    @DisplayName("createPensum: GUEST is refused with 403")
+    void createPensum_guest_403() throws Exception {
+        mockMvc.perform(post("/api/catalog/pensums").with(guest())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validCurriculumJson("MATRIX-GUEST")))
+                        .content(validPensumJson("MATRIX-GUEST")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("createCurriculum: STUDENT is refused with 403")
-    void createCurriculum_student_403() throws Exception {
-        mockMvc.perform(post("/api/catalog/curricula").with(student("s5"))
+    @DisplayName("createPensum: STUDENT is refused with 403")
+    void createPensum_student_403() throws Exception {
+        mockMvc.perform(post("/api/catalog/pensums").with(student("s5"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validCurriculumJson("MATRIX-STUDENT")))
+                        .content(validPensumJson("MATRIX-STUDENT")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("createCurriculum: PROFESSOR is refused with 403")
-    void createCurriculum_professor_403() throws Exception {
-        mockMvc.perform(post("/api/catalog/curricula").with(professor("p5"))
+    @DisplayName("createPensum: PROFESSOR is refused with 403")
+    void createPensum_professor_403() throws Exception {
+        mockMvc.perform(post("/api/catalog/pensums").with(professor("p5"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validCurriculumJson("MATRIX-PROFESSOR")))
+                        .content(validPensumJson("MATRIX-PROFESSOR")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("createCurriculum: ADMIN is allowed")
-    void createCurriculum_admin_201() throws Exception {
-        mockMvc.perform(post("/api/catalog/curricula").with(admin("a5"))
+    @DisplayName("createPensum: ADMIN is allowed")
+    void createPensum_admin_201() throws Exception {
+        mockMvc.perform(post("/api/catalog/pensums").with(admin("a5"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validCurriculumJson("MATRIX-ADMIN-CREATE")))
+                        .content(validPensumJson("MATRIX-ADMIN-CREATE")))
                 .andExpect(status().isCreated());
     }
 
     // ==================================================================================
-    // PUT /api/catalog/curricula/{pensumCode} - ADMIN only
+    // PUT /api/catalog/pensums/{pensumCode} - ADMIN only
     // ==================================================================================
 
     @Test
-    @DisplayName("replaceCurriculum: anonymous is refused with 401")
-    void replaceCurriculum_anonymous_401() throws Exception {
-        mockMvc.perform(put("/api/catalog/curricula/{code}", "MX-REPL-ANON")
+    @DisplayName("replacePensum: anonymous is refused with 401")
+    void replacePensum_anonymous_401() throws Exception {
+        mockMvc.perform(put("/api/catalog/pensums/{code}", "MX-REPL-ANON")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validCurriculumJson("MX-REPL-ANON")))
+                        .content(validPensumJson("MX-REPL-ANON")))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("replaceCurriculum: GUEST is refused with 403")
-    void replaceCurriculum_guest_403() throws Exception {
-        mockMvc.perform(put("/api/catalog/curricula/{code}", "MX-REPL-GUEST").with(guest())
+    @DisplayName("replacePensum: GUEST is refused with 403")
+    void replacePensum_guest_403() throws Exception {
+        mockMvc.perform(put("/api/catalog/pensums/{code}", "MX-REPL-GUEST").with(guest())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validCurriculumJson("MX-REPL-GUEST")))
+                        .content(validPensumJson("MX-REPL-GUEST")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("replaceCurriculum: STUDENT is refused with 403")
-    void replaceCurriculum_student_403() throws Exception {
-        mockMvc.perform(put("/api/catalog/curricula/{code}", "MX-REPL-STUDENT").with(student("s6"))
+    @DisplayName("replacePensum: STUDENT is refused with 403")
+    void replacePensum_student_403() throws Exception {
+        mockMvc.perform(put("/api/catalog/pensums/{code}", "MX-REPL-STUDENT").with(student("s6"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validCurriculumJson("MX-REPL-STUDENT")))
+                        .content(validPensumJson("MX-REPL-STUDENT")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("replaceCurriculum: PROFESSOR is refused with 403")
-    void replaceCurriculum_professor_403() throws Exception {
-        mockMvc.perform(put("/api/catalog/curricula/{code}", "MX-REPL-PROF").with(professor("p6"))
+    @DisplayName("replacePensum: PROFESSOR is refused with 403")
+    void replacePensum_professor_403() throws Exception {
+        mockMvc.perform(put("/api/catalog/pensums/{code}", "MX-REPL-PROF").with(professor("p6"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validCurriculumJson("MX-REPL-PROF")))
+                        .content(validPensumJson("MX-REPL-PROF")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("replaceCurriculum: ADMIN is allowed")
-    void replaceCurriculum_admin_200() throws Exception {
+    @DisplayName("replacePensum: ADMIN is allowed")
+    void replacePensum_admin_200() throws Exception {
         String pensumCode = "MX-REPL-ADMIN";
-        // Setup: the curriculum must already exist for a replace to succeed.
-        mockMvc.perform(post("/api/catalog/curricula").with(admin("a6-setup"))
+        // Setup: the pensum must already exist for a replace to succeed.
+        mockMvc.perform(post("/api/catalog/pensums").with(admin("a6-setup"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validCurriculumJson(pensumCode)))
+                        .content(validPensumJson(pensumCode)))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(put("/api/catalog/curricula/{code}", pensumCode).with(admin("a6"))
+        mockMvc.perform(put("/api/catalog/pensums/{code}", pensumCode).with(admin("a6"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validCurriculumJson(pensumCode)))
+                        .content(validPensumJson(pensumCode)))
                 .andExpect(status().isOk());
     }
 
@@ -831,16 +872,16 @@ class AuthorizationMatrixTest {
                 co.edu.konradlorenz.kapp.semaphore.domain.ProgramLevel.PREGRADO));
     }
 
-    private String validCurriculumJson(String pensumCode) throws Exception {
-        CurriculumAreaDto area = new CurriculumAreaDto("CB", "Ciencias Basicas", "#539392", 3, 4);
+    private String validPensumJson(String pensumCode) throws Exception {
+        PensumAreaDto area = new PensumAreaDto("CB", "Ciencias Basicas", "#539392", 3, 4);
         // A short, fixed course code: unique only needs to hold within this one
         // document, not across every generated pensumCode, and course.code() is
         // capped at 20 chars while some test pensumCodes are already close to that.
-        CurriculumCourseDto course = new CurriculumCourseDto(
+        PensumCourseDto course = new PensumCourseDto(
                 "X1", "X1", "Course for " + pensumCode, 1, 3, 4, null,
                 "CB", false, List.of(), null);
-        CurriculumDto dto = new CurriculumDto(pensumCode, SEEDED_PROGRAM, "Test Program",
-                "Test Faculty", "Test Reform", CurriculumStatus.ACTIVE,
+        PensumDto dto = new PensumDto(pensumCode, SEEDED_PROGRAM, "Test Program",
+                "Test Faculty", "Test Reform", PensumStatus.ACTIVE,
                 3, 4, 1, List.of(area), List.of(course));
         return mapper.writeValueAsString(dto);
     }

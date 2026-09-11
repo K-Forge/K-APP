@@ -1,4 +1,4 @@
-export interface CurriculumArea {
+export interface PensumArea {
   code: string;
   name: string;
   color: string;
@@ -6,7 +6,7 @@ export interface CurriculumArea {
   hours: number;
 }
 
-export interface CurriculumCourse {
+export interface PensumCourse {
   code: string | null;
   pensumItemCode: string;
   name: string;
@@ -19,8 +19,8 @@ export interface CurriculumCourse {
   prerequisites: string[];
 }
 
-/** Mirrors Curriculum in docs/api/semaphore.openapi.yaml - a whole pensum document. */
-export interface Curriculum {
+/** Mirrors Pensum in docs/api/semaphore.openapi.yaml - a whole pensum document. */
+export interface Pensum {
   pensumCode: string;
   programCode: string;
   programName: string;
@@ -30,12 +30,12 @@ export interface Curriculum {
   totalCredits: number;
   totalHours: number;
   levels: number;
-  areas: CurriculumArea[];
-  courses: CurriculumCourse[];
+  areas: PensumArea[];
+  courses: PensumCourse[];
 }
 
-/** A minimal, valid starting document for the "New curriculum" editor. */
-export const CURRICULUM_SKELETON: Curriculum = {
+/** A minimal, valid starting document for the "New pensum" editor. */
+export const PENSUM_SKELETON: Pensum = {
   pensumCode: '',
   programCode: '',
   programName: '',

@@ -8,8 +8,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
  *
  * <p>The program does NOT carry its active pensum code as a field. That would be a second
  * place to write the same fact, and the two would drift the first time an administrator
- * activated a new curriculum without remembering to update the program. The active pensum
- * is derived by querying {@code curricula} for this program's {@link CurriculumStatus#ACTIVE}
+ * activated a new pensum without remembering to update the program. The active pensum
+ * is derived by querying {@code pensums} for this program's {@link PensumStatus#ACTIVE}
  * plan, which is what the unique-per-program invariant is for.
  *
  * @param code    institutional program code, e.g. {@code "506"}

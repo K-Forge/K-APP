@@ -3,7 +3,7 @@ package co.edu.konradlorenz.kapp.schedule.service;
 import co.edu.konradlorenz.kapp.common.error.ApiError;
 import co.edu.konradlorenz.kapp.common.error.BusinessRuleException;
 import co.edu.konradlorenz.kapp.common.error.ResourceNotFoundException;
-import co.edu.konradlorenz.kapp.schedule.catalog.CurriculumCatalogService;
+import co.edu.konradlorenz.kapp.schedule.catalog.PensumCatalogService;
 import co.edu.konradlorenz.kapp.schedule.domain.Enrollment;
 import co.edu.konradlorenz.kapp.schedule.domain.Meeting;
 import co.edu.konradlorenz.kapp.schedule.domain.Schedule;
@@ -32,10 +32,10 @@ public class EnrollmentService {
 
     private final ScheduleRepository repository;
     private final ScheduleService scheduleService;
-    private final CurriculumCatalogService catalog;
+    private final PensumCatalogService catalog;
 
     public EnrollmentService(ScheduleRepository repository, ScheduleService scheduleService,
-                             CurriculumCatalogService catalog) {
+                             PensumCatalogService catalog) {
         this.repository = repository;
         this.scheduleService = scheduleService;
         this.catalog = catalog;
@@ -67,7 +67,7 @@ public class EnrollmentService {
         if (catalog.find(schedule.pensumCode(), request.courseCode(), request.pensumItemCode()).isEmpty()) {
             // Not a rejection: the catalogue is a courtesy cross-check, not the source of
             // truth for a hand-entered timetable, and may simply be unreachable right now.
-            log.debug("Course {} ({}) not found in curriculum {} for user {}; "
+            log.debug("Course {} ({}) not found in pensum {} for user {}; "
                             + "storing the write-time snapshot as sent",
                     request.courseCode(), request.pensumItemCode(), schedule.pensumCode(), userId);
         }

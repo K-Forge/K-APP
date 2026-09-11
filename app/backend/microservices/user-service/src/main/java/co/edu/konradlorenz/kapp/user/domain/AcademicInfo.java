@@ -14,8 +14,8 @@ import jakarta.validation.constraints.Pattern;
  *
  * @param studentCode  university student code
  * @param programCode  programme code; {@code 506} is Ingenieria de Sistemas
- * @param pensumCode   curriculum version the student is bound to. Not derivable from the
- *                     programme: a student who enrolled under an earlier curriculum keeps
+ * @param pensumCode   pensum version the student is bound to. Not derivable from the
+ *                     programme: a student who enrolled under an earlier pensum keeps
  *                     the pensum they started on
  * @param currentLevel semester currently enrolled in, 1-12 per the contract
  */

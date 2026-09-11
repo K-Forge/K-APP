@@ -7,8 +7,8 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
- * Owns the academic catalog (programs and curricula) and each student's curriculum
- * progress - the semaforo. The curriculum IS the semaforo at Konrad Lorenz: the grid a
+ * Owns the academic catalog (programs and pensums) and each student's pensum
+ * progress - the semaforo. The pensum IS the semaforo at Konrad Lorenz: the grid a
  * student sees is the pensum coloured by their own progress, so the two are one service.
  *
  * <p>It deliberately does NOT own the student's profile - name, contact details, or the

@@ -1,10 +1,10 @@
 import { inject, Injectable } from '@angular/core';
 import type { Observable } from 'rxjs';
 import { ApiClientService } from '../../../core/http/api-client.service';
-import type { CurriculumImportReport } from './import.model';
+import type { PensumImportReport } from './import.model';
 
 @Injectable({ providedIn: 'root' })
-export class CurriculumImportService {
+export class PensumImportService {
   private readonly api = inject(ApiClientService);
 
   /**
@@ -14,11 +14,11 @@ export class CurriculumImportService {
    * can append the multipart boundary, and setting it by hand produces a body the server cannot
    * parse.
    */
-  upload(file: File, dryRun: boolean): Observable<CurriculumImportReport> {
+  upload(file: File, dryRun: boolean): Observable<PensumImportReport> {
     const body = new FormData();
     body.append('file', file);
-    return this.api.post<CurriculumImportReport>(
-      `/api/catalog/curricula/import?dryRun=${dryRun}`,
+    return this.api.post<PensumImportReport>(
+      `/api/catalog/pensums/import?dryRun=${dryRun}`,
       body,
     );
   }

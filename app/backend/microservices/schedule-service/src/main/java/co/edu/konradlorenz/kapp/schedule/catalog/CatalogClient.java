@@ -15,12 +15,12 @@ import java.util.List;
  * {@code KappFeignAutoConfiguration} - nothing here has to touch a token.
  *
  * <p>semaphore-service is being built in parallel and may not be reachable while this
- * service runs; see {@link CurriculumCatalogService} for how that is handled, and mock
+ * service runs; see {@link PensumCatalogService} for how that is handled, and mock
  * this interface directly in tests rather than standing up a real semaphore-service.
  */
 @FeignClient(name = "semaphore-service", path = "/api/catalog")
 public interface CatalogClient {
 
-    @GetMapping("/curricula/{pensumCode}/courses")
-    List<CurriculumCourseView> listCurriculumCourses(@PathVariable("pensumCode") String pensumCode);
+    @GetMapping("/pensums/{pensumCode}/courses")
+    List<PensumCourseView> listPensumCourses(@PathVariable("pensumCode") String pensumCode);
 }

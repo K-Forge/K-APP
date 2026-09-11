@@ -52,7 +52,7 @@ info:
       this service carries a period; the format applies to the course and
       assignment services that read these profiles.
     - Program code `506` is Ingeniería de Sistemas; pensum `1015` is its
-      current curriculum version.
+      current pensum version.
     - Errors share the `ApiError` shape across every KApp service.
 
     ## Mocking
@@ -693,8 +693,8 @@ components:
           type: string
           pattern: '^\d{1,10}$'
           description: |
-            Curriculum version the student is bound to. Students who enrolled
-            under an earlier curriculum keep their original pensum, so this is
+            Pensum version the student is bound to. Students who enrolled
+            under an earlier pensum keep their original pensum, so this is
             not derivable from the program alone.
           example: '1015'
         currentLevel:

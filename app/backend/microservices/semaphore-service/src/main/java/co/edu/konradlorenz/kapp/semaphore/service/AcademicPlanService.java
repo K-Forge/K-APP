@@ -5,10 +5,10 @@ import co.edu.konradlorenz.kapp.common.error.BusinessRuleException;
 import co.edu.konradlorenz.kapp.common.error.ConflictException;
 import co.edu.konradlorenz.kapp.common.error.ResourceNotFoundException;
 import co.edu.konradlorenz.kapp.semaphore.domain.AcademicPlan;
-import co.edu.konradlorenz.kapp.semaphore.domain.Curriculum;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumCourse;
+import co.edu.konradlorenz.kapp.semaphore.domain.Pensum;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumCourse;
 import co.edu.konradlorenz.kapp.semaphore.repository.AcademicPlanRepository;
-import co.edu.konradlorenz.kapp.semaphore.repository.CurriculumRepository;
+import co.edu.konradlorenz.kapp.semaphore.repository.PensumRepository;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.AcademicPlanRequest;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.AcademicPlanUpdate;
 import org.springframework.stereotype.Service;
@@ -41,11 +41,11 @@ public class AcademicPlanService {
     static final int MAX_PLANS_PER_PENSUM = 10;
 
     private final AcademicPlanRepository plans;
-    private final CurriculumRepository curricula;
+    private final PensumRepository pensums;
 
-    public AcademicPlanService(AcademicPlanRepository plans, CurriculumRepository curricula) {
+    public AcademicPlanService(AcademicPlanRepository plans, PensumRepository pensums) {
         this.plans = plans;
-        this.curricula = curricula;
+        this.pensums = pensums;
     }
 
     public List<AcademicPlan> list(String userId) {
@@ -58,25 +58,25 @@ public class AcademicPlanService {
 
     /**
      * @throws ResourceNotFoundException (404) if the pensum does not exist. A plan over a
-     *                                    curriculum nobody published cannot be drawn
+     *                                    pensum nobody published cannot be drawn
      * @throws ConflictException         (409) at {@link #MAX_PLANS_PER_PENSUM}
      */
     public AcademicPlan create(String userId, AcademicPlanRequest request) {
-        Curriculum curriculum = curricula.findById(request.pensumCode())
-                .orElseThrow(() -> new ResourceNotFoundException("Curriculum", request.pensumCode()));
+        Pensum pensum = pensums.findById(request.pensumCode())
+                .orElseThrow(() -> new ResourceNotFoundException("Pensum", request.pensumCode()));
 
-        long existing = plans.countByUserIdAndPensumCode(userId, curriculum.pensumCode());
+        long existing = plans.countByUserIdAndPensumCode(userId, pensum.pensumCode());
         if (existing >= MAX_PLANS_PER_PENSUM) {
             throw new ConflictException(
                     "You already have %d plans for pensum %s, which is the maximum"
-                            .formatted(MAX_PLANS_PER_PENSUM, curriculum.pensumCode()),
-                    List.of(new ApiError.FieldIssue("pensumCode", curriculum.pensumCode())));
+                            .formatted(MAX_PLANS_PER_PENSUM, pensum.pensumCode()),
+                    List.of(new ApiError.FieldIssue("pensumCode", pensum.pensumCode())));
         }
 
         // The first plan for a pensum is the primary one. Anything else would leave a student
         // who created exactly one plan with no plan for the app to open on.
         boolean primary = existing == 0;
-        return plans.save(AcademicPlan.create(userId, request.name(), curriculum.pensumCode(), primary));
+        return plans.save(AcademicPlan.create(userId, request.name(), pensum.pensumCode(), primary));
     }
 
     /**
@@ -132,10 +132,10 @@ public class AcademicPlanService {
      */
     public AcademicPlan place(String userId, String planId, String code, int plannedLevel) {
         AcademicPlan plan = requireOwn(userId, planId);
-        Curriculum curriculum = curricula.findById(plan.pensumCode())
-                .orElseThrow(() -> new ResourceNotFoundException("Curriculum", plan.pensumCode()));
+        Pensum pensum = pensums.findById(plan.pensumCode())
+                .orElseThrow(() -> new ResourceNotFoundException("Pensum", plan.pensumCode()));
 
-        if (!addressableCodes(curriculum).contains(code)) {
+        if (!addressableCodes(pensum).contains(code)) {
             throw new BusinessRuleException(
                     "%s is not an item of pensum %s".formatted(code, plan.pensumCode()),
                     List.of(new ApiError.FieldIssue("code", "unknown in this pensum")));
@@ -157,9 +157,9 @@ public class AcademicPlanService {
         return plans.save(plan.withoutPlacement(code));
     }
 
-    private static Set<String> addressableCodes(Curriculum curriculum) {
-        return curriculum.coursesInDisplayOrder().stream()
-                .map(CurriculumCourse::addressableCode)
+    private static Set<String> addressableCodes(Pensum pensum) {
+        return pensum.coursesInDisplayOrder().stream()
+                .map(PensumCourse::addressableCode)
                 .collect(Collectors.toSet());
     }
 

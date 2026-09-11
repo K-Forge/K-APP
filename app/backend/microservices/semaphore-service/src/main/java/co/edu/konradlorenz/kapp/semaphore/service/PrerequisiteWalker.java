@@ -1,7 +1,7 @@
 package co.edu.konradlorenz.kapp.semaphore.service;
 
 import co.edu.konradlorenz.kapp.semaphore.domain.CourseStatus;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumCourse;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumCourse;
 import co.edu.konradlorenz.kapp.semaphore.domain.StudentProgressCourse;
 import org.springframework.stereotype.Component;
 
@@ -31,7 +31,7 @@ public class PrerequisiteWalker {
      * @return true when {@code item} has no prerequisites, or every prerequisite entry
      *         is present and {@link CourseStatus#PASSED}
      */
-    public boolean allPrerequisitesPassed(CurriculumCourse item, Map<String, StudentProgressCourse> byCourseCode) {
+    public boolean allPrerequisitesPassed(PensumCourse item, Map<String, StudentProgressCourse> byCourseCode) {
         return item.prerequisites().stream().allMatch(code -> {
             StudentProgressCourse entry = byCourseCode.get(code);
             return entry != null && entry.status() == CourseStatus.PASSED;

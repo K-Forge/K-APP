@@ -167,7 +167,7 @@ rather than a regex scan. MongoDB 7 reports `IXSCAN` for an unanchored case-inse
 walking the whole index; the assertion to make is about bounds and documents examined, not the stage
 name.
 
-**semaphore** — `programs`, `curricula` (a pensum with its courses, areas and prerequisite graph),
+**semaphore** — `programs`, `pensums` (a pensum with its courses, areas and prerequisite graph),
 `studentProgress` (one document per student, materialised lazily on first read), and
 `academicPlans`, which stores **only the courses a student moved**. The pensum stays immutable; the
 plan is a thin layer over it, so a correction to the published pensum reaches every plan without

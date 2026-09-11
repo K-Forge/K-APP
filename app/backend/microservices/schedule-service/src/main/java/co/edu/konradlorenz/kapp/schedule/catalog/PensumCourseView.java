@@ -3,8 +3,8 @@ package co.edu.konradlorenz.kapp.schedule.catalog;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 /**
- * The slice of {@code semaphore-service}'s {@code CurriculumCourse} this service actually
- * needs, from {@code GET /api/catalog/curricula/{pensumCode}/courses}
+ * The slice of {@code semaphore-service}'s {@code PensumCourse} this service actually
+ * needs, from {@code GET /api/catalog/pensums/{pensumCode}/courses}
  * ({@code docs/api/semaphore.openapi.yaml}).
  *
  * <p>{@code @JsonIgnoreProperties(ignoreUnknown = true)} is required, not decorative: this
@@ -18,7 +18,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * therefore done by {@code pensumItemCode}, which is never null.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record CurriculumCourseView(
+public record PensumCourseView(
         String code,
         String pensumItemCode,
         String name,

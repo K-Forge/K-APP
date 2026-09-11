@@ -65,7 +65,7 @@ can escalate.
 
 | # | Requirement | State |
 |---|---|---|
-| SEM-01 | Programs and curricula (pensums) with full administrative CRUD | Built |
+| SEM-01 | Programs and pensums (pensums) with full administrative CRUD | Built |
 | SEM-02 | A student's progress per course, materialised lazily on first read | Built |
 | SEM-03 | Prerequisite-aware eligibility: which courses the student may take next | Built |
 | SEM-04 | Elective slots resolved to real courses | Built |
@@ -73,7 +73,7 @@ can escalate.
 | SEM-06 | Moving a course **never** affects eligibility. Planning is not passing | Built |
 | SEM-07 | No cap on courses per level: students take more or fewer than the nominal six | Built |
 | SEM-08 | Bulk import of pensums from CSV, validating the whole file before writing anything | Built |
-| SEM-09 | Deleting never cascades: a program with curricula, or a curriculum with students, is refused with `409` naming what blocks it | Built |
+| SEM-09 | Deleting never cascades: a program with pensums, or a pensum with students, is refused with `409` naming what blocks it | Built |
 
 ### 3.4 Timetable (SCHED)
 
@@ -134,7 +134,7 @@ can escalate.
 
 ## 5. Constraints
 
-- **No official academic data.** Accounts, curricula and timetables are created inside KApp.
+- **No official academic data.** Accounts, pensums and timetables are created inside KApp.
 - **No deployment.** It runs on the lead developer's machine until university hardware exists.
 - **November 2026.** The thesis deadline is fixed; scope is what moves.
 - **Six people, part time.** Every operational cost is paid by somebody's evening.

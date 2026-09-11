@@ -1,6 +1,6 @@
 package co.edu.konradlorenz.kapp.semaphore.web;
 
-import co.edu.konradlorenz.kapp.semaphore.repository.CurriculumRepository;
+import co.edu.konradlorenz.kapp.semaphore.repository.PensumRepository;
 import co.edu.konradlorenz.kapp.semaphore.repository.ProgramRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Bulk import of pensums: {@code POST /api/catalog/curricula/import}.
+ * Bulk import of pensums: {@code POST /api/catalog/pensums/import}.
  *
  * <p>Two behaviours carry the weight. **Nothing is written unless everything validates** — a
  * partial import would leave the catalogue in a state nobody chose. And **declared totals are
@@ -45,7 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "eureka.client.enabled=false",
         "spring.cloud.discovery.enabled=false"
 })
-class CurriculumImportFlowTest {
+class PensumImportFlowTest {
 
     @Container
     @ServiceConnection
@@ -54,7 +54,7 @@ class CurriculumImportFlowTest {
     @Autowired
     private MockMvc mockMvc;
     @Autowired
-    private CurriculumRepository curricula;
+    private PensumRepository pensums;
     @Autowired
     private ProgramRepository programs;
 
@@ -66,9 +66,9 @@ class CurriculumImportFlowTest {
 
     @AfterEach
     void removeImported() {
-        curricula.findAll().stream()
+        pensums.findAll().stream()
                 .filter(c -> c.pensumCode().startsWith("IMP-"))
-                .forEach(c -> curricula.deleteById(c.pensumCode()));
+                .forEach(c -> pensums.deleteById(c.pensumCode()));
         programs.findAll().stream()
                 .filter(p -> p.code().startsWith("IMP-"))
                 .forEach(p -> programs.deleteById(p.code()));
@@ -83,11 +83,11 @@ class CurriculumImportFlowTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dryRun").value(false))
                 .andExpect(jsonPath("$.rowsRead").value(2))
-                .andExpect(jsonPath("$.curricula[0].pensumCode").value("IMP-OK"))
-                .andExpect(jsonPath("$.curricula[0].courses").value(2))
-                .andExpect(jsonPath("$.curricula[0].curriculumCreated").value(true));
+                .andExpect(jsonPath("$.pensums[0].pensumCode").value("IMP-OK"))
+                .andExpect(jsonPath("$.pensums[0].courses").value(2))
+                .andExpect(jsonPath("$.pensums[0].pensumCreated").value(true));
 
-        assertThat(curricula.findById("IMP-OK")).isPresent();
+        assertThat(pensums.findById("IMP-OK")).isPresent();
         assertThat(programs.findById("IMP-PROG")).isPresent();
     }
 
@@ -96,7 +96,7 @@ class CurriculumImportFlowTest {
     void importedPensumIsReadable() throws Exception {
         mockMvc.perform(upload(twoCourseFile("IMP-READ", 6, 8))).andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/catalog/curricula/{code}", "IMP-READ").with(admin("reader")))
+        mockMvc.perform(get("/api/catalog/pensums/{code}", "IMP-READ").with(admin("reader")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.courses.length()").value(2))
                 .andExpect(jsonPath("$.areas.length()").value(1));
@@ -107,7 +107,7 @@ class CurriculumImportFlowTest {
     void areaTotalsAreDerived() throws Exception {
         mockMvc.perform(upload(twoCourseFile("IMP-AREAS", 6, 8))).andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/catalog/curricula/{code}", "IMP-AREAS").with(admin("areas")))
+        mockMvc.perform(get("/api/catalog/pensums/{code}", "IMP-AREAS").with(admin("areas")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.areas[0].credits").value(6))
                 .andExpect(jsonPath("$.areas[0].hours").value(8));
@@ -124,7 +124,7 @@ class CurriculumImportFlowTest {
 
         mockMvc.perform(upload(csv))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.curricula.length()").value(2));
+                .andExpect(jsonPath("$.pensums.length()").value(2));
     }
 
     // ── Dry run ────────────────────────────────────────────────────────────────────
@@ -132,15 +132,15 @@ class CurriculumImportFlowTest {
     @Test
     @DisplayName("a dry run reports what would happen and writes nothing")
     void dryRunWritesNothing() throws Exception {
-        mockMvc.perform(multipart("/api/catalog/curricula/import")
+        mockMvc.perform(multipart("/api/catalog/pensums/import")
                         .file(file(twoCourseFile("IMP-DRY", 6, 8)))
                         .param("dryRun", "true")
                         .with(admin("dry")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dryRun").value(true))
-                .andExpect(jsonPath("$.curricula[0].pensumCode").value("IMP-DRY"));
+                .andExpect(jsonPath("$.pensums[0].pensumCode").value("IMP-DRY"));
 
-        assertThat(curricula.findById("IMP-DRY")).isEmpty();
+        assertThat(pensums.findById("IMP-DRY")).isEmpty();
     }
 
     // ── Totals are checked, not trusted ────────────────────────────────────────────
@@ -154,7 +154,7 @@ class CurriculumImportFlowTest {
                 .andExpect(jsonPath("$.details[0].issue")
                         .value(org.hamcrest.Matchers.containsString("99")));
 
-        assertThat(curricula.findById("IMP-CREDITS")).isEmpty();
+        assertThat(pensums.findById("IMP-CREDITS")).isEmpty();
     }
 
     @Test
@@ -235,7 +235,7 @@ class CurriculumImportFlowTest {
 
         mockMvc.perform(upload(csv)).andExpect(status().isBadRequest());
 
-        assertThat(curricula.findById("IMP-ATOMIC")).isEmpty();
+        assertThat(pensums.findById("IMP-ATOMIC")).isEmpty();
         assertThat(programs.findById("IMP-PROG")).isEmpty();
     }
 
@@ -283,11 +283,11 @@ class CurriculumImportFlowTest {
         mockMvc.perform(upload(csv)).andExpect(status().isOk());
 
         String document = mockMvc.perform(
-                        get("/api/catalog/curricula/{code}", "IMP-WORDS").with(admin("editor")))
+                        get("/api/catalog/pensums/{code}", "IMP-WORDS").with(admin("editor")))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
-        mockMvc.perform(put("/api/catalog/curricula/{code}", "IMP-WORDS")
+        mockMvc.perform(put("/api/catalog/pensums/{code}", "IMP-WORDS")
                         .with(admin("editor"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(document))
@@ -306,7 +306,7 @@ class CurriculumImportFlowTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details[?(@.issue=~/.*between 0 and 20.*/)]").isNotEmpty());
 
-        assertThat(curricula.findById("IMP-LONG")).isEmpty();
+        assertThat(pensums.findById("IMP-LONG")).isEmpty();
     }
 
     @Test
@@ -317,7 +317,7 @@ class CurriculumImportFlowTest {
 
         mockMvc.perform(upload(csv)).andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/catalog/curricula/{code}", "IMP-UTF8").with(admin("utf8")))
+        mockMvc.perform(get("/api/catalog/pensums/{code}", "IMP-UTF8").with(admin("utf8")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.courses[0].name").value("Matemáticas Discretas"));
     }
@@ -331,7 +331,7 @@ class CurriculumImportFlowTest {
 
         mockMvc.perform(upload(csv)).andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/catalog/curricula/{code}", "IMP-QUOTE").with(admin("quote")))
+        mockMvc.perform(get("/api/catalog/pensums/{code}", "IMP-QUOTE").with(admin("quote")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.courses[0].name").value("Etica, Ciudadania y Sociedad"));
     }
@@ -341,7 +341,7 @@ class CurriculumImportFlowTest {
     @Test
     @DisplayName("importing without a token is 401")
     void anonymousIsUnauthorized() throws Exception {
-        mockMvc.perform(multipart("/api/catalog/curricula/import")
+        mockMvc.perform(multipart("/api/catalog/pensums/import")
                         .file(file(twoCourseFile("IMP-ANON", 6, 8))))
                 .andExpect(status().isUnauthorized());
     }
@@ -349,7 +349,7 @@ class CurriculumImportFlowTest {
     @Test
     @DisplayName("a student cannot import pensums")
     void studentIsForbidden() throws Exception {
-        mockMvc.perform(multipart("/api/catalog/curricula/import")
+        mockMvc.perform(multipart("/api/catalog/pensums/import")
                         .file(file(twoCourseFile("IMP-STU", 6, 8)))
                         .with(jwtWithRole("s1", "ROLE_STUDENT")))
                 .andExpect(status().isForbidden());
@@ -358,7 +358,7 @@ class CurriculumImportFlowTest {
     @Test
     @DisplayName("a professor cannot import pensums")
     void professorIsForbidden() throws Exception {
-        mockMvc.perform(multipart("/api/catalog/curricula/import")
+        mockMvc.perform(multipart("/api/catalog/pensums/import")
                         .file(file(twoCourseFile("IMP-PROF", 6, 8)))
                         .with(jwtWithRole("p1", "ROLE_PROFESSOR")))
                 .andExpect(status().isForbidden());
@@ -367,7 +367,7 @@ class CurriculumImportFlowTest {
     // ── Helpers ────────────────────────────────────────────────────────────────────
 
     private org.springframework.test.web.servlet.RequestBuilder upload(String csv) {
-        return multipart("/api/catalog/curricula/import").file(file(csv)).with(admin("importer"));
+        return multipart("/api/catalog/pensums/import").file(file(csv)).with(admin("importer"));
     }
 
     private static MockMultipartFile file(String csv) {

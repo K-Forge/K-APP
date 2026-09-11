@@ -26,7 +26,7 @@ public record UserProfileResponse(
      * <p>{@code pensumCode} is deliberately not read here even though user-service's
      * payload carries one: this service is the source of truth for which pensum a
      * student is pinned to, resolved independently from {@code programCode} via the
-     * catalog's own {@code ACTIVE} curriculum. Trusting a second copy of that fact would
+     * catalog's own {@code ACTIVE} pensum. Trusting a second copy of that fact would
      * reintroduce exactly the drift {@link co.edu.konradlorenz.kapp.semaphore.domain.Program}
      * avoids by not storing {@code activePensumCode}.
      *

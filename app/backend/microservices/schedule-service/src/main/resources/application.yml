@@ -26,7 +26,7 @@ spring:
   # so an hour-old answer is as good as a fresh one, and it means a briefly-down
   # semaphore-service never blocks a student from entering their own timetable by hand.
   cache:
-    cache-names: curriculumCourses
+    cache-names: pensumCourses
     caffeine:
       spec: expireAfterWrite=1h,maximumSize=1000
 

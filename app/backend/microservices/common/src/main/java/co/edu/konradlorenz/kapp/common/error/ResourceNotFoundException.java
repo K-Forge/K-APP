@@ -10,7 +10,7 @@ public class ResourceNotFoundException extends RuntimeException {
     }
 
     /**
-     * @param resource the domain type, e.g. {@code Curriculum}
+     * @param resource the domain type, e.g. {@code Pensum}
      * @param key      the identifier that was looked up
      */
     public ResourceNotFoundException(String resource, Object key) {

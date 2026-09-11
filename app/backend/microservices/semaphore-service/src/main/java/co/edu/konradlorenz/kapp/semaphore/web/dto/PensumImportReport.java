@@ -7,12 +7,12 @@ import java.util.List;
  *
  * @param dryRun   when true, nothing was written
  * @param rowsRead data rows in the file, header excluded
- * @param curricula one entry per pensum found in the file
+ * @param pensums one entry per pensum found in the file
  */
-public record CurriculumImportReport(
+public record PensumImportReport(
         boolean dryRun,
         int rowsRead,
-        List<ImportedCurriculum> curricula
+        List<ImportedPensum> pensums
 ) {
 
     /**
@@ -23,7 +23,7 @@ public record CurriculumImportReport(
      *                        has to surface at import time rather than months later when a
      *                        student wonders why their semáforo does not add up
      */
-    public record ImportedCurriculum(
+    public record ImportedPensum(
             String pensumCode,
             String programCode,
             String programName,
@@ -33,7 +33,7 @@ public record CurriculumImportReport(
             int declaredHours,
             int computedHours,
             boolean programCreated,
-            boolean curriculumCreated
+            boolean pensumCreated
     ) {
     }
 }

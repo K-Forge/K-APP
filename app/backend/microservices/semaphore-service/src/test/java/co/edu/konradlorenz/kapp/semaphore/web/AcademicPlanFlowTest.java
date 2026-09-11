@@ -480,7 +480,7 @@ class AcademicPlanFlowTest {
     }
 
     private List<String> allPensumCodes(String subject) throws Exception {
-        String body = mockMvc.perform(get("/api/catalog/curricula/{code}/courses", SEEDED_PENSUM)
+        String body = mockMvc.perform(get("/api/catalog/pensums/{code}/courses", SEEDED_PENSUM)
                         .with(student(subject)))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();

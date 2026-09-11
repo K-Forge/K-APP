@@ -46,13 +46,13 @@ public class V004_AccentTheSeededProgramName {
                 new Update().set("name", ACCENTED_NAME).set("faculty", ACCENTED_FACULTY),
                 "programs").getModifiedCount();
 
-        long curricula = mongo.updateFirst(
+        long pensums = mongo.updateFirst(
                 new Query(Criteria.where("_id").is(PENSUM_CODE)
                         .and("programName").is(PLAIN_NAME)),
                 new Update().set("programName", ACCENTED_NAME).set("faculty", ACCENTED_FACULTY),
-                "curricula").getModifiedCount();
+                "pensums").getModifiedCount();
 
-        log.info("Accented {} program and {} curriculum document(s)", programs, curricula);
+        log.info("Accented {} program and {} pensum document(s)", programs, pensums);
     }
 
     @RollbackExecution
@@ -64,6 +64,6 @@ public class V004_AccentTheSeededProgramName {
         mongo.updateFirst(
                 new Query(Criteria.where("_id").is(PENSUM_CODE).and("programName").is(ACCENTED_NAME)),
                 new Update().set("programName", PLAIN_NAME).set("faculty", PLAIN_FACULTY),
-                "curricula");
+                "pensums");
     }
 }

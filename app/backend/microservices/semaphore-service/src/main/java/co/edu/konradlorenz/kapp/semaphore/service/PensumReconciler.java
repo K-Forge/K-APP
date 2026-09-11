@@ -1,7 +1,7 @@
 package co.edu.konradlorenz.kapp.semaphore.service;
 
-import co.edu.konradlorenz.kapp.semaphore.domain.Curriculum;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumCourse;
+import co.edu.konradlorenz.kapp.semaphore.domain.Pensum;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumCourse;
 import co.edu.konradlorenz.kapp.semaphore.domain.StudentProgress;
 import co.edu.konradlorenz.kapp.semaphore.domain.StudentProgressCourse;
 import co.edu.konradlorenz.kapp.semaphore.repository.StudentProgressRepository;
@@ -13,12 +13,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Brings a pinned progress document back in step with the curriculum it names, and
+ * Brings a pinned progress document back in step with the pensum it names, and
  * reports exactly what moved.
  *
- * <p>Nothing is ever silently dropped or invented: an item the curriculum gained is
+ * <p>Nothing is ever silently dropped or invented: an item the pensum gained is
  * materialised as {@code PENDING} and named in {@code addedCourses}; an item the
- * document has that the curriculum no longer declares is <strong>kept</strong> - a
+ * document has that the pensum no longer declares is <strong>kept</strong> - a
  * passed grade is never destroyed - and named in {@code removedCourses}. This is the
  * one place that walks both collections, so {@code GET /api/semaphore/me} and every
  * mutating {@code /me/**} endpoint agree on what the student's semaforo currently
@@ -29,25 +29,25 @@ import java.util.Map;
  * comparison that found nothing new.
  */
 @Component
-public class CurriculumReconciler {
+public class PensumReconciler {
 
     private final StudentProgressRepository progressRepository;
 
-    public CurriculumReconciler(StudentProgressRepository progressRepository) {
+    public PensumReconciler(StudentProgressRepository progressRepository) {
         this.progressRepository = progressRepository;
     }
 
     /**
      * @param progress   as pinned; already lazily created
-     * @param curriculum the curriculum {@code progress.pensumCode()} names
+     * @param pensum the pensum {@code progress.pensumCode()} names
      */
-    public Result reconcile(StudentProgress progress, Curriculum curriculum) {
+    public Result reconcile(StudentProgress progress, Pensum pensum) {
         Map<String, StudentProgressCourse> existingByItem = progress.byPensumItemCode();
-        Map<String, CurriculumCourse> curriculumByItem = curriculum.byPensumItemCode();
+        Map<String, PensumCourse> pensumByItem = pensum.byPensumItemCode();
 
         List<StudentProgressCourse> merged = new ArrayList<>();
         List<String> added = new ArrayList<>();
-        for (CurriculumCourse item : curriculum.coursesInDisplayOrder()) {
+        for (PensumCourse item : pensum.coursesInDisplayOrder()) {
             StudentProgressCourse existing = existingByItem.get(item.pensumItemCode());
             if (existing != null) {
                 merged.add(existing);
@@ -59,7 +59,7 @@ public class CurriculumReconciler {
 
         List<String> removed = new ArrayList<>();
         for (StudentProgressCourse existing : progress.courses()) {
-            if (!curriculumByItem.containsKey(existing.pensumItemCode())) {
+            if (!pensumByItem.containsKey(existing.pensumItemCode())) {
                 merged.add(existing);
                 removed.add(existing.addressableCode());
             }

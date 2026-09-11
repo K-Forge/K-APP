@@ -2,15 +2,15 @@ package co.edu.konradlorenz.kapp.semaphore.service;
 
 import co.edu.konradlorenz.kapp.common.error.ApiError;
 import co.edu.konradlorenz.kapp.common.error.BusinessRuleException;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumStatus;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumStatus;
 import co.edu.konradlorenz.kapp.semaphore.domain.Program;
 import co.edu.konradlorenz.kapp.semaphore.domain.ProgramLevel;
-import co.edu.konradlorenz.kapp.semaphore.repository.CurriculumRepository;
+import co.edu.konradlorenz.kapp.semaphore.repository.PensumRepository;
 import co.edu.konradlorenz.kapp.semaphore.repository.ProgramRepository;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumAreaDto;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumCourseDto;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumDto;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumImportReport;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumAreaDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumCourseDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumImportReport;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import org.apache.commons.csv.CSVFormat;
@@ -51,9 +51,9 @@ import java.util.Set;
  * later; refusing it puts it in front of whoever is doing the transcription, now.
  */
 @Service
-public class CurriculumCsvImporter {
+public class PensumCsvImporter {
 
-    private static final Logger log = LoggerFactory.getLogger(CurriculumCsvImporter.class);
+    private static final Logger log = LoggerFactory.getLogger(PensumCsvImporter.class);
 
     /**
      * Enough issues to fix a whole batch in one pass, few enough that the response stays
@@ -69,8 +69,8 @@ public class CurriculumCsvImporter {
             "credits", "weeklyHours", "isElectiveSlot", "prerequisites", "sinuCode");
 
     private final ProgramRepository programs;
-    private final CurriculumRepository curricula;
-    private final CurriculumValidator validator;
+    private final PensumRepository pensums;
+    private final PensumValidator validator;
     /**
      * The same bean validator the write endpoints use.
      *
@@ -80,15 +80,15 @@ public class CurriculumCsvImporter {
      */
     private final Validator beanValidator;
 
-    public CurriculumCsvImporter(ProgramRepository programs, CurriculumRepository curricula,
-                                  CurriculumValidator validator, Validator beanValidator) {
+    public PensumCsvImporter(ProgramRepository programs, PensumRepository pensums,
+                                  PensumValidator validator, Validator beanValidator) {
         this.programs = programs;
-        this.curricula = curricula;
+        this.pensums = pensums;
         this.validator = validator;
         this.beanValidator = beanValidator;
     }
 
-    public CurriculumImportReport importFrom(Reader csv, boolean dryRun) {
+    public PensumImportReport importFrom(Reader csv, boolean dryRun) {
         List<ApiError.FieldIssue> issues = new ArrayList<>();
         Map<String, PensumDraft> drafts = new LinkedHashMap<>();
         int rowsRead = 0;
@@ -122,8 +122,8 @@ public class CurriculumCsvImporter {
                     List.of(new ApiError.FieldIssue("file", "only a header, or empty")));
         }
 
-        List<CurriculumImportReport.ImportedCurriculum> summaries = new ArrayList<>();
-        List<CurriculumDto> ready = new ArrayList<>();
+        List<PensumImportReport.ImportedPensum> summaries = new ArrayList<>();
+        List<PensumDto> ready = new ArrayList<>();
         List<Program> programsToWrite = new ArrayList<>();
 
         for (PensumDraft draft : drafts.values()) {
@@ -132,15 +132,15 @@ public class CurriculumCsvImporter {
             if (draft.headerBroken) {
                 continue;
             }
-            CurriculumDto dto = draft.toDto();
+            PensumDto dto = draft.toDto();
 
-            int computedCredits = dto.courses().stream().mapToInt(CurriculumCourseDto::credits).sum();
-            // A curriculum's `totalHours` is the sum of WEEKLY hours, not of contact hours.
+            int computedCredits = dto.courses().stream().mapToInt(PensumCourseDto::credits).sum();
+            // A pensum's `totalHours` is the sum of WEEKLY hours, not of contact hours.
             // The seeded Ingeniería de Sistemas plan declares 194 against 197 actual weekly
             // hours; summing weeklyHours * 16 instead would have produced 3152 and reported
             // every correct file as broken.
             int computedHours = dto.courses().stream()
-                    .mapToInt(CurriculumCourseDto::weeklyHours).sum();
+                    .mapToInt(PensumCourseDto::weeklyHours).sum();
 
             if (computedCredits != draft.declaredCredits) {
                 issues.add(new ApiError.FieldIssue(
@@ -158,7 +158,7 @@ public class CurriculumCsvImporter {
             // The annotations first - lengths, blanks, the colour pattern - then the rules that
             // need the whole document. Reported the same way, labelled with the pensum, because
             // one file carries many.
-            for (ConstraintViolation<CurriculumDto> v : beanValidator.validate(dto)) {
+            for (ConstraintViolation<PensumDto> v : beanValidator.validate(dto)) {
                 issues.add(new ApiError.FieldIssue(
                         "pensum " + draft.pensumCode + " · " + v.getPropertyPath(), v.getMessage()));
             }
@@ -173,11 +173,11 @@ public class CurriculumCsvImporter {
 
             ready.add(dto);
             programsToWrite.add(draft.toProgram());
-            summaries.add(new CurriculumImportReport.ImportedCurriculum(
+            summaries.add(new PensumImportReport.ImportedPensum(
                     draft.pensumCode, draft.programCode, draft.programName, dto.courses().size(),
                     draft.declaredCredits, computedCredits, draft.declaredHours, computedHours,
                     !programs.existsById(draft.programCode),
-                    !curricula.existsById(draft.pensumCode)));
+                    !pensums.existsById(draft.pensumCode)));
         }
 
         if (!issues.isEmpty()) {
@@ -186,11 +186,11 @@ public class CurriculumCsvImporter {
 
         if (!dryRun) {
             programsToWrite.forEach(programs::save);
-            ready.forEach(dto -> curricula.save(dto.toDomain()));
-            log.info("Imported {} curricula from CSV ({} rows)", ready.size(), rowsRead);
+            ready.forEach(dto -> pensums.save(dto.toDomain()));
+            log.info("Imported {} pensums from CSV ({} rows)", ready.size(), rowsRead);
         }
 
-        return new CurriculumImportReport(dryRun, rowsRead, summaries);
+        return new PensumImportReport(dryRun, rowsRead, summaries);
     }
 
     private void readRow(CSVRecord record, long line, Map<String, PensumDraft> drafts,
@@ -261,16 +261,16 @@ public class CurriculumCsvImporter {
         private String faculty;
         private ProgramLevel programLevel;
         private String reform;
-        private CurriculumStatus status;
+        private PensumStatus status;
         /** True once the first row failed to parse: nothing about this pensum can be trusted. */
         private boolean headerBroken;
         private int declaredCredits;
         private int declaredHours;
         private int levels;
 
-        private final Map<String, CurriculumAreaDto> areas = new LinkedHashMap<>();
+        private final Map<String, PensumAreaDto> areas = new LinkedHashMap<>();
         private final Map<String, int[]> areaTotals = new LinkedHashMap<>();
-        private final List<CurriculumCourseDto> courses = new ArrayList<>();
+        private final List<PensumCourseDto> courses = new ArrayList<>();
         private final Set<String> seenItemCodes = new LinkedHashSet<>();
 
         PensumDraft(String pensumCode) {
@@ -283,7 +283,7 @@ public class CurriculumCsvImporter {
             faculty = required(r, "faculty");
             programLevel = enumValue(ProgramLevel.class, required(r, "programLevel"), "programLevel");
             reform = required(r, "reform");
-            status = enumValue(CurriculumStatus.class, required(r, "pensumStatus"), "pensumStatus");
+            status = enumValue(PensumStatus.class, required(r, "pensumStatus"), "pensumStatus");
             declaredCredits = integer(r, "declaredCredits");
             declaredHours = integer(r, "declaredHours");
             levels = integer(r, "levels");
@@ -322,7 +322,7 @@ public class CurriculumCsvImporter {
 
             String name = r.get("areaName");
             String color = r.get("areaColor");
-            areas.putIfAbsent(code, new CurriculumAreaDto(code,
+            areas.putIfAbsent(code, new PensumAreaDto(code,
                     name == null || name.isBlank() ? code : name.trim(),
                     color == null || color.isBlank() ? "#888888" : color.trim(), 0, 0));
         }
@@ -336,7 +336,7 @@ public class CurriculumCsvImporter {
             boolean elective = booleanValue(r, "isElectiveSlot");
             String code = blankToNull(r.get("courseCode"));
 
-            courses.add(new CurriculumCourseDto(
+            courses.add(new PensumCourseDto(
                     code,
                     itemCode,
                     required(r, "courseName"),
@@ -350,14 +350,14 @@ public class CurriculumCsvImporter {
                     blankToNull(r.get("sinuCode"))));
         }
 
-        CurriculumDto toDto() {
-            List<CurriculumAreaDto> withTotals = areas.values().stream()
+        PensumDto toDto() {
+            List<PensumAreaDto> withTotals = areas.values().stream()
                     .map(a -> {
                         int[] t = areaTotals.getOrDefault(a.code(), new int[2]);
-                        return new CurriculumAreaDto(a.code(), a.name(), a.color(), t[0], t[1]);
+                        return new PensumAreaDto(a.code(), a.name(), a.color(), t[0], t[1]);
                     })
                     .toList();
-            return new CurriculumDto(pensumCode, programCode, programName, faculty, reform,
+            return new PensumDto(pensumCode, programCode, programName, faculty, reform,
                     status, declaredCredits, declaredHours, levels, withTotals, courses);
         }
 

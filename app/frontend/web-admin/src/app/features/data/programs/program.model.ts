@@ -20,9 +20,9 @@ export interface Program {
 /**
  * Mirrors ProgramRequest - the create/replace payload.
  *
- * `activePensumCode` is absent: it is derived from the curricula that point at the program, not
+ * `activePensumCode` is absent: it is derived from the pensums that point at the program, not
  * set directly, so accepting it here would let the portal claim a pensum is active when no
- * curriculum says so.
+ * pensum says so.
  */
 export interface ProgramRequest {
   code: string;

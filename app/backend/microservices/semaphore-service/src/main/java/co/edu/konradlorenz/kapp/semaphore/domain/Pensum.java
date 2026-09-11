@@ -13,7 +13,7 @@ import java.util.Optional;
  * A pensum - the whole degree plan a semaforo is drawn from.
  *
  * <h2>Why this lives beside student progress</h2>
- * The curriculum IS the semaforo. What a student opens is the pensum grid coloured by
+ * The pensum IS the semaforo. What a student opens is the pensum grid coloured by
  * their own progress, so splitting the two would make the most-used screen in the app a
  * two-service read on every open.
  *
@@ -36,22 +36,22 @@ import java.util.Optional;
  * @param areas        knowledge areas in display order - the grid rows
  * @param courses      every item of the plan, fixed courses and elective slots alike
  */
-@Document(collection = "curricula")
-public record Curriculum(
+@Document(collection = "pensums")
+public record Pensum(
         @Id String pensumCode,
         String programCode,
         String programName,
         String faculty,
         String reform,
-        CurriculumStatus status,
+        PensumStatus status,
         int totalCredits,
         int totalHours,
         int levels,
-        List<CurriculumArea> areas,
-        List<CurriculumCourse> courses
+        List<PensumArea> areas,
+        List<PensumCourse> courses
 ) {
 
-    public Curriculum {
+    public Pensum {
         areas = areas == null ? List.of() : List.copyOf(areas);
         courses = courses == null ? List.of() : List.copyOf(courses);
     }
@@ -60,28 +60,28 @@ public record Curriculum(
      * @return the item addressed by {@code identifier}, which is a course {@code code} for
      *         a fixed course and a {@code pensumItemCode} for an elective slot
      */
-    public Optional<CurriculumCourse> findByAddressableCode(String identifier) {
+    public Optional<PensumCourse> findByAddressableCode(String identifier) {
         return courses.stream()
                 .filter(c -> c.addressableCode().equals(identifier))
                 .findFirst();
     }
 
-    public Optional<CurriculumCourse> findByPensumItemCode(String pensumItemCode) {
+    public Optional<PensumCourse> findByPensumItemCode(String pensumItemCode) {
         return courses.stream()
                 .filter(c -> c.pensumItemCode().equals(pensumItemCode))
                 .findFirst();
     }
 
     /** @return items keyed by {@code pensumItemCode}, which every item has */
-    public Map<String, CurriculumCourse> byPensumItemCode() {
-        Map<String, CurriculumCourse> index = new LinkedHashMap<>();
+    public Map<String, PensumCourse> byPensumItemCode() {
+        Map<String, PensumCourse> index = new LinkedHashMap<>();
         courses.forEach(c -> index.put(c.pensumItemCode(), c));
         return index;
     }
 
     /** @return items keyed by course {@code code}, skipping elective slots, which have none */
-    public Map<String, CurriculumCourse> byCourseCode() {
-        Map<String, CurriculumCourse> index = new LinkedHashMap<>();
+    public Map<String, PensumCourse> byCourseCode() {
+        Map<String, PensumCourse> index = new LinkedHashMap<>();
         courses.stream()
                 .filter(c -> c.code() != null)
                 .forEach(c -> index.put(c.code(), c));
@@ -92,14 +92,14 @@ public record Curriculum(
      * @return the items in the order the API always returns them: level, then name.
      *         Fixed everywhere so a client can rely on it without sorting again.
      */
-    public List<CurriculumCourse> coursesInDisplayOrder() {
+    public List<PensumCourse> coursesInDisplayOrder() {
         return courses.stream()
-                .sorted(Comparator.comparingInt(CurriculumCourse::level)
-                        .thenComparing(CurriculumCourse::name, String.CASE_INSENSITIVE_ORDER))
+                .sorted(Comparator.comparingInt(PensumCourse::level)
+                        .thenComparing(PensumCourse::name, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }
 
     public List<String> areaCodes() {
-        return areas.stream().map(CurriculumArea::code).toList();
+        return areas.stream().map(PensumArea::code).toList();
     }
 }

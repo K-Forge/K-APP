@@ -3,8 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { AppHttpError } from '../../../core/http/api-http-error';
 import type { ApiError } from '../../../core/http/api-error.model';
 import { ApiErrorBannerComponent } from '../../../shared/ui/api-error-banner/api-error-banner.component';
-import type { CurriculumImportReport } from './import.model';
-import { CurriculumImportService } from './import.service';
+import type { PensumImportReport } from './import.model';
+import { PensumImportService } from './import.service';
 import {
   ITEM_FIELDS,
   PENSUM_STATUSES,
@@ -298,7 +298,7 @@ import {
           @if (report(); as r) {
             <div class="card stack" style="border-color: var(--success)">
               <strong>{{ r.dryRun ? 'Valid — nothing was written' : 'Imported' }}</strong>
-              @for (c of r.curricula; track c.pensumCode) {
+              @for (c of r.pensums; track c.pensumCode) {
                 <p style="margin:0" class="text-muted">
                   {{ c.pensumCode }} · {{ c.programName }} — {{ c.courses }} courses,
                   {{ c.computedCredits }} credits, {{ c.computedHours }} weekly hours.
@@ -448,7 +448,7 @@ import {
   `,
 })
 export class PastePensumComponent {
-  private readonly service = inject(CurriculumImportService);
+  private readonly service = inject(PensumImportService);
 
   readonly fields = ITEM_FIELDS;
   readonly programLevels = PROGRAM_LEVELS;
@@ -491,7 +491,7 @@ export class PastePensumComponent {
   readonly busy = signal(false);
   readonly dryRun = signal(true);
   readonly error = signal<ApiError | null>(null);
-  readonly report = signal<CurriculumImportReport | null>(null);
+  readonly report = signal<PensumImportReport | null>(null);
 
   readonly columnIndexes = computed(() => {
     const widest = this.rows().reduce((n, r) => Math.max(n, r.cells.length), 0);
@@ -747,7 +747,7 @@ export class PastePensumComponent {
   /**
    * Header fields the import refuses a file without.
    *
-   * <p>This list is not a style choice: {@code CurriculumCsvImporter.readHeader} calls
+   * <p>This list is not a style choice: {@code PensumCsvImporter.readHeader} calls
    * {@code required()} on every one of them. Leaving them optional here only moved the
    * failure to the server, where it arrived as a row number rather than a field name.
    */

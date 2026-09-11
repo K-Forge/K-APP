@@ -11,7 +11,7 @@ One file may carry several pensums; group the rows by `pensumCode` however you l
 Post it as `multipart/form-data`:
 
 ```bash
-curl -X POST 'http://localhost:8080/api/catalog/curricula/import?dryRun=true' \
+curl -X POST 'http://localhost:8080/api/catalog/pensums/import?dryRun=true' \
   -H "Authorization: Bearer $TOKEN" \
   -F 'file=@docs/templates/pensum-import-template.csv'
 ```

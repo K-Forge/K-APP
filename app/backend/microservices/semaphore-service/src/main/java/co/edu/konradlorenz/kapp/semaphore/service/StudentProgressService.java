@@ -6,15 +6,15 @@ import co.edu.konradlorenz.kapp.common.error.ResourceNotFoundException;
 import co.edu.konradlorenz.kapp.semaphore.client.UserProfileClient;
 import co.edu.konradlorenz.kapp.semaphore.client.UserProfileResponse;
 import co.edu.konradlorenz.kapp.semaphore.domain.CourseStatus;
-import co.edu.konradlorenz.kapp.semaphore.domain.Curriculum;
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumCourse;
+import co.edu.konradlorenz.kapp.semaphore.domain.Pensum;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumCourse;
 import co.edu.konradlorenz.kapp.semaphore.domain.StudentProgress;
 import co.edu.konradlorenz.kapp.semaphore.domain.StudentProgressCourse;
-import co.edu.konradlorenz.kapp.semaphore.repository.CurriculumRepository;
+import co.edu.konradlorenz.kapp.semaphore.repository.PensumRepository;
 import co.edu.konradlorenz.kapp.semaphore.repository.StudentProgressRepository;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.AreaProgressDto;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.CourseProgressUpdateRequest;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumCourseDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumCourseDto;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.ElectiveResolutionRequest;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.ProgressSummaryDto;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.StudentProgressCourseDto;
@@ -35,7 +35,7 @@ import java.util.Map;
  *
  * <p>Every {@code /me/**} operation starts from {@link #loadReconciled(String)}, which
  * lazily creates the document if needed and then reconciles it against its pinned
- * curriculum. Routing every entry point through the same method is what guarantees a
+ * pensum. Routing every entry point through the same method is what guarantees a
  * pensum item added by an admin after this document existed is available to
  * {@code PUT /courses/{code}} and {@code POST /electives/{pensumItemCode}} immediately,
  * not only after the student happens to call {@code GET /me} first.
@@ -46,20 +46,20 @@ public class StudentProgressService {
     private static final Logger log = LoggerFactory.getLogger(StudentProgressService.class);
 
     private final StudentProgressRepository progressRepository;
-    private final CurriculumRepository curriculumRepository;
+    private final PensumRepository pensumRepository;
     private final UserProfileClient userProfileClient;
     private final ActivePensumResolver activePensumResolver;
-    private final CurriculumReconciler reconciler;
+    private final PensumReconciler reconciler;
     private final PrerequisiteWalker prerequisiteWalker;
 
     public StudentProgressService(StudentProgressRepository progressRepository,
-                                   CurriculumRepository curriculumRepository,
+                                   PensumRepository pensumRepository,
                                    UserProfileClient userProfileClient,
                                    ActivePensumResolver activePensumResolver,
-                                   CurriculumReconciler reconciler,
+                                   PensumReconciler reconciler,
                                    PrerequisiteWalker prerequisiteWalker) {
         this.progressRepository = progressRepository;
-        this.curriculumRepository = curriculumRepository;
+        this.pensumRepository = pensumRepository;
         this.userProfileClient = userProfileClient;
         this.activePensumResolver = activePensumResolver;
         this.reconciler = reconciler;
@@ -68,8 +68,8 @@ public class StudentProgressService {
 
     public StudentProgressWithReconciliationDto getMineWithReconciliation(String userId) {
         StudentProgress progress = getOrCreate(userId);
-        Curriculum curriculum = requireCurriculum(progress.pensumCode());
-        CurriculumReconciler.Result result = reconciler.reconcile(progress, curriculum);
+        Pensum pensum = requirePensum(progress.pensumCode());
+        PensumReconciler.Result result = reconciler.reconcile(progress, pensum);
         return StudentProgressWithReconciliationDto.of(result.progress(), result.reconciliation());
     }
 
@@ -81,18 +81,18 @@ public class StudentProgressService {
 
     public ProgressSummaryDto getSummary(String userId) {
         StudentProgress progress = loadReconciled(userId);
-        Curriculum curriculum = requireCurriculum(progress.pensumCode());
-        Map<String, CurriculumCourse> itemsByPensumCode = curriculum.byPensumItemCode();
+        Pensum pensum = requirePensum(progress.pensumCode());
+        Map<String, PensumCourse> itemsByPensumCode = pensum.byPensumItemCode();
 
         int creditsPassed = 0;
         int creditsInProgress = 0;
         int minUnfinishedLevel = Integer.MAX_VALUE;
         Map<String, Integer> passedCreditsByArea = new LinkedHashMap<>();
-        curriculum.areaCodes().forEach(code -> passedCreditsByArea.put(code, 0));
+        pensum.areaCodes().forEach(code -> passedCreditsByArea.put(code, 0));
 
         for (StudentProgressCourse entry : progress.courses()) {
-            CurriculumCourse item = itemsByPensumCode.get(entry.pensumItemCode());
-            // A removed item (see CurriculumReconciler) is kept so its grade is never
+            PensumCourse item = itemsByPensumCode.get(entry.pensumItemCode());
+            // A removed item (see PensumReconciler) is kept so its grade is never
             // lost, but it no longer belongs to the plan and does not count here.
             if (item == null) {
                 continue;
@@ -108,34 +108,34 @@ public class StudentProgressService {
             }
         }
 
-        int totalCredits = curriculum.totalCredits();
+        int totalCredits = pensum.totalCredits();
         int creditsRemaining = totalCredits - creditsPassed - creditsInProgress;
         double percentComplete = totalCredits == 0 ? 0.0 : roundToOneDecimal(creditsPassed * 100.0 / totalCredits);
-        List<AreaProgressDto> byArea = curriculum.areas().stream()
+        List<AreaProgressDto> byArea = pensum.areas().stream()
                 .map(area -> new AreaProgressDto(area.code(),
                         passedCreditsByArea.getOrDefault(area.code(), 0), area.credits()))
                 .toList();
         // Nothing left unfinished: every item is PASSED, so there is no "current" level
         // to derive. The last level of the plan is the least surprising answer.
-        int currentLevel = minUnfinishedLevel == Integer.MAX_VALUE ? curriculum.levels() : minUnfinishedLevel;
+        int currentLevel = minUnfinishedLevel == Integer.MAX_VALUE ? pensum.levels() : minUnfinishedLevel;
 
         return new ProgressSummaryDto(creditsPassed, creditsInProgress, creditsRemaining,
                 totalCredits, percentComplete, byArea, currentLevel);
     }
 
-    public List<CurriculumCourseDto> getEligible(String userId) {
+    public List<PensumCourseDto> getEligible(String userId) {
         StudentProgress progress = loadReconciled(userId);
-        Curriculum curriculum = requireCurriculum(progress.pensumCode());
+        Pensum pensum = requirePensum(progress.pensumCode());
         Map<String, StudentProgressCourse> byCourseCode = progress.byCourseCode();
 
-        return curriculum.coursesInDisplayOrder().stream()
+        return pensum.coursesInDisplayOrder().stream()
                 .filter(item -> isPending(progress, item))
                 .filter(item -> prerequisiteWalker.allPrerequisitesPassed(item, byCourseCode))
-                .map(CurriculumCourseDto::from)
+                .map(PensumCourseDto::from)
                 .toList();
     }
 
-    private boolean isPending(StudentProgress progress, CurriculumCourse item) {
+    private boolean isPending(StudentProgress progress, PensumCourse item) {
         return progress.findByPensumItemCode(item.pensumItemCode())
                 .map(entry -> entry.status() == CourseStatus.PENDING)
                 .orElse(false);
@@ -182,8 +182,8 @@ public class StudentProgressService {
     public StudentProgressCourseDto resolveElective(String userId, String pensumItemCode,
                                                      ElectiveResolutionRequest request) {
         StudentProgress progress = loadReconciled(userId);
-        Curriculum curriculum = requireCurriculum(progress.pensumCode());
-        requireElectiveSlot(curriculum, pensumItemCode);
+        Pensum pensum = requirePensum(progress.pensumCode());
+        requireElectiveSlot(pensum, pensumItemCode);
 
         boolean alreadyUsedElsewhere = progress.courses().stream()
                 .filter(entry -> !entry.pensumItemCode().equals(pensumItemCode))
@@ -212,8 +212,8 @@ public class StudentProgressService {
      */
     public void clearElective(String userId, String pensumItemCode) {
         StudentProgress progress = loadReconciled(userId);
-        Curriculum curriculum = requireCurriculum(progress.pensumCode());
-        requireElectiveSlot(curriculum, pensumItemCode);
+        Pensum pensum = requirePensum(progress.pensumCode());
+        requireElectiveSlot(pensum, pensumItemCode);
 
         StudentProgressCourse existing = progress.findByPensumItemCode(pensumItemCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Pensum item", pensumItemCode));
@@ -223,8 +223,8 @@ public class StudentProgressService {
         progressRepository.save(progress.withCourse(existing.withResolution(null, null)));
     }
 
-    private void requireElectiveSlot(Curriculum curriculum, String pensumItemCode) {
-        CurriculumCourse item = curriculum.findByPensumItemCode(pensumItemCode)
+    private void requireElectiveSlot(Pensum pensum, String pensumItemCode) {
+        PensumCourse item = pensum.findByPensumItemCode(pensumItemCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Pensum item", pensumItemCode));
         if (!item.electiveSlot()) {
             throw new BusinessRuleException("Pensum item is not an elective slot", List.of(
@@ -235,8 +235,8 @@ public class StudentProgressService {
 
     private StudentProgress loadReconciled(String userId) {
         StudentProgress progress = getOrCreate(userId);
-        Curriculum curriculum = requireCurriculum(progress.pensumCode());
-        return reconciler.reconcile(progress, curriculum).progress();
+        Pensum pensum = requirePensum(progress.pensumCode());
+        return reconciler.reconcile(progress, pensum).progress();
     }
 
     /**
@@ -266,10 +266,10 @@ public class StudentProgressService {
             throw new ResourceNotFoundException("Active program for user", userId);
         }
 
-        Curriculum curriculum = activePensumResolver.resolveActiveOrThrow(academic.programCode());
+        Pensum pensum = activePensumResolver.resolveActiveOrThrow(academic.programCode());
         int currentLevel = academic.currentLevel() != null ? academic.currentLevel() : 1;
         StudentProgress fresh = StudentProgress.materialise(
-                userId, academic.studentCode(), curriculum, currentLevel);
+                userId, academic.studentCode(), pensum, currentLevel);
 
         try {
             return progressRepository.save(fresh);
@@ -281,10 +281,10 @@ public class StudentProgressService {
         }
     }
 
-    private Curriculum requireCurriculum(String pensumCode) {
-        return curriculumRepository.findById(pensumCode)
+    private Pensum requirePensum(String pensumCode) {
+        return pensumRepository.findById(pensumCode)
                 .orElseThrow(() -> new IllegalStateException(
-                        "Pinned curriculum missing: " + pensumCode));
+                        "Pinned pensum missing: " + pensumCode));
     }
 
     private static double roundToOneDecimal(double value) {

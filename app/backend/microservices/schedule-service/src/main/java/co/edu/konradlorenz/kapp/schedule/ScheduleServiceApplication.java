@@ -25,7 +25,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  * <p>{@code @EnableFeignClients} activates
  * {@link co.edu.konradlorenz.kapp.schedule.catalog.CatalogClient}, which reads the
  * academic catalogue from semaphore-service. {@code @EnableCaching} backs the ~1h cache in
- * front of it - see {@link co.edu.konradlorenz.kapp.schedule.catalog.CurriculumCatalogService}.
+ * front of it - see {@link co.edu.konradlorenz.kapp.schedule.catalog.PensumCatalogService}.
  */
 @SpringBootApplication
 @EnableDiscoveryClient

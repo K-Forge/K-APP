@@ -1,9 +1,9 @@
 package co.edu.konradlorenz.kapp.semaphore.web;
 
-import co.edu.konradlorenz.kapp.semaphore.domain.CurriculumStatus;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumAreaDto;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumCourseDto;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumDto;
+import co.edu.konradlorenz.kapp.semaphore.domain.PensumStatus;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumAreaDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumCourseDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Catalog behaviours that are specific to the admin write path and not already covered
- * by {@code CurriculumValidatorTest} (the cross-field rules in isolation) or
+ * by {@code PensumValidatorTest} (the cross-field rules in isolation) or
  * {@code AuthorizationMatrixTest} (that ADMIN can reach these endpoints at all):
  * creating a pensum that already exists, replacing one whose body disagrees with the
  * path, and the level/area/elective filters on the item listing.
@@ -57,44 +57,59 @@ class CatalogFlowTest {
 
     private static final String SEEDED_PENSUM = "1015";
 
+    // ── Listing pensums ────────────────────────────────────────────────────────────
+
     @Test
-    @DisplayName("creating a curriculum whose pensumCode already exists is rejected with 409")
+    @DisplayName("the pensum listing carries what a picker needs and not the courses")
+    void listingIsASummary() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums").with(admin("list-1")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.pensumCode=='" + SEEDED_PENSUM + "')]").isNotEmpty())
+                .andExpect(jsonPath("$[0].programName").exists())
+                .andExpect(jsonPath("$[0].status").exists())
+                // The count, not the courses: twenty-four pensums of sixty courses is fifteen
+                // hundred objects a dropdown has no use for.
+                .andExpect(jsonPath("$[0].courses").isNumber());
+    }
+
+    @Test
+    @DisplayName("creating a pensum whose pensumCode already exists is rejected with 409")
     void creatingADuplicatePensumCodeIsConflict() throws Exception {
         String pensumCode = "DUP-TEST";
-        mockMvc.perform(post("/api/catalog/curricula").with(admin("dup-1"))
+        mockMvc.perform(post("/api/catalog/pensums").with(admin("dup-1"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(minimalCurriculumJson(pensumCode)))
+                        .content(minimalPensumJson(pensumCode)))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(post("/api/catalog/curricula").with(admin("dup-2"))
+        mockMvc.perform(post("/api/catalog/pensums").with(admin("dup-2"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(minimalCurriculumJson(pensumCode)))
+                        .content(minimalPensumJson(pensumCode)))
                 .andExpect(status().isConflict());
     }
 
     @Test
-    @DisplayName("replacing a curriculum whose body pensumCode disagrees with the path is rejected with 400")
+    @DisplayName("replacing a pensum whose body pensumCode disagrees with the path is rejected with 400")
     void replaceWithMismatchedPensumCodeIsRejected() throws Exception {
-        mockMvc.perform(put("/api/catalog/curricula/{code}", "PATH-CODE").with(admin("mismatch-admin"))
+        mockMvc.perform(put("/api/catalog/pensums/{code}", "PATH-CODE").with(admin("mismatch-admin"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(minimalCurriculumJson("BODY-CODE")))
+                        .content(minimalPensumJson("BODY-CODE")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details[0].field").value("pensumCode"));
     }
 
     @Test
-    @DisplayName("replacing a curriculum that does not exist yet is rejected with 404")
+    @DisplayName("replacing a pensum that does not exist yet is rejected with 404")
     void replaceOfUnknownPensumIs404() throws Exception {
-        mockMvc.perform(put("/api/catalog/curricula/{code}", "NEVER-CREATED").with(admin("replace-404"))
+        mockMvc.perform(put("/api/catalog/pensums/{code}", "NEVER-CREATED").with(admin("replace-404"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(minimalCurriculumJson("NEVER-CREATED")))
+                        .content(minimalPensumJson("NEVER-CREATED")))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    @DisplayName("listCurriculumCourses filters by level")
-    void listCurriculumCoursesFiltersByLevel() throws Exception {
-        mockMvc.perform(get("/api/catalog/curricula/{code}/courses", SEEDED_PENSUM)
+    @DisplayName("listPensumCourses filters by level")
+    void listPensumCoursesFiltersByLevel() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums/{code}/courses", SEEDED_PENSUM)
                         .param("level", "1")
                         .with(student("filter-level-student")))
                 .andExpect(status().isOk())
@@ -105,9 +120,9 @@ class CatalogFlowTest {
     }
 
     @Test
-    @DisplayName("listCurriculumCourses filters by elective slot flag")
-    void listCurriculumCoursesFiltersByElectiveFlag() throws Exception {
-        mockMvc.perform(get("/api/catalog/curricula/{code}/courses", SEEDED_PENSUM)
+    @DisplayName("listPensumCourses filters by elective slot flag")
+    void listPensumCoursesFiltersByElectiveFlag() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums/{code}/courses", SEEDED_PENSUM)
                         .param("isElectiveSlot", "true")
                         .with(student("filter-elective-student")))
                 .andExpect(status().isOk())
@@ -116,21 +131,21 @@ class CatalogFlowTest {
     }
 
     @Test
-    @DisplayName("listCurriculumCourses filters by area")
-    void listCurriculumCoursesFiltersByArea() throws Exception {
-        mockMvc.perform(get("/api/catalog/curricula/{code}/courses", SEEDED_PENSUM)
+    @DisplayName("listPensumCourses filters by area")
+    void listPensumCoursesFiltersByArea() throws Exception {
+        mockMvc.perform(get("/api/catalog/pensums/{code}/courses", SEEDED_PENSUM)
                         .param("area", "SI")
                         .with(student("filter-area-student")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].area").value("SI"));
     }
 
-    private String minimalCurriculumJson(String pensumCode) throws Exception {
-        CurriculumAreaDto area = new CurriculumAreaDto("CB", "Ciencias Basicas", "#539392", 3, 4);
-        CurriculumCourseDto course = new CurriculumCourseDto(
+    private String minimalPensumJson(String pensumCode) throws Exception {
+        PensumAreaDto area = new PensumAreaDto("CB", "Ciencias Basicas", "#539392", 3, 4);
+        PensumCourseDto course = new PensumCourseDto(
                 "M1", "M1", "Minimal Course", 1, 3, 4, null, "CB", false, List.of(), null);
-        CurriculumDto dto = new CurriculumDto(pensumCode, "506", "Test Program",
-                "Test Faculty", "Test Reform", CurriculumStatus.ACTIVE, 3, 4, 1,
+        PensumDto dto = new PensumDto(pensumCode, "506", "Test Program",
+                "Test Faculty", "Test Reform", PensumStatus.ACTIVE, 3, 4, 1,
                 List.of(area), List.of(course));
         return mapper.writeValueAsString(dto);
     }

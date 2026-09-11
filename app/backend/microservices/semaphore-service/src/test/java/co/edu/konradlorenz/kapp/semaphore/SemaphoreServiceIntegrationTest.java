@@ -105,13 +105,13 @@ class SemaphoreServiceIntegrationTest {
     @DisplayName("Mongock created the baseline indexes")
     void mongockRanMigrations() {
         var indexNames = StreamSupport
-                .stream(mongoTemplate.indexOps("curricula").getIndexInfo().spliterator(), false)
+                .stream(mongoTemplate.indexOps("pensums").getIndexInfo().spliterator(), false)
                 .map(info -> info.getName())
                 .toList();
 
-        // uk_curricula_pensum does not exist: pensumCode is @Id, so MongoDB's own
+        // uk_pensums_pensum does not exist: pensumCode is @Id, so MongoDB's own
         // implicit _id index already guarantees it - see V001_SemaphoreIndexes.
-        assertThat(indexNames).contains("ix_curricula_program");
+        assertThat(indexNames).contains("ix_pensums_program");
     }
 
     @Test

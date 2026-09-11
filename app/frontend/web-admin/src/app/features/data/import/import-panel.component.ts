@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { AppHttpError } from '../../../core/http/api-http-error';
 import type { ApiError } from '../../../core/http/api-error.model';
 import { ApiErrorBannerComponent } from '../../../shared/ui/api-error-banner/api-error-banner.component';
-import type { CurriculumImportReport } from './import.model';
-import { CurriculumImportService } from './import.service';
+import type { PensumImportReport } from './import.model';
+import { PensumImportService } from './import.service';
 
 /**
  * Bulk loading of pensums from a spreadsheet export, as a panel rather than a page.
@@ -64,7 +64,7 @@ import { CurriculumImportService } from './import.service';
             </span>
           </div>
           <p class="text-muted" style="margin:0">
-            {{ r.rowsRead }} data rows, {{ r.curricula.length }} pensum(s).
+            {{ r.rowsRead }} data rows, {{ r.pensums.length }} pensum(s).
           </p>
 
           <table class="table">
@@ -79,7 +79,7 @@ import { CurriculumImportService } from './import.service';
               </tr>
             </thead>
             <tbody>
-              @for (c of r.curricula; track c.pensumCode) {
+              @for (c of r.pensums; track c.pensumCode) {
                 <tr>
                   <td class="mono">{{ c.pensumCode }}</td>
                   <td>{{ c.programCode }} — {{ c.programName }}</td>
@@ -87,7 +87,7 @@ import { CurriculumImportService } from './import.service';
                   <td>{{ c.computedCredits }}</td>
                   <td>{{ c.computedHours }}</td>
                   <td class="text-muted">
-                    {{ c.curriculumCreated ? 'new' : 'replaced' }}
+                    {{ c.pensumCreated ? 'new' : 'replaced' }}
                   </td>
                 </tr>
               }
@@ -105,13 +105,13 @@ import { CurriculumImportService } from './import.service';
   `,
 })
 export class ImportPanelComponent {
-  private readonly service = inject(CurriculumImportService);
+  private readonly service = inject(PensumImportService);
 
   readonly file = signal<File | null>(null);
   readonly busy = signal(false);
   readonly lastWasDryRun = signal(true);
   readonly error = signal<ApiError | null>(null);
-  readonly report = signal<CurriculumImportReport | null>(null);
+  readonly report = signal<PensumImportReport | null>(null);
 
   onFile(event: Event): void {
     const input = event.target as HTMLInputElement;

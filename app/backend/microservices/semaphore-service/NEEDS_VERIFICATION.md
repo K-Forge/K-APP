@@ -7,11 +7,11 @@ seed match what is written here, discrepancies included.
 
 ## 1. The seeded pensum 1015 does not sum to its own declared totals
 
-`curriculum-1015.json` was reconstructed from a printed diagram, not read from SINU. The
-change unit that loads it (`V002_SeedIngenieriaDeSistemas`) and `CurriculumSeedTotalsTest`
+`pensum-1015.json` was reconstructed from a printed diagram, not read from SINU. The
+change unit that loads it (`V002_SeedIngenieriaDeSistemas`) and `PensumSeedTotalsTest`
 both say so and both keep the *declared* header (`totalCredits: 142`, `totalHours: 194`)
 exactly as printed, deliberately not recomputed from the 48 seeded items - see the
-`Curriculum` and `CurriculumArea` javadoc for why. The gap between what was printed and
+`Pensum` and `PensumArea` javadoc for why. The gap between what was printed and
 what the 48 reconstructed items actually add up to is the finding below.
 
 **Only 48 items could be reconstructed**, against the "roughly 51" the plan is described
@@ -33,7 +33,7 @@ not guessed at - adding placeholder rows to force a count match would be inventi
 | 9 | 4 | 14 | 14 | **20** | **29** ⚠️ |
 | **Total** | **48** | **144** | **142** ⚠️ | **197** | **194** ⚠️ |
 
-Only level 2 has no mismatch at all. `CurriculumSeedTotalsTest` pins the *computed*
+Only level 2 has no mismatch at all. `PensumSeedTotalsTest` pins the *computed*
 column above as a regression baseline (one test per level, plus the two grand totals),
 so a future edit that moves a course between levels fails loudly instead of silently
 changing these numbers again.
@@ -57,8 +57,8 @@ which course(s) are at the wrong level - the per-level and per-area gaps above a
 (1-7 credits/hours each) and consistent with a handful of courses being one level off,
 not a wholesale re-derivation. **Do not "fix" this by editing the declared header or the
 area totals to match the computed items** - fix it by moving the misplaced course(s) to
-their real level in `curriculum-1015.json`, then update the hardcoded expectations in
-`CurriculumSeedTotalsTest` to match. If the totals still don't reconcile after that,
+their real level in `pensum-1015.json`, then update the hardcoded expectations in
+`PensumSeedTotalsTest` to match. If the totals still don't reconcile after that,
 report the new numbers here rather than forcing agreement.
 
 ### SINU codes
@@ -98,7 +98,7 @@ Not bugs, but worth a second pair of eyes since the spec is silent on both:
 
 - **`ProgressSummaryDto.currentLevel` once nothing is left unfinished.** The spec defines
   it as "the lowest level that still holds an unfinished item," which has no answer once
-  every item is `PASSED`. This implementation falls back to `curriculum.levels()` (the
+  every item is `PASSED`. This implementation falls back to `pensum.levels()` (the
   plan's last level) rather than `0` or the stored `StudentProgress.currentLevel`. See
   `StudentProgressService.getSummary`.
 - **`StudentProgress.currentLevel` vs. the derived summary field of the same name are

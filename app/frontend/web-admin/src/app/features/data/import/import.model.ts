@@ -1,5 +1,5 @@
-/** Mirrors CurriculumImportReport in docs/api/semaphore.openapi.yaml. */
-export interface ImportedCurriculum {
+/** Mirrors PensumImportReport in docs/api/semaphore.openapi.yaml. */
+export interface ImportedPensum {
   pensumCode: string;
   programCode: string;
   programName: string;
@@ -9,11 +9,11 @@ export interface ImportedCurriculum {
   declaredHours: number;
   computedHours: number;
   programCreated: boolean;
-  curriculumCreated: boolean;
+  pensumCreated: boolean;
 }
 
-export interface CurriculumImportReport {
+export interface PensumImportReport {
   dryRun: boolean;
   rowsRead: number;
-  curricula: ImportedCurriculum[];
+  pensums: ImportedPensum[];
 }

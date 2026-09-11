@@ -4,7 +4,7 @@ import co.edu.konradlorenz.kapp.common.security.CurrentUser;
 import co.edu.konradlorenz.kapp.semaphore.security.StudentOnly;
 import co.edu.konradlorenz.kapp.semaphore.service.StudentProgressService;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.CourseProgressUpdateRequest;
-import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumCourseDto;
+import co.edu.konradlorenz.kapp.semaphore.web.dto.PensumCourseDto;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.ElectiveResolutionRequest;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.ProgressSummaryDto;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.StudentProgressCourseDto;
@@ -61,7 +61,7 @@ public class StudentProgressController {
     @GetMapping("/eligible")
     @StudentOnly
     @Operation(summary = "List the courses the caller can take next")
-    public List<CurriculumCourseDto> getEligible() {
+    public List<PensumCourseDto> getEligible() {
         return progress.getEligible(CurrentUser.id());
     }
 

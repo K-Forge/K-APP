@@ -32,7 +32,7 @@ import java.util.List;
  *                                 appended as {@code ?token=...}
  * @param verificationTtl          how long a verification token stays valid
  * @param mailFrom                 the From address on verification e-mails
- * @param defaultPensumCode        curriculum version assigned to a newly registered student.
+ * @param defaultPensumCode        pensum version assigned to a newly registered student.
  *                                 The registration contract does not carry one, and
  *                                 user-service requires it on the academic record.
  * @param defaultCurrentLevel      semester a newly registered student starts on

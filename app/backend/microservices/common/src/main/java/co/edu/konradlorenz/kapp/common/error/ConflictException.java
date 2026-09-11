@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * The request is well-formed but collides with state that already exists: a timetable
- * meeting overlapping another, a building that still holds spaces, a curriculum edited
+ * meeting overlapping another, a building that still holds spaces, a pensum edited
  * concurrently. Rendered as HTTP 409 with the collision described in
  * {@link ApiError#details()}.
  *

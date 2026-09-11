@@ -6,8 +6,8 @@ import co.edu.konradlorenz.kapp.semaphore.domain.ProgramLevel;
 /**
  * A program as the catalogue returns it.
  *
- * @param activePensumCode code of the program's ACTIVE curriculum, or null when its only
- *                         curricula are DRAFT or OBSOLETE. Derived at read time, never
+ * @param activePensumCode code of the program's ACTIVE pensum, or null when its only
+ *                         pensums are DRAFT or OBSOLETE. Derived at read time, never
  *                         stored on the program - see {@link Program}.
  */
 public record ProgramResponse(

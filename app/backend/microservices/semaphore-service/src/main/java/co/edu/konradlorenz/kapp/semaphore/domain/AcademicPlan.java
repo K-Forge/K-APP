@@ -14,13 +14,13 @@ import java.util.Optional;
  *
  * <h2>Why only the deltas</h2>
  * {@code placements} holds nothing but the courses the student moved. A course that does not
- * appear is taken where the curriculum puts it.
+ * appear is taken where the pensum puts it.
  *
  * <p>Copying the whole pensum into every plan would have three costs and no benefit. The
  * document would carry sixty entries to express one change; a correction to the published
  * pensum would reach no existing plan, so students would keep planning against a version the
  * university has withdrawn; and drawing the faint outline in the original column - which the
- * design calls for - would need the curriculum fetched anyway to know where the course came
+ * design calls for - would need the pensum fetched anyway to know where the course came
  * from. Storing the delta means the client already holds both numbers.
  *
  * <h2>What a plan is not</h2>

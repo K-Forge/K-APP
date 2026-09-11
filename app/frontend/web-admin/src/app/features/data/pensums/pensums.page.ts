@@ -6,18 +6,18 @@ import { ApiErrorBannerComponent } from '../../../shared/ui/api-error-banner/api
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
 import { ImportPanelComponent } from '../import/import-panel.component';
 import { PastePensumComponent } from '../import/paste-pensum.component';
-import { CurriculaService } from './curricula.service';
-import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
+import { PensumsService } from './pensums.service';
+import { PENSUM_SKELETON, type Pensum } from './pensum.model';
 
 /**
- * Lookup-by-code rather than a table: the semaphore contract has no "list curricula" endpoint,
+ * Lookup-by-code rather than a table: the semaphore contract has no "list pensums" endpoint,
  * only get/create/replace by pensumCode (see docs/api/semaphore.openapi.yaml). A pensum document
  * nests ~50 course items, so create/replace edit the whole document as JSON rather than forcing
  * every field through bespoke inputs - the same trade-off the API console makes for request
  * bodies, and for the same reason: the shape is defined by the schema, not reinvented here.
  */
 @Component({
-  selector: 'app-curricula-page',
+  selector: 'app-pensums-page',
   imports: [ApiErrorBannerComponent, ModalComponent, ImportPanelComponent, PageIntroComponent, PastePensumComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -44,13 +44,13 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
 
         <app-api-error-banner [error]="error()" />
 
-        @if (!loading() && !error() && !curriculum()) {
+        @if (!loading() && !error() && !loaded()) {
           <div class="empty-state">
             <p>Enter a pensum code — for example 1015, Ingeniería de Sistemas.</p>
           </div>
         }
 
-        @if (curriculum(); as c) {
+        @if (loaded(); as c) {
           <div class="stack">
             <div class="row-between">
               <h2 style="margin:0">{{ c.programName }} · {{ c.pensumCode }}</h2>
@@ -61,7 +61,7 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
                 </button>
               </div>
             </div>
-            <dl class="curriculum-summary">
+            <dl class="pensum-summary">
               <dt>Faculty</dt>
               <dd>{{ c.faculty }}</dd>
               <dt>Reform</dt>
@@ -162,12 +162,12 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
       <div class="stack">
         <app-api-error-banner [error]="formError()" />
         <p class="text-muted">
-          The whole pensum as JSON, matching the <code>Curriculum</code> schema in
+          The whole pensum as JSON, matching the <code>Pensum</code> schema in
           <code>docs/api/semaphore.openapi.yaml</code> — which is still what the contract calls it.
         </p>
         <div class="field">
-          <label for="curriculum-json">Pensum document</label>
-          <textarea id="curriculum-json" rows="16" [value]="formText()" (input)="onFormTextInput($event)"></textarea>
+          <label for="pensum-json">Pensum document</label>
+          <textarea id="pensum-json" rows="16" [value]="formText()" (input)="onFormTextInput($event)"></textarea>
         </div>
         <div class="row">
           <button type="button" class="btn btn-primary" [disabled]="formSubmitting()" (click)="submit()">
@@ -195,18 +195,18 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
       content: '▾ ';
     }
 
-    .curriculum-summary {
+    .pensum-summary {
       display: grid;
       grid-template-columns: 8rem 1fr;
       row-gap: 0.5rem;
       margin: 0;
     }
-    .curriculum-summary dt {
+    .pensum-summary dt {
       color: var(--text-muted);
       font-size: 0.8125rem;
       font-weight: 600;
     }
-    .curriculum-summary dd {
+    .pensum-summary dd {
       margin: 0;
     }
     .area-dot {
@@ -222,16 +222,17 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
     }
   `,
 })
-export class CurriculaPage {
-  private readonly curriculaService = inject(CurriculaService);
+export class PensumsPage {
+  private readonly pensumsService = inject(PensumsService);
 
-  /** Bound automatically from ?pensum=... via withComponentInputBinding (see Programs "View curriculum"). */
+  /** Bound automatically from ?pensum=... via withComponentInputBinding (see Programs "View pensum"). */
   readonly pensum = input('');
 
   readonly searchCode = signal('');
   readonly loading = signal(false);
   readonly error = signal<ApiError | null>(null);
-  readonly curriculum = signal<Curriculum | null>(null);
+  /** The pensum currently on screen. Null until one is loaded. */
+  readonly loaded = signal<Pensum | null>(null);
   readonly deleting = signal(false);
 
   readonly formMode = signal<'create' | 'edit'>('create');
@@ -246,13 +247,13 @@ export class CurriculaPage {
     // when the constructor body runs - the router calls setInput() on the component instance
     // right after construction, not before it. Reading this.pensum() here once would silently
     // see only the default '', which is exactly the kind of bug that only shows up on a deep
-    // link (Programs' "View curriculum" button) and never in a normal click-through. An effect
+    // link (Programs' "View pensum" button) and never in a normal click-through. An effect
     // re-reads the signal once the router actually sets it.
     effect(() => {
       const code = this.pensum();
       if (code) {
         this.searchCode.set(code);
-        this.fetchCurriculum(code);
+        this.fetchPensum(code);
       }
     });
   }
@@ -262,7 +263,7 @@ export class CurriculaPage {
   }
 
   load(): void {
-    this.fetchCurriculum(this.searchCode().trim());
+    this.fetchPensum(this.searchCode().trim());
   }
 
   /**
@@ -270,19 +271,19 @@ export class CurriculaPage {
    * effect above can call it without also making the effect re-run on every keystroke in the
    * search box (an effect tracks every signal it reads during its callback, transitively).
    */
-  private fetchCurriculum(code: string): void {
+  private fetchPensum(code: string): void {
     if (!code) {
       return;
     }
     this.loading.set(true);
     this.error.set(null);
-    this.curriculaService.getByCode(code).subscribe({
-      next: (curriculum) => {
-        this.curriculum.set(curriculum);
+    this.pensumsService.getByCode(code).subscribe({
+      next: (pensum) => {
+        this.loaded.set(pensum);
         this.loading.set(false);
       },
       error: (err: unknown) => {
-        this.curriculum.set(null);
+        this.loaded.set(null);
         this.loading.set(false);
         this.error.set(err instanceof AppHttpError ? err.apiError : null);
       },
@@ -291,14 +292,14 @@ export class CurriculaPage {
 
   openCreate(): void {
     this.formMode.set('create');
-    this.formText.set(JSON.stringify(CURRICULUM_SKELETON, null, 2));
+    this.formText.set(JSON.stringify(PENSUM_SKELETON, null, 2));
     this.formError.set(null);
     this.formModal?.open();
   }
 
-  openEdit(curriculum: Curriculum): void {
+  openEdit(pensum: Pensum): void {
     this.formMode.set('edit');
-    this.formText.set(JSON.stringify(curriculum, null, 2));
+    this.formText.set(JSON.stringify(pensum, null, 2));
     this.formError.set(null);
     this.formModal?.open();
   }
@@ -308,7 +309,7 @@ export class CurriculaPage {
   }
 
   submit(): void {
-    let parsed: Curriculum;
+    let parsed: Pensum;
     try {
       parsed = JSON.parse(this.formText());
     } catch {
@@ -316,7 +317,7 @@ export class CurriculaPage {
         timestamp: new Date().toISOString(),
         status: 0,
         error: 'Invalid JSON',
-        message: 'The curriculum document is not valid JSON.',
+        message: 'The pensum document is not valid JSON.',
         path: '',
       });
       return;
@@ -325,13 +326,13 @@ export class CurriculaPage {
     this.formSubmitting.set(true);
     this.formError.set(null);
     const call =
-      this.formMode() === 'create' ? this.curriculaService.create(parsed) : this.curriculaService.replace(parsed.pensumCode, parsed);
+      this.formMode() === 'create' ? this.pensumsService.create(parsed) : this.pensumsService.replace(parsed.pensumCode, parsed);
 
     call.subscribe({
       next: (saved) => {
         this.formSubmitting.set(false);
         this.formModal?.close();
-        this.curriculum.set(saved);
+        this.loaded.set(saved);
         this.searchCode.set(saved.pensumCode);
       },
       error: (err: unknown) => {
@@ -346,11 +347,11 @@ export class CurriculaPage {
    * which the error banner renders from the envelope's own details - the confirmation says so up
    * front rather than letting the refusal look like a bug.
    */
-  remove(curriculum: Curriculum): void {
+  remove(pensum: Pensum): void {
     if (
       !window.confirm(
-        `Delete pensum ${curriculum.pensumCode} (${curriculum.programName})? ` +
-          `It has ${curriculum.courses.length} courses. If any student is following it, the ` +
+        `Delete pensum ${pensum.pensumCode} (${pensum.programName})? ` +
+          `It has ${pensum.courses.length} courses. If any student is following it, the ` +
           `server refuses and says how many.`,
       )
     ) {
@@ -358,10 +359,10 @@ export class CurriculaPage {
     }
     this.deleting.set(true);
     this.error.set(null);
-    this.curriculaService.delete(curriculum.pensumCode).subscribe({
+    this.pensumsService.delete(pensum.pensumCode).subscribe({
       next: () => {
         this.deleting.set(false);
-        this.curriculum.set(null);
+        this.loaded.set(null);
       },
       error: (err: unknown) => {
         this.deleting.set(false);
