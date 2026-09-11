@@ -15,6 +15,7 @@ import {
   mapFromHeadings,
   parsePaste,
   type ItemField,
+  type PensumHeader,
   type PastedRow,
 } from './paste-pensum.model';
 
@@ -54,36 +55,36 @@ import {
 
         <div class="grid-3">
           <div class="field">
-            <label for="pp-pcode">Program code</label>
-            <input id="pp-pcode" [(ngModel)]="header.programCode" placeholder="506" />
+            <label for="pp-pcode">Program code <span class="req" aria-hidden="true">*</span></label>
+            <input id="pp-pcode" [ngModel]="header().programCode" (ngModelChange)="patch('programCode', $event)" placeholder="506" />
           </div>
           <div class="field" style="grid-column: span 2">
-            <label for="pp-pname">Program name</label>
-            <input id="pp-pname" [(ngModel)]="header.programName" placeholder="Ingeniería de Sistemas" />
+            <label for="pp-pname">Program name <span class="req" aria-hidden="true">*</span></label>
+            <input id="pp-pname" [ngModel]="header().programName" (ngModelChange)="patch('programName', $event)" placeholder="Ingeniería de Sistemas" />
           </div>
           <div class="field" style="grid-column: span 2">
-            <label for="pp-fac">Faculty</label>
-            <input id="pp-fac" [(ngModel)]="header.faculty" placeholder="Facultad de Matemáticas e Ingenierías" />
+            <label for="pp-fac">Faculty <span class="req" aria-hidden="true">*</span></label>
+            <input id="pp-fac" [ngModel]="header().faculty" (ngModelChange)="patch('faculty', $event)" placeholder="Facultad de Matemáticas e Ingenierías" />
           </div>
           <div class="field">
             <label for="pp-plevel">Level</label>
-            <select id="pp-plevel" [(ngModel)]="header.programLevel">
+            <select id="pp-plevel" [ngModel]="header().programLevel" (ngModelChange)="patch('programLevel', $event)">
               @for (l of programLevels; track l) {
                 <option [value]="l">{{ l }}</option>
               }
             </select>
           </div>
           <div class="field">
-            <label for="pp-code">Pensum code</label>
-            <input id="pp-code" [(ngModel)]="header.pensumCode" placeholder="1015" />
+            <label for="pp-code">Pensum code <span class="req" aria-hidden="true">*</span></label>
+            <input id="pp-code" [ngModel]="header().pensumCode" (ngModelChange)="patch('pensumCode', $event)" placeholder="1015" />
           </div>
           <div class="field">
-            <label for="pp-reform">Reform</label>
-            <input id="pp-reform" [(ngModel)]="header.reform" placeholder="Reforma 2018" />
+            <label for="pp-reform">Reform <span class="req" aria-hidden="true">*</span></label>
+            <input id="pp-reform" [ngModel]="header().reform" (ngModelChange)="patch('reform', $event)" placeholder="Reforma 2018" />
           </div>
           <div class="field">
             <label for="pp-status">Status</label>
-            <select id="pp-status" [(ngModel)]="header.pensumStatus">
+            <select id="pp-status" [ngModel]="header().pensumStatus" (ngModelChange)="patch('pensumStatus', $event)">
               @for (st of statuses; track st) {
                 <option [value]="st">{{ st }}</option>
               }
@@ -91,15 +92,15 @@ import {
           </div>
           <div class="field">
             <label for="pp-dc">Declared credits</label>
-            <input id="pp-dc" type="number" [(ngModel)]="header.declaredCredits" />
+            <input id="pp-dc" type="number" [ngModel]="header().declaredCredits" (ngModelChange)="patch('declaredCredits', $event)" />
           </div>
           <div class="field">
             <label for="pp-dh">Declared weekly hours</label>
-            <input id="pp-dh" type="number" [(ngModel)]="header.declaredHours" />
+            <input id="pp-dh" type="number" [ngModel]="header().declaredHours" (ngModelChange)="patch('declaredHours', $event)" />
           </div>
           <div class="field">
             <label for="pp-lv">Levels</label>
-            <input id="pp-lv" type="number" [(ngModel)]="header.levels" placeholder="9" />
+            <input id="pp-lv" type="number" [ngModel]="header().levels" (ngModelChange)="patch('levels', $event)" [placeholder]="defaultLevels() || 9" />
           </div>
         </div>
         <p class="hint" style="margin:0">
@@ -217,15 +218,15 @@ import {
             <div class="total" [class.total-bad]="creditsMismatch()">
               <span class="total-label">Credits</span>
               <span class="total-value">{{ totals().credits }}</span>
-              @if (header.declaredCredits !== null) {
-                <span class="total-vs">declared {{ header.declaredCredits }}</span>
+              @if (header().declaredCredits !== null) {
+                <span class="total-vs">declared {{ header().declaredCredits }}</span>
               }
             </div>
             <div class="total" [class.total-bad]="hoursMismatch()">
               <span class="total-label">Weekly hours</span>
               <span class="total-value">{{ totals().hours }}</span>
-              @if (header.declaredHours !== null) {
-                <span class="total-vs">declared {{ header.declaredHours }}</span>
+              @if (header().declaredHours !== null) {
+                <span class="total-vs">declared {{ header().declaredHours }}</span>
               }
             </div>
             <div class="total">
@@ -251,6 +252,14 @@ import {
               Prerequisites that name nothing in this paste:
               <strong>{{ unknownPrerequisites().join(', ') }}</strong>. The import refuses these,
               so fix the code or drop it.
+            </p>
+          }
+          @if (missingHeaderFields().length) {
+            <p class="warn">
+              The import needs these before it will accept the file:
+              <strong>{{ missingHeaderFields().join(', ') }}</strong> — in step 1 above. The
+              server rejects a file that is missing any of them, and one missing field there
+              used to be reported as a fault on every row.
             </p>
           }
           @if (missingRequired().length) {
@@ -401,6 +410,11 @@ import {
     .total-vs.total-bad {
       color: var(--danger);
     }
+    .req {
+      color: var(--danger);
+      font-weight: 700;
+    }
+
     .did {
       margin: 0;
       padding: 0.5rem 0.75rem;
@@ -435,7 +449,16 @@ export class PastePensumComponent {
   readonly programLevels = PROGRAM_LEVELS;
   readonly statuses = PENSUM_STATUSES;
 
-  header = {
+  /**
+   * A signal, not a plain object, because everything downstream of it is a computed.
+   *
+   * <p>With a plain object the two-way bindings still updated the inputs - they write straight
+   * to the field - but nothing told the signal graph anything had changed, so ready() never
+   * recomputed and the import buttons stayed disabled no matter how complete the form was.
+   * They came back only if you happened to edit a grid cell afterwards, which made it look
+   * intermittent rather than broken.
+   */
+  readonly header = signal<PensumHeader>({
     programCode: '',
     programName: '',
     faculty: '',
@@ -443,10 +466,15 @@ export class PastePensumComponent {
     pensumCode: '',
     reform: '',
     pensumStatus: 'DRAFT',
-    declaredCredits: null as number | null,
-    declaredHours: null as number | null,
-    levels: null as number | null,
-  };
+    declaredCredits: null,
+    declaredHours: null,
+    levels: null,
+  });
+
+  /** Writes one header field, replacing the object so the computeds downstream see it. */
+  patch<K extends keyof PensumHeader>(key: K, value: PensumHeader[K]): void {
+    this.header.update((h) => ({ ...h, [key]: value }));
+  }
 
   readonly pasted = signal('');
   readonly rows = signal<PastedRow[]>([]);
@@ -692,10 +720,10 @@ export class PastePensumComponent {
   });
 
   readonly creditsMismatch = computed(
-    () => this.header.declaredCredits !== null && this.header.declaredCredits !== this.totals().credits,
+    () => this.header().declaredCredits !== null && this.header().declaredCredits !== this.totals().credits,
   );
   readonly hoursMismatch = computed(
-    () => this.header.declaredHours !== null && this.header.declaredHours !== this.totals().hours,
+    () => this.header().declaredHours !== null && this.header().declaredHours !== this.totals().hours,
   );
 
   /** Prerequisites naming a course code that is not in this paste — the import refuses those. */
@@ -711,17 +739,46 @@ export class PastePensumComponent {
     return [...unknown];
   });
 
+  /**
+   * Header fields the import refuses a file without.
+   *
+   * <p>This list is not a style choice: {@code CurriculumCsvImporter.readHeader} calls
+   * {@code required()} on every one of them. Leaving them optional here only moved the
+   * failure to the server, where it arrived as a row number rather than a field name.
+   */
+  readonly missingHeaderFields = computed(() => {
+    const h = this.header();
+    return (
+      [
+        ['Program code', h.programCode],
+        ['Program name', h.programName],
+        ['Faculty', h.faculty],
+        ['Pensum code', h.pensumCode],
+        ['Reform', h.reform],
+      ] as const
+    )
+      .filter(([, value]) => !value.trim())
+      .map(([label]) => label);
+  });
+
+  /** The highest level in the paste — what `levels` means, so it does not have to be typed. */
+  readonly defaultLevels = computed(() => {
+    const levels = this.rows()
+      .map((r) => Number(this.valueOf(r, 'courseLevel')))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    return levels.length ? Math.max(...levels) : null;
+  });
+
   readonly ready = computed(
     () =>
       this.rows().length > 0 &&
       this.missingRequired().length === 0 &&
-      !!this.header.programCode.trim() &&
-      !!this.header.pensumCode.trim(),
+      this.missingHeaderFields().length === 0,
   );
 
   /** The same CSV the endpoint already accepts, so the server-side validation is unchanged. */
   private buildCsv(): string {
-    const h = this.header;
+    const h = this.header();
     const head = [
       'programCode', 'programName', 'faculty', 'programLevel', 'pensumCode', 'reform',
       'pensumStatus', 'declaredCredits', 'declaredHours', 'levels', 'areaCode', 'areaName',
@@ -740,7 +797,7 @@ export class PastePensumComponent {
       return [
         h.programCode, h.programName, h.faculty, h.programLevel, h.pensumCode, h.reform,
         h.pensumStatus, String(h.declaredCredits ?? this.totals().credits),
-        String(h.declaredHours ?? this.totals().hours), String(h.levels ?? ''),
+        String(h.declaredHours ?? this.totals().hours), String(h.levels ?? this.defaultLevels() ?? ''),
         area,
         // Area name and colour are not asked for: the import derives the totals itself, and a
         // colour invented here would be one more thing to correct later.
@@ -761,13 +818,13 @@ export class PastePensumComponent {
   }
 
   private csvFile(): File {
-    return new File([this.buildCsv()], `pensum-${this.header.pensumCode || 'draft'}.csv`, {
+    return new File([this.buildCsv()], `pensum-${this.header().pensumCode || 'draft'}.csv`, {
       type: 'text/csv',
     });
   }
 
   send(dryRun: boolean): void {
-    if (!dryRun && !window.confirm(`Import pensum ${this.header.pensumCode} for real? An existing one with the same code is replaced.`)) {
+    if (!dryRun && !window.confirm(`Import pensum ${this.header().pensumCode} for real? An existing one with the same code is replaced.`)) {
       return;
     }
     this.busy.set(true);

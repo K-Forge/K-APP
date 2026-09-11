@@ -11,6 +11,8 @@ import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumAreaDto;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumCourseDto;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumDto;
 import co.edu.konradlorenz.kapp.semaphore.web.dto.CurriculumImportReport;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -69,12 +71,21 @@ public class CurriculumCsvImporter {
     private final ProgramRepository programs;
     private final CurriculumRepository curricula;
     private final CurriculumValidator validator;
+    /**
+     * The same bean validator the write endpoints use.
+     *
+     * <p>Without it the two paths disagreed: the import wrote area codes the PUT then refused,
+     * so a pensum created here could not be edited afterwards. Whatever the annotations say,
+     * both doors now say it.
+     */
+    private final Validator beanValidator;
 
     public CurriculumCsvImporter(ProgramRepository programs, CurriculumRepository curricula,
-                                  CurriculumValidator validator) {
+                                  CurriculumValidator validator, Validator beanValidator) {
         this.programs = programs;
         this.curricula = curricula;
         this.validator = validator;
+        this.beanValidator = beanValidator;
     }
 
     public CurriculumImportReport importFrom(Reader csv, boolean dryRun) {
@@ -116,6 +127,11 @@ public class CurriculumCsvImporter {
         List<Program> programsToWrite = new ArrayList<>();
 
         for (PensumDraft draft : drafts.values()) {
+            // Its header never parsed, so its totals are zero and its courses were skipped.
+            // Anything said about it here would be noise on top of the one real message.
+            if (draft.headerBroken) {
+                continue;
+            }
             CurriculumDto dto = draft.toDto();
 
             int computedCredits = dto.courses().stream().mapToInt(CurriculumCourseDto::credits).sum();
@@ -137,6 +153,14 @@ public class CurriculumCsvImporter {
                         "pensum " + draft.pensumCode + " · declaredHours",
                         "the file declares %d but its courses add up to %d"
                                 .formatted(draft.declaredHours, computedHours)));
+            }
+
+            // The annotations first - lengths, blanks, the colour pattern - then the rules that
+            // need the whole document. Reported the same way, labelled with the pensum, because
+            // one file carries many.
+            for (ConstraintViolation<CurriculumDto> v : beanValidator.validate(dto)) {
+                issues.add(new ApiError.FieldIssue(
+                        "pensum " + draft.pensumCode + " · " + v.getPropertyPath(), v.getMessage()));
             }
 
             try {
@@ -184,9 +208,18 @@ public class CurriculumCsvImporter {
             try {
                 draft.readHeader(record);
             } catch (RuntimeException e) {
+                // The first row's header is what every later row is compared against and what
+                // the declared totals are checked against. Half-read, the fields it never
+                // reached are still 0 - and that 0 was then reported as a disagreement on
+                // every remaining row and as a total that does not add up. One empty `reform`
+                // produced eleven messages, ten of them pointing at rows that were fine and
+                // none of them naming the cause. Say it once and stop checking this pensum.
+                draft.headerBroken = true;
                 issues.add(issue(line, "pensum header", e.getMessage()));
                 return;
             }
+        } else if (draft.headerBroken) {
+            return;
         } else {
             // Every row repeats the pensum's header. Two rows disagreeing means somebody
             // edited one and not the others, which is worth catching before it becomes
@@ -229,6 +262,8 @@ public class CurriculumCsvImporter {
         private ProgramLevel programLevel;
         private String reform;
         private CurriculumStatus status;
+        /** True once the first row failed to parse: nothing about this pensum can be trusted. */
+        private boolean headerBroken;
         private int declaredCredits;
         private int declaredHours;
         private int levels;

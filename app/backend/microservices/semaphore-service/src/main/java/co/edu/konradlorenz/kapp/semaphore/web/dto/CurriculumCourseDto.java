@@ -30,7 +30,7 @@ public record CurriculumCourseDto(
         @Min(0) int credits,
         @Min(0) int weeklyHours,
         @Min(0) Integer totalHours,
-        @NotBlank @Size(max = 10) String area,
+        @NotBlank @Size(max = 20) String area,
         @JsonProperty("isElectiveSlot") boolean isElectiveSlot,
         @NotNull List<@Size(max = 20) String> prerequisites,
         @Size(max = 20) String sinuCode

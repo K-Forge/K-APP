@@ -134,3 +134,53 @@ describe('PastePensumComponent · reading the paste', () => {
     expect(f.componentInstance.raggedRows()).toEqual([3]);
   });
 });
+
+describe('PastePensumComponent · what the import needs before it will run', () => {
+  async function ready(fill: Record<string, string>) {
+    await TestBed.configureTestingModule({
+      imports: [PastePensumComponent],
+      providers: [provideHttpClient()],
+    }).compileComponents();
+    const f = TestBed.createComponent(PastePensumComponent);
+    f.componentInstance.pasted.set(PASTED);
+    f.componentInstance.parse();
+    for (const [k, v] of Object.entries(fill)) {
+      f.componentInstance.patch(k as never, v as never);
+    }
+    f.detectChanges();
+    return f;
+  }
+
+  afterEach(() => TestBed.resetTestingModule());
+
+  const COMPLETE = {
+    programCode: '999',
+    programName: 'QA',
+    faculty: 'Facultad de QA',
+    pensumCode: '9999',
+    reform: 'Reforma QA',
+  };
+
+  // header used to be a plain object, so nothing in the signal graph heard these writes and
+  // the buttons stayed disabled however complete the form was.
+  it('enables the import once the header is filled in', async () => {
+    const f = await ready(COMPLETE);
+    expect(f.componentInstance.missingHeaderFields()).toEqual([]);
+    expect(f.componentInstance.ready()).toBe(true);
+  });
+
+  // Every one of these is required() in CurriculumCsvImporter.readHeader.
+  it('names the header fields still missing rather than silently refusing', async () => {
+    const f = await ready({ programCode: '999' });
+    expect(f.componentInstance.missingHeaderFields()).toEqual([
+      'Program name', 'Faculty', 'Pensum code', 'Reform',
+    ]);
+    expect(f.componentInstance.ready()).toBe(false);
+    expect(f.nativeElement.textContent).toContain('Program name, Faculty, Pensum code, Reform');
+  });
+
+  it('takes levels from the highest level in the paste', async () => {
+    const f = await ready(COMPLETE);
+    expect(f.componentInstance.defaultLevels()).toBe(2);
+  });
+});

@@ -156,7 +156,7 @@ public class CatalogController {
     public List<CurriculumCourseDto> listCurriculumCourses(
             @PathVariable String pensumCode,
             @RequestParam(required = false) @Min(1) @Max(12) Integer level,
-            @RequestParam(required = false) @Size(max = 10) String area,
+            @RequestParam(required = false) @Size(max = 20) String area,
             @RequestParam(required = false) Boolean isElectiveSlot) {
         return catalog.listCurriculumCourses(pensumCode, level, area, isElectiveSlot);
     }

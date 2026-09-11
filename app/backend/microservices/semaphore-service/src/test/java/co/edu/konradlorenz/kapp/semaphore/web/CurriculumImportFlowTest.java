@@ -26,6 +26,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -239,10 +240,73 @@ class CurriculumImportFlowTest {
     }
 
     @Test
+    @DisplayName("one missing header field is reported once, not as a fault on every other row")
+    void aBrokenHeaderDoesNotCascade() throws Exception {
+        // The empty sixth column is `reform`. readHeader throws there, before it reaches
+        // declaredCredits and declaredHours - which then stay 0 and used to be reported as a
+        // disagreement on every later row and as totals that do not add up: eleven messages
+        // for one mistake, ten of them naming rows that were correct.
+        String csv = HEADER + "\n"
+                + "IMP-PROG,Programa,Facultad,PREGRADO,IMP-NOREF,,DRAFT,6,8,2,CB,Ciencias,"
+                + "#539392,B1,B1C,Uno,1,3,4,false,,\n"
+                + "IMP-PROG,Programa,Facultad,PREGRADO,IMP-NOREF,,DRAFT,6,8,2,CB,Ciencias,"
+                + "#539392,B2,B2C,Dos,1,3,4,false,,\n";
+
+        String body = mockMvc.perform(upload(csv))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.length()").value(1))
+                .andExpect(jsonPath("$.details[0].field").value("row 2 · pensum header"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(body).contains("reform");
+        assertThat(body).doesNotContain("disagrees");
+        assertThat(body).doesNotContain("add up to");
+    }
+
+    @Test
     @DisplayName("a file with only a header is refused rather than reported as a success")
     void headerOnlyFileIsRefused() throws Exception {
         mockMvc.perform(upload(HEADER + "\n"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("what the import accepts, the update accepts: a pensum built here can be edited here")
+    void importedPensumSurvivesBeingSavedBack() throws Exception {
+        // COMPLEMENTARIA is fourteen characters. The import used to write it and the PUT used to
+        // refuse it, so the portal produced pensums it could not then edit - and the message the
+        // admin saw was "size must be between 0 and 10" about a document they never typed.
+        String csv = HEADER + "\n"
+                + "IMP-PROG,Programa,Facultad,PREGRADO,IMP-WORDS,R,DRAFT,3,4,1,COMPLEMENTARIA,"
+                + "Complementaria,#539392,W1,W1C,Uno,1,3,4,false,,\n";
+
+        mockMvc.perform(upload(csv)).andExpect(status().isOk());
+
+        String document = mockMvc.perform(
+                        get("/api/catalog/curricula/{code}", "IMP-WORDS").with(admin("editor")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        mockMvc.perform(put("/api/catalog/curricula/{code}", "IMP-WORDS")
+                        .with(admin("editor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(document))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("the import refuses what the update would refuse, instead of writing it")
+    void importAppliesTheSameFieldRules() throws Exception {
+        String tooLong = "A".repeat(21);
+        String csv = HEADER + "\n"
+                + "IMP-PROG,Programa,Facultad,PREGRADO,IMP-LONG,R,DRAFT,3,4,1," + tooLong + ","
+                + "Larga,#539392,L1,L1C,Uno,1,3,4,false,,\n";
+
+        mockMvc.perform(upload(csv))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[?(@.issue=~/.*between 0 and 20.*/)]").isNotEmpty());
+
+        assertThat(curricula.findById("IMP-LONG")).isEmpty();
     }
 
     @Test
