@@ -79,13 +79,13 @@ class StudentProgressFlowTest {
     @Test
     @DisplayName("first GET /me lazily materialises every seeded pensum item as PENDING, in sync")
     void lazyCreationMaterialisesTheWholePinnedPensum() throws Exception {
-        stubProfile("flow-lazy-student", SEEDED_PROGRAM, "506232730", 1);
+        stubProfile("flow-lazy-student", SEEDED_PROGRAM, "506999999", 1);
 
         mockMvc.perform(get("/api/semaphore/me").with(student("flow-lazy-student")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pensumCode").value(SEEDED_PENSUM))
                 .andExpect(jsonPath("$.programCode").value(SEEDED_PROGRAM))
-                .andExpect(jsonPath("$.studentCode").value("506232730"))
+                .andExpect(jsonPath("$.studentCode").value("506999999"))
                 .andExpect(jsonPath("$.courses.length()").value(48))
                 .andExpect(jsonPath("$.courses[0].status").value("PENDING"))
                 .andExpect(jsonPath("$.reconciliation.inSync").value(true))

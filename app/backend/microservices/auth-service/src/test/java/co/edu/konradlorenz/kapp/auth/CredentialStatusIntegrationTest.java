@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class CredentialStatusIntegrationTest extends AbstractAuthIntegrationTest {
 
     private static final String EMAIL = "suspendable@konradlorenz.edu.co";
-    private static final String PASSWORD = "Contrasena-Valida-1";
+    private static final String PASSWORD = "ExamplePassword123";
 
     private String login() throws Exception {
         return """

@@ -160,7 +160,7 @@ class VisitorPassIntegrationTest extends AbstractAuthIntegrationTest {
         VisitorPass pass = passes.findByCode(code).orElseThrow();
         assertThat(pass.redeemed()).isTrue();
         assertThat(pass.documentNumber()).isEqualTo("1032456789");
-        assertThat(pass.visitorName()).isEqualTo("María Fernanda Ríos");
+        assertThat(pass.visitorName()).isEqualTo("Pepita Pérez Ríos");
         assertThat(pass.documentType().name()).isEqualTo("CC");
         assertThat(pass.accessExpiresAt())
                 .isCloseTo(Instant.now().plus(Duration.ofHours(24)), within10Minutes());
@@ -248,7 +248,7 @@ class VisitorPassIntegrationTest extends AbstractAuthIntegrationTest {
         mockMvc.perform(get("/auth/admin/visitor-passes").header("Authorization", adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].visitorName").value("María Fernanda Ríos"))
+                .andExpect(jsonPath("$[0].visitorName").value("Pepita Pérez Ríos"))
                 .andExpect(jsonPath("$[0].documentNumber").value("1032456789"));
     }
 
@@ -368,7 +368,7 @@ class VisitorPassIntegrationTest extends AbstractAuthIntegrationTest {
     private String redemptionBody() {
         return """
                 {"documentType":"CC","documentNumber":"1032456789",
-                 "visitorName":"María Fernanda Ríos"}
+                 "visitorName":"Pepita Pérez Ríos"}
                 """;
     }
 

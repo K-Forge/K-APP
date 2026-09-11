@@ -82,7 +82,7 @@ class InvitationCodeAdminIntegrationTest extends AbstractAuthIntegrationTest {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"minted%s","password":"MintedPass2026",
+                                {"email":"minted%s","password":"ExamplePassword123",
                                  "firstName":"Minted","lastName":"Account",
                                  "invitationCode":"%s",
                                  "studentCode":"506900100","programCode":"506"}

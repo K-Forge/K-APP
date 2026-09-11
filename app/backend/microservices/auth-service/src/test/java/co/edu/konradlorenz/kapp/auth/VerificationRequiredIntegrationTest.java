@@ -69,7 +69,7 @@ class VerificationRequiredIntegrationTest extends AbstractAuthIntegrationTest {
                         .content("""
                                 {
                                     "email": "%s",
-                                    "password": "Str0ngPassphrase!26",
+                                    "password": "ExamplePassword123",
                                     "firstName": "Test",
                                     "lastName": "User",
                                     "invitationCode": "%s",
@@ -81,6 +81,6 @@ class VerificationRequiredIntegrationTest extends AbstractAuthIntegrationTest {
 
     private static String loginPayload(String email) {
         return """
-                {"email":"%s","password":"Str0ngPassphrase!26"}""".formatted(email);
+                {"email":"%s","password":"ExamplePassword123"}""".formatted(email);
     }
 }

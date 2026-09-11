@@ -185,13 +185,13 @@ class UserAdminControllerTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("a known id returns that profile")
     void getById_knownId_returnsProfile() throws Exception {
-        save(fullyPopulated(TARGET_ID, "brian.vargasc@konradlorenz.edu.co"));
+        save(fullyPopulated(TARGET_ID, "pepito.perez@konradlorenz.edu.co"));
 
         mockMvc.perform(get("/api/users/{userId}", TARGET_ID)
                         .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(TARGET_ID))
-                .andExpect(jsonPath("$.email").value("brian.vargasc@konradlorenz.edu.co"));
+                .andExpect(jsonPath("$.email").value("pepito.perez@konradlorenz.edu.co"));
     }
 
     // ---------------------------------------------------------------------------------

@@ -843,7 +843,7 @@ class AuthorizationMatrixTest {
 
     private void stubActiveStudentProfile() {
         UserProfileResponse profile = new UserProfileResponse("profile-id", "ROLE_STUDENT",
-                new UserProfileResponse.Academic("506232730", SEEDED_PROGRAM, 1));
+                new UserProfileResponse.Academic("506999999", SEEDED_PROGRAM, 1));
         lenient().when(userProfileClient.getMyProfile()).thenReturn(profile);
     }
 

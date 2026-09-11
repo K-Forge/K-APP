@@ -41,7 +41,7 @@ class AuthorizationMatrixIntegrationTest extends AbstractAuthIntegrationTest {
     private String adminToken;
 
     private static final String LOGIN_EMAIL = "matrix-login@konradlorenz.edu.co";
-    private static final String LOGIN_PASSWORD = "Str0ngPassphrase!26";
+    private static final String LOGIN_PASSWORD = "ExamplePassword123";
 
     @BeforeEach
     void mintRoleTokens() {
@@ -301,7 +301,7 @@ class AuthorizationMatrixIntegrationTest extends AbstractAuthIntegrationTest {
         return post("/auth/register").contentType(MediaType.APPLICATION_JSON).content("""
                 {
                     "email": "%s",
-                    "password": "Str0ngPassphrase!26",
+                    "password": "ExamplePassword123",
                     "firstName": "Matrix",
                     "lastName": "Case",
                     "invitationCode": "%s",

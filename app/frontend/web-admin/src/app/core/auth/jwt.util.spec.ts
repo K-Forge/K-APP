@@ -20,7 +20,7 @@ describe('decodeJwt', () => {
   it('decodes a well-formed token into header and claims', () => {
     const token = makeToken({
       sub: '3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73',
-      email: 'brian.vargasc@konradlorenz.edu.co',
+      email: 'pepito.perez@konradlorenz.edu.co',
       roles: ['ROLE_STUDENT'],
       iss: 'https://auth.kapp.konradlorenz.edu.co',
       iat: nowSeconds,
@@ -32,16 +32,16 @@ describe('decodeJwt', () => {
     expect(decoded).not.toBeNull();
     expect(decoded?.header['alg']).toBe('RS256');
     expect(decoded?.claims.sub).toBe('3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73');
-    expect(decoded?.claims.email).toBe('brian.vargasc@konradlorenz.edu.co');
+    expect(decoded?.claims.email).toBe('pepito.perez@konradlorenz.edu.co');
     expect(decoded?.claims.roles).toEqual(['ROLE_STUDENT']);
   });
 
   it('decodes claims containing non-ASCII text correctly', () => {
-    const token = makeToken({ sub: 'x', roles: [], iss: 'x', iat: 0, exp: 0, name: 'María Fernanda' });
+    const token = makeToken({ sub: 'x', roles: [], iss: 'x', iat: 0, exp: 0, name: 'Pepita' });
 
     const decoded = decodeJwt(token);
 
-    expect(decoded?.claims['name']).toBe('María Fernanda');
+    expect(decoded?.claims['name']).toBe('Pepita');
   });
 
   it('returns null for a string that is not a JWT at all', () => {

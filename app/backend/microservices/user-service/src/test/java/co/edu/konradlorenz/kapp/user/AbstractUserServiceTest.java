@@ -121,7 +121,7 @@ public abstract class AbstractUserServiceTest {
     protected static UserProfile student(String id, String email, String firstName,
                                          String lastName) {
         return profile(id, email, firstName, lastName, UserRole.ROLE_STUDENT,
-                new AcademicInfo("506232730", "506", "1015", 6));
+                new AcademicInfo("506999999", "506", "1015", 6));
     }
 
     /** A guest: no student code, no programme, no pensum, and no academic record at all. */
@@ -151,12 +151,12 @@ public abstract class AbstractUserServiceTest {
     /** A document with every optional field populated, for round-trip assertions. */
     protected static UserProfile fullyPopulated(String id, String email) {
         Instant now = StoredInstant.now();
-        return new UserProfile(id, email, "Brian Steven", "Vargas Clavijo",
+        return new UserProfile(id, email, "Pepito", "Perez Gomez",
                 new Identification(IdentificationType.CC, "1032456789"),
                 "+573105551234",
                 "https://cdn.kapp.konradlorenz.edu.co/avatars/3f8a1c2e.jpg",
                 UserRole.ROLE_STUDENT, true,
-                new AcademicInfo("506232730", "506", "1015", 6),
+                new AcademicInfo("506999999", "506", "1015", 6),
                 List.of(), now, now);
     }
 

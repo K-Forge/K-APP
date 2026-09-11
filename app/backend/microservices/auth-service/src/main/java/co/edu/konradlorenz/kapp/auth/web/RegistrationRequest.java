@@ -26,23 +26,23 @@ public record RegistrationRequest(
         @NotBlank
         @Email
         @Size(max = 100)
-        @Schema(example = "brian.vargasc@konradlorenz.edu.co")
+        @Schema(example = "pepito.perez@konradlorenz.edu.co")
         String email,
 
         @NotBlank
         @Size(min = 10, max = 72, message = "must be between 10 and 72 characters")
         @Schema(description = "Plain text, at least 10 characters. 72 is the BCrypt input limit.",
-                example = "Str0ngPassphrase!26")
+                example = "ExamplePassword123")
         String password,
 
         @NotBlank
         @Size(max = 50)
-        @Schema(example = "Brian Steven")
+        @Schema(example = "Pepito")
         String firstName,
 
         @NotBlank
         @Size(max = 50)
-        @Schema(example = "Vargas Clavijo")
+        @Schema(example = "Perez Gomez")
         String lastName,
 
         @NotBlank
@@ -52,7 +52,7 @@ public record RegistrationRequest(
         String invitationCode,
 
         @Pattern(regexp = "^\\d{6,20}$", message = "must be 6 to 20 digits")
-        @Schema(example = "506232730")
+        @Schema(example = "506999999")
         String studentCode,
 
         @Pattern(regexp = "^\\d{1,10}$", message = "must be 1 to 10 digits")

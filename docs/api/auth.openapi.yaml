@@ -113,12 +113,12 @@ paths:
             schema:
               $ref: '#/components/schemas/RegistrationRequest'
             example:
-              email: brian.vargasc@konradlorenz.edu.co
-              password: Str0ngPassphrase!26
-              firstName: Brian Steven
-              lastName: Vargas Clavijo
-              invitationCode: KL-20262-7F3A9C
-              studentCode: '506232730'
+              email: pepito.perez@konradlorenz.edu.co
+              password: ExamplePassword123
+              firstName: Pepito
+              lastName: Perez Gomez
+              invitationCode: KL-7K2M-QX9P
+              studentCode: '506999999'
               programCode: '506'
       responses:
         '201':
@@ -129,7 +129,7 @@ paths:
                 $ref: '#/components/schemas/RegistrationResponse'
               example:
                 userId: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
-                email: brian.vargasc@konradlorenz.edu.co
+                email: pepito.perez@konradlorenz.edu.co
                 emailVerified: false
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -170,8 +170,8 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginRequest'
             example:
-              email: brian.vargasc@konradlorenz.edu.co
-              password: Str0ngPassphrase!26
+              email: pepito.perez@konradlorenz.edu.co
+              password: ExamplePassword123
       responses:
         '200':
           description: Authentication succeeded
@@ -252,7 +252,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ResendVerificationRequest'
             example:
-              email: brian.vargasc@konradlorenz.edu.co
+              email: pepito.perez@konradlorenz.edu.co
       responses:
         '202':
           description: Request accepted, delivery is not confirmed
@@ -400,7 +400,7 @@ paths:
         in: path
         required: true
         schema: { type: string, maxLength: 40 }
-        example: KL-20262-STUDENT
+        example: KL-7K2M-QX9P
     patch:
       # Authorization as the code enforces it, not as prose describes it.
       x-roles: [ROLE_ADMIN]
@@ -500,7 +500,7 @@ paths:
             example:
               documentType: CC
               documentNumber: "1032456789"
-              visitorName: María Fernanda Ríos
+              visitorName: Pepita Perez
       responses:
         '200':
           description: A 24-hour, map-only access token
@@ -884,7 +884,7 @@ components:
           maxLength: 100
           pattern: '^[A-Za-z0-9._%+-]+@konradlorenz\.edu\.co$'
           description: Institutional address. Must use the `@konradlorenz.edu.co` domain.
-          example: brian.vargasc@konradlorenz.edu.co
+          example: pepito.perez@konradlorenz.edu.co
         password:
           type: string
           format: password
@@ -894,19 +894,19 @@ components:
             Plain-text password, at least 10 characters. Stored as a BCrypt hash
             and never returned by any endpoint. The 72 character ceiling is the
             BCrypt input limit.
-          example: Str0ngPassphrase!26
+          example: ExamplePassword123
         firstName:
           type: string
           minLength: 1
           maxLength: 50
           description: Given names as printed on the identity document.
-          example: Brian Steven
+          example: Pepito
         lastName:
           type: string
           minLength: 1
           maxLength: 50
           description: Family names as printed on the identity document.
-          example: Vargas Clavijo
+          example: Perez Gomez
         invitationCode:
           type: string
           minLength: 6
@@ -915,14 +915,14 @@ components:
             Single-use code issued by the registrar for an intake. It carries the
             role the account will receive. Rejected with `400` when unknown,
             already spent or expired.
-          example: KL-20262-7F3A9C
+          example: KL-7K2M-QX9P
         studentCode:
           type: string
           pattern: '^\d{6,20}$'
           description: |
             University student code. Required for student intakes, absent for
             staff invitations.
-          example: '506232730'
+          example: '506999999'
         programCode:
           type: string
           pattern: '^\d{1,10}$'
@@ -975,7 +975,7 @@ components:
           type: string
           minLength: 1
           maxLength: 120
-          example: María Fernanda Ríos
+          example: Pepita Perez
       additionalProperties: false
 
     VisitorPass:
@@ -1028,7 +1028,7 @@ components:
           description: >-
             Taken from the identity document at the counter, for the register.
           type: string
-          example: María Fernanda Ríos
+          example: Pepita Perez
         accessExpiresAt:
           type: string
           format: date-time
@@ -1058,7 +1058,7 @@ components:
         email:
           type: string
           format: email
-          example: brian.vargasc@konradlorenz.edu.co
+          example: pepito.perez@konradlorenz.edu.co
         emailVerified:
           type: boolean
           description: Always `false` immediately after registration.
@@ -1073,7 +1073,7 @@ components:
           format: email
           maxLength: 100
           description: Institutional or personal address used at registration.
-          example: brian.vargasc@konradlorenz.edu.co
+          example: pepito.perez@konradlorenz.edu.co
         password:
           description: >-
             Sent as typed. The service compares it against a bcrypt hash and never stores it.
@@ -1081,7 +1081,7 @@ components:
           format: password
           minLength: 10
           maxLength: 72
-          example: Str0ngPassphrase!26
+          example: ExamplePassword123
 
     TokenResponse:
       type: object
@@ -1155,7 +1155,7 @@ components:
           format: email
           maxLength: 100
           description: Address the new verification e-mail should be sent to.
-          example: brian.vargasc@konradlorenz.edu.co
+          example: pepito.perez@konradlorenz.edu.co
 
     AcceptedResponse:
       type: object

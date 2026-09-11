@@ -19,7 +19,7 @@ class SearchTokensTest {
     void stripsAccents() {
         assertThat(SearchTokens.fold("Muñoz")).isEqualTo("munoz");
         assertThat(SearchTokens.fold("Rodríguez Peña")).isEqualTo("rodriguez pena");
-        assertThat(SearchTokens.fold("María Fernanda")).isEqualTo("maria fernanda");
+        assertThat(SearchTokens.fold("Pepita Pérez")).isEqualTo("pepita perez");
     }
 
     @Test
@@ -47,17 +47,17 @@ class SearchTokensTest {
     @DisplayName("indexes every word of both names and of the e-mail")
     void indexesEveryWord() {
         List<String> tokens = SearchTokens.forProfile(
-                "Brian Steven", "Vargas Clavijo", "brian.vargasc@konradlorenz.edu.co");
+                "Pepito", "Perez Gomez", "pepito.perez@konradlorenz.edu.co");
 
-        assertThat(tokens).contains("brian", "steven", "vargas", "clavijo",
-                "vargasc", "konradlorenz", "edu", "co");
+        assertThat(tokens).contains("pepito", "perez", "gomez",
+                "konradlorenz", "edu", "co");
     }
 
     @Test
     @DisplayName("keeps the whole e-mail as a token so the full address matches too")
     void keepsTheWholeEmail() {
-        assertThat(SearchTokens.forProfile("Brian", "Vargas", "brian.vargasc@konradlorenz.edu.co"))
-                .contains("brian.vargasc@konradlorenz.edu.co");
+        assertThat(SearchTokens.forProfile("Brian", "Vargas", "pepito.perez@konradlorenz.edu.co"))
+                .contains("pepito.perez@konradlorenz.edu.co");
     }
 
     @Test

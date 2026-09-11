@@ -47,14 +47,14 @@ class RegistrationIntegrationTest extends AbstractAuthIntegrationTest {
     void institutionalRegistration_succeeds() throws Exception {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(institutionalPayload("brian.vargasc@konradlorenz.edu.co",
-                                STUDENT_CODE, "506232730", "506")))
+                        .content(institutionalPayload("pepito.perez@konradlorenz.edu.co",
+                                STUDENT_CODE, "506999999", "506")))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.email").value("brian.vargasc@konradlorenz.edu.co"))
+                .andExpect(jsonPath("$.email").value("pepito.perez@konradlorenz.edu.co"))
                 .andExpect(jsonPath("$.emailVerified").value(false))
                 .andExpect(jsonPath("$.userId").isNotEmpty());
 
-        Credential saved = credentials.findByEmailIgnoreCase("brian.vargasc@konradlorenz.edu.co")
+        Credential saved = credentials.findByEmailIgnoreCase("pepito.perez@konradlorenz.edu.co")
                 .orElseThrow();
         assertThat(saved.roles()).containsExactly("ROLE_STUDENT");
         // Off by default: no SMTP relay, so the account must not be blocked on it.
@@ -67,12 +67,12 @@ class RegistrationIntegrationTest extends AbstractAuthIntegrationTest {
     void institutionalRegistration_lowerCasesEmail() throws Exception {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(institutionalPayload("Brian.Vargasc@KonradLorenz.edu.co",
+                        .content(institutionalPayload("Pepito.Perez@KonradLorenz.edu.co",
                                 STUDENT_CODE, "506232731", "506")))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.email").value("brian.vargasc@konradlorenz.edu.co"));
+                .andExpect(jsonPath("$.email").value("pepito.perez@konradlorenz.edu.co"));
 
-        assertThat(credentials.existsByEmailIgnoreCase("brian.vargasc@konradlorenz.edu.co")).isTrue();
+        assertThat(credentials.existsByEmailIgnoreCase("pepito.perez@konradlorenz.edu.co")).isTrue();
     }
 
     @Test
@@ -300,7 +300,7 @@ class RegistrationIntegrationTest extends AbstractAuthIntegrationTest {
         return """
                 {
                     "email": "%s",
-                    "password": "Str0ngPassphrase!26",
+                    "password": "ExamplePassword123",
                     "firstName": "Test",
                     "lastName": "User",
                     "invitationCode": "%s"%s

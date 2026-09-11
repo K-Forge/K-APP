@@ -34,14 +34,14 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("a student's own profile carries the full academic record")
     void getMe_student_returnsAcademicRecord() throws Exception {
-        save(fullyPopulated(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co"));
+        save(fullyPopulated(STUDENT_ID, "pepito.perez@konradlorenz.edu.co"));
 
         mockMvc.perform(get("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(STUDENT_ID))
-                .andExpect(jsonPath("$.email").value("brian.vargasc@konradlorenz.edu.co"))
+                .andExpect(jsonPath("$.email").value("pepito.perez@konradlorenz.edu.co"))
                 .andExpect(jsonPath("$.role").value("ROLE_STUDENT"))
-                .andExpect(jsonPath("$.academic.studentCode").value("506232730"))
+                .andExpect(jsonPath("$.academic.studentCode").value("506999999"))
                 .andExpect(jsonPath("$.academic.currentLevel").value(6));
     }
 
@@ -79,7 +79,7 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("a field left out of the body is not touched")
     void patchMe_omittedField_isUnchanged() throws Exception {
-        save(fullyPopulated(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co"));
+        save(fullyPopulated(STUDENT_ID, "pepito.perez@konradlorenz.edu.co"));
 
         mockMvc.perform(patch("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -88,14 +88,14 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.firstName").value("Updated"))
                 // lastName was not in the body, so the stored value survives untouched.
-                .andExpect(jsonPath("$.lastName").value("Vargas Clavijo"))
+                .andExpect(jsonPath("$.lastName").value("Perez Gomez"))
                 .andExpect(jsonPath("$.phone").value("+573105551234"));
     }
 
     @Test
     @DisplayName("an explicit null clears the phone")
     void patchMe_explicitNullPhone_clearsIt() throws Exception {
-        save(fullyPopulated(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co"));
+        save(fullyPopulated(STUDENT_ID, "pepito.perez@konradlorenz.edu.co"));
 
         mockMvc.perform(patch("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -104,13 +104,13 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phone").value(nullValue()))
                 // Untouched fields, including the ones a null-collapsing bug would wipe.
-                .andExpect(jsonPath("$.firstName").value("Brian Steven"));
+                .andExpect(jsonPath("$.firstName").value("Pepito"));
     }
 
     @Test
     @DisplayName("an explicit null clears the identification")
     void patchMe_explicitNullIdentification_clearsIt() throws Exception {
-        save(fullyPopulated(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co"));
+        save(fullyPopulated(STUDENT_ID, "pepito.perez@konradlorenz.edu.co"));
 
         mockMvc.perform(patch("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -123,7 +123,7 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("a student may set a new academic record")
     void patchMe_student_canSetAcademic() throws Exception {
-        save(student(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co", "Brian", "Vargas"));
+        save(student(STUDENT_ID, "pepito.perez@konradlorenz.edu.co", "Brian", "Vargas"));
 
         mockMvc.perform(patch("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -142,7 +142,7 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("sending email is rejected with 400")
     void patchMe_rejectsEmail() throws Exception {
-        save(student(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co", "Brian", "Vargas"));
+        save(student(STUDENT_ID, "pepito.perez@konradlorenz.edu.co", "Brian", "Vargas"));
 
         mockMvc.perform(patch("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -155,7 +155,7 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("sending role is rejected with 400")
     void patchMe_rejectsRole() throws Exception {
-        save(student(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co", "Brian", "Vargas"));
+        save(student(STUDENT_ID, "pepito.perez@konradlorenz.edu.co", "Brian", "Vargas"));
 
         mockMvc.perform(patch("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -168,7 +168,7 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("sending active is rejected with 400")
     void patchMe_rejectsActive() throws Exception {
-        save(student(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co", "Brian", "Vargas"));
+        save(student(STUDENT_ID, "pepito.perez@konradlorenz.edu.co", "Brian", "Vargas"));
 
         mockMvc.perform(patch("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -181,7 +181,7 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("sending id is rejected with 400")
     void patchMe_rejectsId() throws Exception {
-        save(student(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co", "Brian", "Vargas"));
+        save(student(STUDENT_ID, "pepito.perez@konradlorenz.edu.co", "Brian", "Vargas"));
 
         mockMvc.perform(patch("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -194,7 +194,7 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("an unrecognised field is rejected with 400")
     void patchMe_rejectsUnknownField() throws Exception {
-        save(student(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co", "Brian", "Vargas"));
+        save(student(STUDENT_ID, "pepito.perez@konradlorenz.edu.co", "Brian", "Vargas"));
 
         mockMvc.perform(patch("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -207,7 +207,7 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("an empty body is rejected with 400")
     void patchMe_rejectsEmptyBody() throws Exception {
-        save(student(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co", "Brian", "Vargas"));
+        save(student(STUDENT_ID, "pepito.perez@konradlorenz.edu.co", "Brian", "Vargas"));
 
         mockMvc.perform(patch("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -232,7 +232,7 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("a phone not in E.164 form is rejected with 400")
     void patchMe_rejectsMalformedPhone() throws Exception {
-        save(student(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co", "Brian", "Vargas"));
+        save(student(STUDENT_ID, "pepito.perez@konradlorenz.edu.co", "Brian", "Vargas"));
 
         mockMvc.perform(patch("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -245,7 +245,7 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("currentLevel above 12 is rejected with 400")
     void patchMe_rejectsCurrentLevelAboveCap() throws Exception {
-        save(student(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co", "Brian", "Vargas"));
+        save(student(STUDENT_ID, "pepito.perez@konradlorenz.edu.co", "Brian", "Vargas"));
 
         mockMvc.perform(patch("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -259,7 +259,7 @@ class UserProfileControllerTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("an identification number shorter than 5 characters is rejected with 400")
     void patchMe_rejectsIdentificationTooShort() throws Exception {
-        save(student(STUDENT_ID, "brian.vargasc@konradlorenz.edu.co", "Brian", "Vargas"));
+        save(student(STUDENT_ID, "pepito.perez@konradlorenz.edu.co", "Brian", "Vargas"));
 
         mockMvc.perform(patch("/api/users/me").with(callerWith(STUDENT_ID, UserRole.ROLE_STUDENT))
                         .contentType(MediaType.APPLICATION_JSON)

@@ -23,7 +23,7 @@ public record VisitorPassRedemptionRequest(
         @Pattern(regexp = "^[A-Za-z0-9]+$", message = "must contain only letters and digits")
         String documentNumber,
 
-        @Schema(example = "María Fernanda Ríos")
+        @Schema(example = "Pepita Perez")
         @NotBlank @Size(max = 120) String visitorName
 ) {
 }

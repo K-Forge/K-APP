@@ -13,7 +13,7 @@ public record ResendVerificationRequest(
         @NotBlank
         @Email
         @Size(max = 100)
-        @Schema(example = "brian.vargasc@konradlorenz.edu.co")
+        @Schema(example = "pepito.perez@konradlorenz.edu.co")
         String email
 ) {
 }

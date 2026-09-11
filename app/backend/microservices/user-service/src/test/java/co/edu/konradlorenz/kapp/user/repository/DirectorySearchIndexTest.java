@@ -38,7 +38,7 @@ class DirectorySearchIndexTest extends AbstractUserServiceTest {
         save(student("11111111-0000-0000-0000-000000000001",
                 "laura.munoz@konradlorenz.edu.co", "Laura Sofía", "Muñoz Peña"));
         save(student("11111111-0000-0000-0000-000000000002",
-                "brian.vargasc@konradlorenz.edu.co", "Brian Steven", "Vargas Clavijo"));
+                "pepito.perez@konradlorenz.edu.co", "Pepito", "Perez Gomez"));
 
         for (int i = 3; i <= SEEDED_PROFILES; i++) {
             save(student("11111111-0000-0000-0000-%012d".formatted(i),
@@ -102,8 +102,8 @@ class DirectorySearchIndexTest extends AbstractUserServiceTest {
     void regexMetacharactersAreEscaped() {
         assertThat(UserDirectoryQueries.prefixRegex("a.c")).isEqualTo("^a\\.c");
         assertThat(UserDirectoryQueries.prefixRegex("x*")).isEqualTo("^x\\*");
-        assertThat(UserDirectoryQueries.prefixRegex("brian.vargasc@konradlorenz.edu.co"))
-                .isEqualTo("^brian\\.vargasc@konradlorenz\\.edu\\.co");
+        assertThat(UserDirectoryQueries.prefixRegex("pepito.perez@konradlorenz.edu.co"))
+                .isEqualTo("^pepito\\.perez@konradlorenz\\.edu\\.co");
     }
 
     @Test
@@ -149,30 +149,30 @@ class DirectorySearchIndexTest extends AbstractUserServiceTest {
     @Test
     @DisplayName("a word prefix matches, which is what a type-ahead needs")
     void wordPrefixMatches() {
-        assertThat(searchFor("varg")).extracting(UserProfile::lastName)
-                .containsExactly("Vargas Clavijo");
+        assertThat(searchFor("per")).extracting(UserProfile::lastName)
+                .containsExactly("Perez Gomez");
     }
 
     @Test
     @DisplayName("an infix does not match, and the mobile team is told so")
     void infixDoesNotMatch() {
-        // "argas" is inside "vargas" but does not begin it. Correct and deliberate: an
-        // infix search cannot be served from an index at any size, so the interface must
-        // not offer one.
-        assertThat(searchFor("argas")).isEmpty();
+        // "ere" is inside "perez" but does not begin it. Correct and deliberate: an infix
+        // search cannot be served from an index at any size, so the interface must not
+        // offer one.
+        assertThat(searchFor("ere")).isEmpty();
     }
 
     @Test
     @DisplayName("every word of the query must match, so two terms narrow the result")
     void everyTermMustMatch() {
-        assertThat(searchFor("brian vargas")).hasSize(1);
-        assertThat(searchFor("brian munoz")).isEmpty();
+        assertThat(searchFor("pepito perez")).hasSize(1);
+        assertThat(searchFor("pepito munoz")).isEmpty();
     }
 
     @Test
     @DisplayName("a search on the e-mail finds the account")
     void searchesTheEmailToo() {
-        assertThat(searchFor("brian.vargasc@konradlorenz.edu.co")).hasSize(1);
+        assertThat(searchFor("pepito.perez@konradlorenz.edu.co")).hasSize(1);
     }
 
     @Test

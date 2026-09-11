@@ -17,7 +17,7 @@ public record RegistrationResponse(
         @Schema(example = "3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73")
         String userId,
 
-        @Schema(example = "brian.vargasc@konradlorenz.edu.co")
+        @Schema(example = "pepito.perez@konradlorenz.edu.co")
         String email,
 
         @Schema(description = "Always false immediately after registration.", example = "false")

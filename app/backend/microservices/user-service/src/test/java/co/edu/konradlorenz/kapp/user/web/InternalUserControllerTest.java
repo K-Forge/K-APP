@@ -26,9 +26,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class InternalUserControllerTest extends AbstractUserServiceTest {
 
     private static final String STUDENT_BODY = """
-            {"email": "Brian.VargasC@Konradlorenz.edu.co", "firstName": "Brian Steven",
-             "lastName": "Vargas Clavijo", "role": "ROLE_STUDENT",
-             "academic": {"studentCode": "506232730", "programCode": "506",
+            {"email": "Pepito.Perez@Konradlorenz.edu.co", "firstName": "Pepito",
+             "lastName": "Perez Gomez", "role": "ROLE_STUDENT",
+             "academic": {"studentCode": "506999999", "programCode": "506",
                           "pensumCode": "1015", "currentLevel": 1}}""";
 
     @Test
@@ -56,10 +56,10 @@ class InternalUserControllerTest extends AbstractUserServiceTest {
                         .contentType(MediaType.APPLICATION_JSON).content(STUDENT_BODY))
                 .andExpect(status().isOk())
                 // Lowercased on the way in, regardless of how auth-service sent it.
-                .andExpect(jsonPath("$.email").value("brian.vargasc@konradlorenz.edu.co"))
+                .andExpect(jsonPath("$.email").value("pepito.perez@konradlorenz.edu.co"))
                 .andExpect(jsonPath("$.role").value("ROLE_STUDENT"))
                 .andExpect(jsonPath("$.active").value(true))
-                .andExpect(jsonPath("$.academic.studentCode").value("506232730"));
+                .andExpect(jsonPath("$.academic.studentCode").value("506999999"));
     }
 
     @Test
@@ -68,25 +68,25 @@ class InternalUserControllerTest extends AbstractUserServiceTest {
         mockMvc.perform(post("/internal/users")
                         .header(InternalTokenInterceptor.HEADER, INTERNAL_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"email": "Brian.VargasC@Konradlorenz.edu.co",
-                                 "firstName": "Brian Steven", "lastName": "Vargas Clavijo",
+                                {"email": "Pepito.Perez@Konradlorenz.edu.co",
+                                 "firstName": "Pepito", "lastName": "Perez Gomez",
                                  "role": "ROLE_STUDENT",
-                                 "academic": {"studentCode": "506232730", "programCode": "506",
+                                 "academic": {"studentCode": "506999999", "programCode": "506",
                                               "pensumCode": "1015", "currentLevel": 1}}"""))
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/internal/users")
                         .header(InternalTokenInterceptor.HEADER, INTERNAL_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"email": "brian.vargasc@konradlorenz.edu.co",
-                                 "firstName": "Brian Steven", "lastName": "Vargas Clavijo",
+                                {"email": "pepito.perez@konradlorenz.edu.co",
+                                 "firstName": "Pepito", "lastName": "Perez Gomez",
                                  "role": "ROLE_STUDENT",
-                                 "academic": {"studentCode": "506232730", "programCode": "506",
+                                 "academic": {"studentCode": "506999999", "programCode": "506",
                                               "pensumCode": "1015", "currentLevel": 2}}"""))
                 .andExpect(status().isOk());
 
         long documents = mongoTemplate.count(
-                Query.query(Criteria.where("email").is("brian.vargasc@konradlorenz.edu.co")),
+                Query.query(Criteria.where("email").is("pepito.perez@konradlorenz.edu.co")),
                 UserProfile.class);
         assertThat(documents).isEqualTo(1);
     }
@@ -102,10 +102,10 @@ class InternalUserControllerTest extends AbstractUserServiceTest {
         mockMvc.perform(post("/internal/users")
                         .header(InternalTokenInterceptor.HEADER, INTERNAL_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"email": "brian.vargasc@konradlorenz.edu.co",
+                                {"email": "pepito.perez@konradlorenz.edu.co",
                                  "firstName": "Brian S.", "lastName": "Vargas C.",
                                  "role": "ROLE_STUDENT",
-                                 "academic": {"studentCode": "506232730", "programCode": "506",
+                                 "academic": {"studentCode": "506999999", "programCode": "506",
                                               "pensumCode": "1015", "currentLevel": 2}}"""))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.firstName").value("Brian S."))
@@ -120,7 +120,7 @@ class InternalUserControllerTest extends AbstractUserServiceTest {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"email": "maria.rodriguez@gmail.com", "firstName": "Maria",
                                  "lastName": "Rodriguez", "role": "ROLE_GUEST",
-                                 "academic": {"studentCode": "506232730", "programCode": "506",
+                                 "academic": {"studentCode": "506999999", "programCode": "506",
                                               "pensumCode": "1015", "currentLevel": 1}}"""))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details[0].field").value("academic"));
@@ -132,7 +132,7 @@ class InternalUserControllerTest extends AbstractUserServiceTest {
         mockMvc.perform(post("/internal/users")
                         .header(InternalTokenInterceptor.HEADER, INTERNAL_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"email": "brian.vargasc@konradlorenz.edu.co",
+                                {"email": "pepito.perez@konradlorenz.edu.co",
                                  "firstName": "Brian", "lastName": "Vargas",
                                  "role": "ROLE_STUDENT", "academic": null}"""))
                 .andExpect(status().isBadRequest())

@@ -104,7 +104,7 @@ class PensumReconcilerTest {
     }
 
     private static StudentProgress progress(List<StudentProgressCourse> courses) {
-        return new StudentProgress("id1", "user1", "506232730", "506", "1015", 1, courses, Instant.now());
+        return new StudentProgress("id1", "user1", "506999999", "506", "1015", 1, courses, Instant.now());
     }
 
     private static StudentProgressCourse passed(String code, String pensumItemCode) {

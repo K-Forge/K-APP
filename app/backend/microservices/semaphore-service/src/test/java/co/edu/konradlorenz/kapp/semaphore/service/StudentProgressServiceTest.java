@@ -89,7 +89,7 @@ class StudentProgressServiceTest {
     void lazilyCreatesOnFirstCall() {
         when(progressRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
         UserProfileResponse profile = new UserProfileResponse("u", "ROLE_STUDENT",
-                new UserProfileResponse.Academic("506232730", "506", 1));
+                new UserProfileResponse.Academic("506999999", "506", 1));
         when(userProfileClient.getMyProfile()).thenReturn(profile);
         when(activePensumResolver.resolveActiveOrThrow("506")).thenReturn(pensum);
         when(progressRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -97,7 +97,7 @@ class StudentProgressServiceTest {
         StudentProgress created = service.getOrCreate(USER_ID);
 
         assertThat(created.pensumCode()).isEqualTo(PENSUM_CODE);
-        assertThat(created.studentCode()).isEqualTo("506232730");
+        assertThat(created.studentCode()).isEqualTo("506999999");
         assertThat(created.courses()).hasSize(5);
         assertThat(created.courses()).allSatisfy(c -> assertThat(c.status()).isEqualTo(CourseStatus.PENDING));
     }
@@ -123,7 +123,7 @@ class StudentProgressServiceTest {
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(alreadyCreatedByTheOtherRequest));
         UserProfileResponse profile = new UserProfileResponse("u", "ROLE_STUDENT",
-                new UserProfileResponse.Academic("506232730", "506", 1));
+                new UserProfileResponse.Academic("506999999", "506", 1));
         when(userProfileClient.getMyProfile()).thenReturn(profile);
         when(activePensumResolver.resolveActiveOrThrow("506")).thenReturn(pensum);
         when(progressRepository.save(any())).thenThrow(new DuplicateKeyException("E11000 duplicate key"));
@@ -341,7 +341,7 @@ class StudentProgressServiceTest {
                 ? new StudentProgressCourse(null, "ELEC1", CourseStatus.PENDING, null, null,
                         "PRIOR-CODE", "Prior Course")
                 : new StudentProgressCourse(null, "ELEC1", CourseStatus.PENDING, null, null, null, null);
-        StudentProgress progress = new StudentProgress("doc-elec", USER_ID, "506232730", "506",
+        StudentProgress progress = new StudentProgress("doc-elec", USER_ID, "506999999", "506",
                 PENSUM_CODE, 1, List.of(fixedEntry, electiveEntry), Instant.now());
 
         when(progressRepository.findByUserId(USER_ID)).thenReturn(Optional.of(progress));
@@ -375,7 +375,7 @@ class StudentProgressServiceTest {
                 entry("C3", CourseStatus.IN_PROGRESS, null),
                 entry("C4", CourseStatus.PENDING, null),
                 entry("C5", CourseStatus.PENDING, null));
-        return new StudentProgress("doc-1", USER_ID, "506232730", "506", PENSUM_CODE, 2,
+        return new StudentProgress("doc-1", USER_ID, "506999999", "506", PENSUM_CODE, 2,
                 courses, Instant.now());
     }
 
