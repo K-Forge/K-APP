@@ -112,11 +112,26 @@ export class IdentityPage {
 
   readonly issuedLocal = computed(() => {
     const claims = this.decoded()?.claims;
-    return claims ? new Date(claims.iat * 1000).toLocaleString() : '';
+    return claims ? formatMoment(claims.iat) : '';
   });
 
   readonly expiryLocal = computed(() => {
     const claims = this.decoded()?.claims;
-    return claims ? new Date(claims.exp * 1000).toLocaleString() : '';
+    return claims ? formatMoment(claims.exp) : '';
   });
+}
+
+/**
+ * One date format for the whole portal: "11 Sep 2026, 00:51".
+ *
+ * <p>`toLocaleString()` gives the browser's format and the DatePipe's 'short' gives Angular's
+ * default locale, so the same instant read three different ways on three screens - and
+ * "9/11/26" is 9 November to half this team and 11 September to the other half. A written-out
+ * month cannot be misread, and a 24-hour clock is what everyone here uses anyway.
+ */
+function formatMoment(epochSeconds: number): string {
+  const d = new Date(epochSeconds * 1000);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }

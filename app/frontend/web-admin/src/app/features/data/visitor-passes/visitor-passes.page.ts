@@ -40,7 +40,7 @@ import { VisitorPassesService } from './visitor-passes.service';
           <p style="margin:0 0 0.25rem">Read this out to the visitor:</p>
           <p class="issued-code mono">{{ pass.code }}</p>
           <p class="text-muted" style="margin:0">
-            Redeemable until {{ pass.redeemableUntil | date: 'short' }}. They need an identity
+            Redeemable until {{ pass.redeemableUntil | date: 'dd MMM y, HH:mm' }}. They need an identity
             document to redeem it.
           </p>
         </div>
@@ -78,7 +78,7 @@ import { VisitorPassesService } from './visitor-passes.service';
             @for (pass of passes(); track pass.code) {
               <tr>
                 <td class="mono">{{ pass.code }}</td>
-                <td class="text-muted">{{ pass.createdAt | date: 'short' }}</td>
+                <td class="text-muted">{{ pass.createdAt | date: 'dd MMM y, HH:mm' }}</td>
                 <td>
                   @if (pass.redeemed) {
                     {{ pass.visitorName }}
@@ -90,7 +90,7 @@ import { VisitorPassesService } from './visitor-passes.service';
                   {{ pass.redeemed ? pass.documentType + ' ' + pass.documentNumber : '—' }}
                 </td>
                 <td class="text-muted">
-                  {{ pass.redeemed ? (pass.accessExpiresAt | date: 'short') : ('expires ' + (pass.redeemableUntil | date: 'shortTime')) }}
+                  {{ pass.redeemed ? (pass.accessExpiresAt | date: 'dd MMM y, HH:mm') : ('expires ' + (pass.redeemableUntil | date: 'HH:mm')) }}
                 </td>
                 <td class="text-muted">{{ pass.notes ?? '—' }}</td>
                 <td>

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, ViewChild, inject, signal } from '@
 import { AppHttpError } from '../../../core/http/api-http-error';
 import type { ApiError } from '../../../core/http/api-error.model';
 import { ApiErrorBannerComponent } from '../../../shared/ui/api-error-banner/api-error-banner.component';
+import { PageIntroComponent } from '../../../shared/ui/page-intro/page-intro.component';
 import { DataTableComponent } from '../../../shared/ui/data-table/data-table.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
 import { BuildingFormComponent } from './building-form.component';
@@ -11,14 +12,18 @@ import { BuildingsService } from './buildings.service';
 /** Full CRUD over /api/map/buildings - the smaller of the two map entities, so no server paging. */
 @Component({
   selector: 'app-buildings-page',
-  imports: [DataTableComponent, ApiErrorBannerComponent, ModalComponent, BuildingFormComponent],
+  imports: [DataTableComponent, ApiErrorBannerComponent, ModalComponent, BuildingFormComponent, PageIntroComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack">
-      <div class="row-between">
-        <h1>Buildings</h1>
-        <button type="button" class="btn btn-primary" (click)="openCreate()">New building</button>
-      </div>
+      <app-page-intro
+        title="Buildings"
+        what="The blocks that make up a campus, and the floors inside each one. A floor is a grid: how many rows and columns the schematic map draws for it."
+        [can]="['Create a building and describe its floors', 'Edit its name, its campus or the grid of a floor', 'Delete one that has no spaces on it']"
+        note="The basement is level −1, not level 0, and the rule that a room code starts with its floor number stops applying there. Floors are edited here; the rooms on them live in Spaces. Deleting a building that still has spaces is refused with a 409 saying how many."
+      >
+        <button actions type="button" class="btn btn-primary" (click)="openCreate()">New building</button>
+      </app-page-intro>
 
       <div class="card stack">
         <div class="field" style="margin-bottom: 0; max-width: 20rem">
@@ -143,7 +148,7 @@ export class BuildingsPage {
   }
 
   remove(building: Building): void {
-    if (!window.confirm(`Delete building ${building.code} - ${building.name}? This cannot be undone.`)) {
+    if (!window.confirm(`Delete building ${building.code} — ${building.name}? This cannot be undone.`)) {
       return;
     }
     this.deletingCode.set(building.code);

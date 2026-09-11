@@ -25,7 +25,7 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
       <app-page-intro
         title="Pensums"
         what="A pensum is one version of a programme&#39;s plan of study: its courses, their levels, their credits and which ones unlock which."
-        [can]="['Load one by its code', 'Edit the whole document', 'Delete one no student is following', 'Import many at once from a CSV']"
+        [can]="['Load one by its code', 'Build one from a PDF by pasting its table', 'Edit the whole document', 'Delete one no student is following']"
         note="The pensum is immutable as far as students are concerned — a student&#39;s own rearrangement is a separate plan layered over it, so correcting a pensum here reaches every student without rewriting anybody&#39;s plan. Deleting never cascades: one that students are following is refused with a 409 saying how many."
       >
         <button actions type="button" class="btn btn-primary" (click)="openCreate()">New pensum</button>

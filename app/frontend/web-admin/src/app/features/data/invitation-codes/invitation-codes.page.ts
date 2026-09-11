@@ -7,7 +7,12 @@ import type { ApiError } from '../../../core/http/api-error.model';
 import { ApiErrorBannerComponent } from '../../../shared/ui/api-error-banner/api-error-banner.component';
 import { DataTableComponent } from '../../../shared/ui/data-table/data-table.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
-import { INVITATION_ROLES, type InvitationCode, type InvitationRole } from './invitation-code.model';
+import {
+  INVITATION_ROLES,
+  remainingUses,
+  type InvitationCode,
+  type InvitationRole,
+} from './invitation-code.model';
 import { InvitationCodesService } from './invitation-codes.service';
 
 /**
@@ -70,8 +75,8 @@ import { InvitationCodesService } from './invitation-codes.service';
                 <td class="mono">{{ code.code }}</td>
                 <td><span class="badge badge-neutral">{{ code.role }}</span></td>
                 <td>{{ code.timesUsed }} / {{ code.maxUses }}</td>
-                <td [class.text-faint]="code.remainingUses === 0">{{ code.remainingUses }}</td>
-                <td class="text-muted">{{ code.expiresAt ? (code.expiresAt | date: 'short') : 'never' }}</td>
+                <td [class.text-faint]="remaining(code) === 0">{{ remaining(code) }}</td>
+                <td class="text-muted">{{ code.expiresAt ? (code.expiresAt | date: 'dd MMM y, HH:mm') : 'never' }}</td>
                 <td class="text-muted">{{ code.notes ?? '—' }}</td>
                 <td>
                   <span class="badge" [class.badge-ok]="code.active" [class.badge-neutral]="!code.active">
@@ -158,6 +163,17 @@ export class InvitationCodesPage {
   private readonly service = inject(InvitationCodesService);
 
   readonly roles = INVITATION_ROLES;
+
+  /**
+   * How many accounts a code can still create.
+   *
+   * <p>Derived here because the server does not send it. The model used to declare
+   * `remainingUses` as a number, so the template read it, TypeScript agreed it existed, and the
+   * column rendered empty on every row since the screen was written.
+   */
+  remaining(code: InvitationCode): number {
+    return remainingUses(code);
+  }
 
   readonly loading = signal(true);
   readonly error = signal<ApiError | null>(null);

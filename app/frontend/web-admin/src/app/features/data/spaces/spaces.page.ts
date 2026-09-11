@@ -3,6 +3,7 @@ import { AppHttpError } from '../../../core/http/api-http-error';
 import type { ApiError } from '../../../core/http/api-error.model';
 import type { PageResponse } from '../../../core/http/page-response.model';
 import { ApiErrorBannerComponent } from '../../../shared/ui/api-error-banner/api-error-banner.component';
+import { PageIntroComponent } from '../../../shared/ui/page-intro/page-intro.component';
 import { DataTableComponent } from '../../../shared/ui/data-table/data-table.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
 import type { Building } from '../buildings/building.model';
@@ -17,14 +18,18 @@ const MIN_QUERY_LENGTH = 2;
 /** Full-text search plus CRUD over /api/map/spaces - the "find a room" screen turned inside out. */
 @Component({
   selector: 'app-spaces-page',
-  imports: [DataTableComponent, ApiErrorBannerComponent, ModalComponent, SpaceFormComponent],
+  imports: [DataTableComponent, ApiErrorBannerComponent, ModalComponent, SpaceFormComponent, PageIntroComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack">
-      <div class="row-between">
-        <h1>Spaces</h1>
-        <button type="button" class="btn btn-primary" (click)="openCreate()">New space</button>
-      </div>
+      <app-page-intro
+        title="Spaces"
+        what="Every room, lab, lift, stairwell and corridor the map can point at. Each one sits in a cell of the grid of its floor."
+        [can]="['Create a space and place it on the grid', 'Edit where it sits, what it is called and what it is', 'Delete one', 'Search by code, name or alias']"
+        note="A wing is a field, not a suffix: 301-N, 301-S and 301 are three different rooms. The access route names the lift or stairs that serves the space — it is what produces &quot;take the central lift to floor 4&quot; — and it has to name a real one in the same building, or the save is refused."
+      >
+        <button actions type="button" class="btn btn-primary" (click)="openCreate()">New space</button>
+      </app-page-intro>
 
       <div class="card stack">
         <div class="row spread">
@@ -228,7 +233,7 @@ export class SpacesPage {
   }
 
   remove(space: Space): void {
-    if (!window.confirm(`Delete space ${space.code} - ${space.name}? This cannot be undone.`)) {
+    if (!window.confirm(`Delete space ${space.code} — ${space.name}? This cannot be undone.`)) {
       return;
     }
     this.deletingId.set(space.id);

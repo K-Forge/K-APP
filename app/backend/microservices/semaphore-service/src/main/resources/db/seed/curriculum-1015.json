@@ -1,8 +1,8 @@
 {
   "pensumCode": "1015",
   "programCode": "506",
-  "programName": "Ingenieria de Sistemas",
-  "faculty": "Facultad de Matematicas e Ingenierias",
+  "programName": "Ingeniería de Sistemas",
+  "faculty": "Facultad de Matemáticas e Ingenierías",
   "reform": "Reforma del Plan de Estudios 2018",
   "status": "ACTIVE",
   "totalCredits": 142,
@@ -18,14 +18,14 @@
     },
     {
       "code": "BIS",
-      "name": "Basicas de Ingenieria de Sistemas",
+      "name": "Basicas de Ingeniería de Sistemas",
       "color": "#522567",
       "credits": 28,
       "hours": 40
     },
     {
       "code": "ISA",
-      "name": "Ingenieria de Sistemas Aplicada",
+      "name": "Ingeniería de Sistemas Aplicada",
       "color": "#C9D329",
       "credits": 66,
       "hours": 92
@@ -78,7 +78,7 @@
     {
       "code": "IS-INTRO-IS",
       "pensumItemCode": "IS-INTRO-IS",
-      "name": "Introduccion a la Ingenieria de Sistemas",
+      "name": "Introduccion a la Ingeniería de Sistemas",
       "level": 1,
       "credits": 2,
       "weeklyHours": 3,

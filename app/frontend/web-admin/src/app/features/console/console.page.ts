@@ -29,7 +29,7 @@ function operationKey(op: Pick<ConsoleOperation, 'method' | 'path'>): string {
           title="API console"
           what="Call any endpoint of the services with your own token, without leaving the browser or writing a curl."
           [can]="['Pick an operation from the contracts', 'Fill path, query and body from the contract examples', 'Send it and read the real response', 'Look back at what you already sent']"
-          note="It sends your actual token to the actual gateway — this is not a simulation. A DELETE here deletes. It is also the way to verify a row on the &#39;Who can do what&#39; screen: sign in as that role and call it."
+          note="It sends your actual token to the actual gateway — this is not a simulation. A DELETE here deletes. It is also the way to verify a row on the &#39;Who can do what&#39; screen: sign in as that role and call it. Service-to-service endpoints under /internal are left out: the gateway does not route them, so every attempt from here would be a 404 that says nothing about whether they work. They are listed on &#39;Who can do what&#39;, marked SERVICE_ONLY."
         />
 
         <div class="card stack">
@@ -273,7 +273,20 @@ export class ConsolePage {
   readonly operationKey = operationKey;
 
   readonly selectedServiceId = signal(this.services[0]?.id ?? '');
-  readonly operations = computed(() => this.catalog.operationsFor(this.selectedServiceId()));
+  /**
+   * Everything the console can actually call.
+   *
+   * <p>`/internal/**` is excluded because the gateway has no route for it - that is the whole
+   * point of the prefix. Offering those operations here means offering a button whose only
+   * possible outcome is a 404 from the gateway, which reads like the endpoint is broken rather
+   * than like it was never reachable from a browser. They stay on the "Who can do what" screen,
+   * where SERVICE_ONLY is the interesting fact about them.
+   */
+  readonly operations = computed(() =>
+    this.catalog
+      .operationsFor(this.selectedServiceId())
+      .filter((op) => !op.path.startsWith('/internal/')),
+  );
 
   readonly selectedOpKey = signal<string | null>(null);
   readonly selectedOperation = computed(

@@ -113,15 +113,20 @@ import {
       <!-- ── 2. The paste ───────────────────────────────────────────────── -->
       <section class="card stack">
         <h3 class="step"><span class="step-n">2</span> Paste the table</h3>
-        <p class="text-muted" style="margin:0">
+        <p id="pp-paste-hint" class="text-muted" style="margin:0">
           Select the course table in the PDF, copy, and paste here. Tabs or runs of spaces both
-          work — one row per line. Headers and page furniture can come along; you delete those
-          rows in step 3.
+          work — one row per line. A heading line is recognised and left out; other page
+          furniture you delete in step 3.
         </p>
+        <!-- The only control in the portal that had no label: a screen reader announced it as
+             "edit text, blank", and the placeholder is a row of tab-separated numbers. -->
+        <label for="pp-paste" class="sr-only">The pensum table, pasted from the PDF</label>
         <textarea
+          id="pp-paste"
           rows="8"
           [value]="pasted()"
           (input)="onPaste($event)"
+          aria-describedby="pp-paste-hint"
           placeholder="1001&#9;10011&#9;Cálculo Diferencial&#9;1&#9;3&#9;4&#9;CB&#9;"
         ></textarea>
         <div class="row">

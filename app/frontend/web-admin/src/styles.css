@@ -279,6 +279,23 @@ textarea:disabled {
   cursor: not-allowed;
 }
 
+/*
+ * A read-only field has to look read-only.
+ *
+ * A program's code cannot change once it exists, so the edit form marks that input readonly -
+ * and it rendered pixel-identical to the editable one next to it, with a text cursor. You click
+ * it, you type, nothing happens, and there is no way to tell whether the field is locked or the
+ * app is broken. `readonly` and not `disabled` on purpose: the value still has to be readable,
+ * selectable and copyable, which is exactly what disabling would take away.
+ */
+input[readonly],
+textarea[readonly] {
+  background: var(--surface-2, var(--bg));
+  color: var(--text-muted);
+  cursor: default;
+  border-style: dashed;
+}
+
 .field.invalid input,
 .field.invalid select,
 .field.invalid textarea {
