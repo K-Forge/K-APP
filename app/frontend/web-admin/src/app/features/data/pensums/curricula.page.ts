@@ -5,6 +5,7 @@ import type { ApiError } from '../../../core/http/api-error.model';
 import { ApiErrorBannerComponent } from '../../../shared/ui/api-error-banner/api-error-banner.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
 import { ImportPanelComponent } from '../import/import-panel.component';
+import { PastePensumComponent } from '../import/paste-pensum.component';
 import { CurriculaService } from './curricula.service';
 import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
 
@@ -17,7 +18,7 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
  */
 @Component({
   selector: 'app-curricula-page',
-  imports: [ApiErrorBannerComponent, ModalComponent, ImportPanelComponent, PageIntroComponent],
+  imports: [ApiErrorBannerComponent, ModalComponent, ImportPanelComponent, PageIntroComponent, PastePensumComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack">
@@ -132,10 +133,24 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
       <!-- Bulk creation. It lives here rather than in its own navigation entry because
            importing a CSV IS the create half of this screen's CRUD - twenty-four pensums is
            not something anybody types in one at a time. -->
+      <!-- Creating a pensum, at the scale the pensums actually arrive: as PDFs, twenty-four
+           of them. Paste is the primary path because copying a table out of a PDF preserves
+           its rows better than any attempt to reconstruct the page, and because whoever does
+           it has to check every row anyway. -->
+      <details class="card import-panel" open>
+        <summary>
+          <strong>Build one from a PDF</strong>
+          <span class="text-muted"> — paste the table, correct it, import it</span>
+        </summary>
+        <div style="margin-top:1rem">
+          <app-paste-pensum />
+        </div>
+      </details>
+
       <details class="card import-panel">
         <summary>
-          <strong>Import many from a CSV</strong>
-          <span class="text-muted"> — twenty-four pensums, not one at a time</span>
+          <strong>Already have a CSV?</strong>
+          <span class="text-muted"> — upload it directly</span>
         </summary>
         <div style="margin-top:1rem">
           <app-import-panel />
