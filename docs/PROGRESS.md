@@ -30,9 +30,10 @@ production deployment.
 | iOS (Swift) | Not started | — | The product. Unblocked by the mocks |
 | Deployment | Not started | — | Runs locally; university hardware pending |
 
-**618 integration tests**, from a repository that had none in August. Every service asserts its
-full role-by-endpoint authorization matrix with one assertion per case, including every combination
-that must be refused — those are the ones that matter.
+**635 integration tests** in the backend and **54 in the admin portal**, from a repository that
+had none in August. Every service asserts its full role-by-endpoint authorization matrix with one
+assertion per case, including every combination that must be refused — those are the ones that
+matter.
 
 ### Phases closed since the August rebuild
 
@@ -64,12 +65,21 @@ making that migration a change of property value.
 **Contract first.** `docs/api/*.openapi.yaml` are hand-written and served by Prism containers, so
 the mobile team works without waiting for the backend. CI lints them on every push.
 
-**Tests.** 618 integration tests on Testcontainers, from a repository that had none. Beyond the
-authorization matrices, they have already earned their keep by catching real defects:
+**Tests.** 635 integration tests on Testcontainers, from a repository that had none, plus 54 in
+the portal. Beyond the authorization matrices, they have already earned their keep by catching
+real defects:
 
 - In `auth-service`, the role check ran before the `try` block, so an invitation code carrying a
   rejected role consumed its slot permanently — the `release()` in the `catch` never ran. A student
   would have burned an invitation on a registration that failed.
+
+**And one class of defect they could not catch.** Reviewing the admin portal screen by screen in
+September turned up a bug that lived *between* two services: "Deactivate" wrote `active = false`
+on the profile in `user-service` while the credential in `auth-service` stayed `ACTIVE`, so the
+account kept signing in. Both services were individually correct and both suites were green —
+the failure only exists end to end, from the button. It is S13 in `SECURITY-AUDIT.md`. The lesson
+is recorded here rather than in a commit message: a test per service proves each service, and
+nothing yet proves the seam between them.
 - A shared static Testcontainers instance was being stopped by the first test class to finish, while
   sibling classes still depended on it. That is the kind of failure that looks random.
 - Writing the bulk import surfaced that the **seeded Ingeniería de Sistemas plan does not add up**:

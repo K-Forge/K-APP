@@ -111,9 +111,14 @@ public class CatalogService {
         List<Curriculum> dependent = curricula.findByProgramCode(programCode);
         if (!dependent.isEmpty()) {
             List<String> codes = dependent.stream().map(Curriculum::pensumCode).sorted().toList();
+            // "pensum", not "curriculum": that is what the building calls it, what the portal
+            // calls it, and this string is read by a person deciding what to do next. And
+            // "1 pensum" rather than "1 pensum(s)", because a message that cannot be bothered
+            // to pluralise reads like nobody expected anyone to see it.
             throw new ConflictException(
-                    "Program %s still has %d curriculum(s) and cannot be deleted"
-                            .formatted(programCode, codes.size()),
+                    "Program %s still has %d %s and cannot be deleted"
+                            .formatted(programCode, codes.size(),
+                                    codes.size() == 1 ? "pensum" : "pensums"),
                     codes.stream()
                             .map(code -> new ApiError.FieldIssue("pensumCode", code))
                             .toList());
