@@ -88,10 +88,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # No `version:` here on purpose. The action refuses to run when it is told a version AND
+      # finds `packageManager` in package.json - "Multiple versions of pnpm specified" - and the
+      # root package.json pins pnpm@10.33.0. One source of truth, and it is the one the
+      # Dockerfile and everybody's laptop already use through Corepack.
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Set up Node
         uses: actions/setup-node@v4
