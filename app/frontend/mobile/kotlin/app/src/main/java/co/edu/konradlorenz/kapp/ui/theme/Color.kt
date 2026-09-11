@@ -24,11 +24,17 @@ val Passed = Color(0xFF3E823E)
 /** Pink over green. Errors. */
 val ErrorRed = Color(0xFFB62325)
 
+/** All three at once. The person: the profile shortcut and the profile tab. */
+val Person = Color(0xFF592E2A)
+
 val Background = Color(0xFFF7F4F8)
 val Surface = Color(0xFFFFFFFF)
 val TextPrimary = Color(0xFF1C1420)
 val TextSoft = Color(0xFF6B6472)
 val Border = Color(0xFFE7E2EA)
+
+/** A line too quiet to be a border: the edge of the floating bar, and the paler skeleton bars. */
+val BorderSoft = Color(0xFFEFEBF1)
 
 /** A course not taken yet. Same value as [Border]; the two roles are named apart on purpose. */
 val Pending = Color(0xFFE7E2EA)

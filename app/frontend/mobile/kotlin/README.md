@@ -5,13 +5,25 @@ Native Android client, Kotlin and Jetpack Compose. This is the product, not a pr
 
 ## State
 
-The **login screen** is built, as an interface only. It matches
-[`docs/design/mobile/LoginAndroid.dc.html`](../../../../docs/design/mobile/LoginAndroid.dc.html)
-and goes nowhere: there is no network layer, no `INTERNET` permission and no call to
-`POST /auth/login`. Pressing **Ingresar** with both fields filled navigates to a placeholder Inicio.
+**Login** and **Inicio** are built, as interfaces only. They match
+[`LoginAndroid.dc.html`](../../../../docs/design/mobile/LoginAndroid.dc.html) and
+[`HomeAndroid.dc.html`](../../../../docs/design/mobile/HomeAndroid.dc.html), and they go nowhere:
+there is no network layer, no `INTERNET` permission and no call to anything. Pressing **Ingresar**
+with both fields filled navigates to Inicio, and that is every transition the app has.
 
-Everything else is a stub. `HomeScreen` and `InvitationScreen` exist so the two exits of the login
-have somewhere to land and the back stack can be checked.
+Inicio is drawn from a state, not from constants, so the three cases in
+[`EstadosHome.dc.html`](../../../../docs/design/mobile/EstadosHome.dc.html) are already there:
+loading, a day with no classes on it (`day` → `[]`) and a student who has never built a schedule
+(`day` → 404). The day and the semester load separately, because schedule-service and
+semaphore-service answer separately — a student with no timetable still has a semáforo. Until
+there is a repository, `HomeViewModel` serves `HomeSampleData.kt`, which is the student every
+artboard is drawn with.
+
+Nothing on Inicio navigates: the four shortcuts, the two section links and the four other tabs
+point at screens that do not exist, so they are drawn and left inert rather than wired to routes
+that would go nowhere.
+
+`InvitationScreen` is still a stub, so the login's second exit has somewhere to land.
 
 ## Running it
 
@@ -26,8 +38,9 @@ cd app/frontend/mobile/kotlin
 ./gradlew :app:installDebug         # onto a connected device or a running emulator
 ```
 
-The `@Preview` in `LoginScreen.kt` renders the screen at 360x800, which is the size the mockup is
-drawn at, so the two can be compared side by side without a device.
+Every `@Preview` renders at 360x800, which is the size the mockups are drawn at, so the two can be
+compared side by side without a device. `HomeScreen.kt` has four: the screen, and the three states
+of `EstadosHome.dc.html`.
 
 ## Layout
 
@@ -38,7 +51,7 @@ app/src/main/java/co/edu/konradlorenz/kapp/
     ├── theme/                   the palette, the type scale, the Material scheme
     ├── navigation/              three routes, no arguments
     ├── login/                   LoginScreen + LoginViewModel
-    ├── home/                    stub
+    ├── home/                    HomeScreen + HomeViewModel + HomeUiState + HomeSampleData
     └── invitation/              stub
 ```
 
@@ -61,6 +74,10 @@ names that sheet assigns. Two rules worth not rediscovering:
 | Session persistence | "Mantener la sesión iniciada" holds interface state only. `auth.openapi.yaml` has no refresh token and `expiresIn` is one hour for everybody, so there is a backend decision to make first |
 | Hilt | It earns its place when there are two implementations to swap, not before |
 | A monochrome launcher icon | Themed icons need a single-colour version of the crest, which is a design asset we do not have |
+| `GET /api/schedule/me/day` and `GET /api/semaphore/me/summary` | What Inicio is drawn from. `HomeViewModel` already has the two states they fill; what neither contract has a picture for is the failure case, so that is the first thing to design |
+| Anything Inicio links to | Semáforo, Horario, Mapa and Perfil are four screens, not four routes. The bar stays inside `HomeScreen.kt` until at least a second one exists |
+| The block a class is in | `ClassOccurrence` carries `room` and `campus`; the mockup prints "Salón 401 · Bloque B". The block comes from map-service or it is a field `schedule.openapi.yaml` grows |
+| The number of courses in progress | `ProgressSummary` counts credits, not courses, so "5 materias en curso" needs a second call to `GET /api/semaphore/me` or a new field |
 
 ## Versions
 
