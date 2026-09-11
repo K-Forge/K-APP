@@ -4,12 +4,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
+import java.nio.charset.StandardCharsets;
+
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -34,11 +37,16 @@ class InvitationCodeAdminIntegrationTest extends AbstractAuthIntegrationTest {
         return bearerFor("admin-1", "admin" + INSTITUTIONAL_DOMAIN, "ROLE_ADMIN");
     }
 
-    private static String requestJson(String code, String role, int maxUses) {
+    /** The server mints the code; a caller supplies everything else. */
+    private static String requestJson(String role, int maxUses) {
         return """
-                {"code":"%s","role":"%s","maxUses":%d,"notes":"intake for the test suite"}
-                """.formatted(code, role, maxUses);
+                {"role":"%s","maxUses":%d,"notes":"intake for the test suite"}
+                """.formatted(role, maxUses);
     }
+
+    /** KL- then two groups of four, from an alphabet with no O/0 or I/1. */
+    private static final java.util.regex.Pattern MINTED =
+            java.util.regex.Pattern.compile("^KL-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$");
 
     // ── Creating ───────────────────────────────────────────────────────────────────
 
@@ -48,10 +56,9 @@ class InvitationCodeAdminIntegrationTest extends AbstractAuthIntegrationTest {
         mockMvc.perform(post("/auth/admin/invitation-codes")
                         .header("Authorization", adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson("KL-TEST-NEW", "ROLE_STUDENT", 25)))
+                        .content(requestJson("ROLE_STUDENT", 25)))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", "/auth/admin/invitation-codes/KL-TEST-NEW"))
-                .andExpect(jsonPath("$.code").value("KL-TEST-NEW"))
+                .andExpect(jsonPath("$.code").value(org.hamcrest.Matchers.matchesPattern(MINTED.pattern())))
                 .andExpect(jsonPath("$.role").value("ROLE_STUDENT"))
                 .andExpect(jsonPath("$.maxUses").value(25))
                 .andExpect(jsonPath("$.timesUsed").value(0))
@@ -62,20 +69,24 @@ class InvitationCodeAdminIntegrationTest extends AbstractAuthIntegrationTest {
     @Test
     @DisplayName("a minted code actually works for registration")
     void aMintedCodeCanBeRedeemed() throws Exception {
-        mockMvc.perform(post("/auth/admin/invitation-codes")
+        // The code has to be read back from the response now, which is the whole point: nobody,
+        // including this test, gets to decide what it is.
+        String created = mockMvc.perform(post("/auth/admin/invitation-codes")
                         .header("Authorization", adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson("KL-TEST-USABLE", "ROLE_STUDENT", 5)))
-                .andExpect(status().isCreated());
+                        .content(requestJson("ROLE_STUDENT", 5)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String code = com.jayway.jsonpath.JsonPath.read(created, "$.code");
 
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"minted%s","password":"MintedPass2026",
                                  "firstName":"Minted","lastName":"Account",
-                                 "invitationCode":"KL-TEST-USABLE",
+                                 "invitationCode":"%s",
                                  "studentCode":"506900100","programCode":"506"}
-                                """.formatted(INSTITUTIONAL_DOMAIN)))
+                                """.formatted(INSTITUTIONAL_DOMAIN, code)))
                 .andExpect(status().isCreated());
     }
 
@@ -85,7 +96,7 @@ class InvitationCodeAdminIntegrationTest extends AbstractAuthIntegrationTest {
         mockMvc.perform(post("/auth/admin/invitation-codes")
                         .header("Authorization", adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson("KL-TEST-ESCALATE", "ROLE_ADMIN", 1)))
+                        .content(requestJson("ROLE_ADMIN", 1)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details[0].field").value("role"));
     }
@@ -96,35 +107,42 @@ class InvitationCodeAdminIntegrationTest extends AbstractAuthIntegrationTest {
         mockMvc.perform(post("/auth/admin/invitation-codes")
                         .header("Authorization", adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson("KL-TEST-NOBODY", "ROLE_SUPERUSER", 1)))
+                        .content(requestJson("ROLE_SUPERUSER", 1)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details[0].field").value("role"));
     }
 
+    // A caller cannot ask for a code any more, so a duplicate is not something they can cause.
+    // What has to hold instead is that two mints never collide.
     @Test
-    @DisplayName("reusing a code value is rejected with 409")
-    void duplicateCodeIsConflict() throws Exception {
-        mockMvc.perform(post("/auth/admin/invitation-codes")
-                        .header("Authorization", adminToken())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson("KL-TEST-DUP", "ROLE_STUDENT", 3)))
-                .andExpect(status().isCreated());
-
-        mockMvc.perform(post("/auth/admin/invitation-codes")
-                        .header("Authorization", adminToken())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson("KL-TEST-DUP", "ROLE_PROFESSOR", 99)))
-                .andExpect(status().isConflict());
+    @DisplayName("every minted code is different")
+    void mintedCodesAreUnique() throws Exception {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (int i = 0; i < 12; i++) {
+            String body = mockMvc.perform(post("/auth/admin/invitation-codes")
+                            .header("Authorization", adminToken())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson("ROLE_STUDENT", 1)))
+                    .andExpect(status().isCreated())
+                    .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+            assertThat(seen.add(body)).as("a repeated response means a repeated code").isTrue();
+        }
     }
 
     @Test
-    @DisplayName("a lower case code is rejected: codes get read aloud at a counter")
-    void lowerCaseCodeIsRejected() throws Exception {
+    @DisplayName("a code a caller tries to choose is ignored, not honoured")
+    void aSuppliedCodeIsIgnored() throws Exception {
+        // The old contract took the code from the body. Anything still sending one - an old
+        // client, a copied curl - must not end up choosing it.
         mockMvc.perform(post("/auth/admin/invitation-codes")
                         .header("Authorization", adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson("kl-test-lower", "ROLE_STUDENT", 3)))
-                .andExpect(status().isBadRequest());
+                        .content("""
+                                {"code":"KL-CHOSEN-BY-HAND","role":"ROLE_STUDENT","maxUses":1}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value(org.hamcrest.Matchers.not("KL-CHOSEN-BY-HAND")))
+                .andExpect(jsonPath("$.code").value(org.hamcrest.Matchers.matchesPattern(MINTED.pattern())));
     }
 
     // ── Listing ────────────────────────────────────────────────────────────────────
@@ -313,7 +331,7 @@ class InvitationCodeAdminIntegrationTest extends AbstractAuthIntegrationTest {
     void createWithoutTokenIsUnauthorized() throws Exception {
         mockMvc.perform(post("/auth/admin/invitation-codes")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson("KL-TEST-ANON", "ROLE_STUDENT", 1)))
+                        .content(requestJson("ROLE_STUDENT", 1)))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -323,7 +341,7 @@ class InvitationCodeAdminIntegrationTest extends AbstractAuthIntegrationTest {
         mockMvc.perform(post("/auth/admin/invitation-codes")
                         .header("Authorization", bearerFor("s2", "s2" + INSTITUTIONAL_DOMAIN, "ROLE_STUDENT"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson("KL-TEST-BYSTUDENT", "ROLE_STUDENT", 1)))
+                        .content(requestJson("ROLE_STUDENT", 1)))
                 .andExpect(status().isForbidden());
     }
 
@@ -333,7 +351,7 @@ class InvitationCodeAdminIntegrationTest extends AbstractAuthIntegrationTest {
         mockMvc.perform(post("/auth/admin/invitation-codes")
                         .header("Authorization", bearerFor("p2", "p2" + INSTITUTIONAL_DOMAIN, "ROLE_PROFESSOR"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson("KL-TEST-BYPROF", "ROLE_STUDENT", 1)))
+                        .content(requestJson("ROLE_STUDENT", 1)))
                 .andExpect(status().isForbidden());
     }
 

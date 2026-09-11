@@ -17,6 +17,7 @@ somewhere right.
 | [0005](0005-per-service-database-credentials.md) | One MongoDB account per service | Implemented |
 | [0006](0006-schematic-map-not-floor-plan-images.md) | A schematic map drawn from data, not floor plan images | Implemented |
 | [0007](0007-visitor-day-pass-instead-of-guest-accounts.md) | A visitor day pass instead of guest accounts | Implemented |
+| [0008](0008-invitation-codes-are-temporary.md) | Invitation codes are temporary, and this is how they go away | Step 1 implemented |
 
 ## Still to record
 

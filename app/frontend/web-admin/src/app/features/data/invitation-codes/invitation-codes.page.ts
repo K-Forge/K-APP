@@ -40,6 +40,14 @@ import { InvitationCodesService } from './invitation-codes.service';
         <button actions type="button" class="btn btn-primary" (click)="openCreate()">New code</button>
       </app-page-intro>
 
+      @if (justMinted(); as code) {
+        <div class="card issued" role="status">
+          <p style="margin:0 0 0.25rem">New code — give this to the intake:</p>
+          <p class="issued-code mono">{{ code }}</p>
+          <button type="button" class="btn btn-sm" (click)="justMinted.set(null)">Dismiss</button>
+        </div>
+      }
+
       <div class="card stack">
         <div class="field" style="margin-bottom:0; max-width: 14rem">
           <label for="ic-filter">Status</label>
@@ -111,14 +119,10 @@ import { InvitationCodesService } from './invitation-codes.service';
     <app-modal #formModal title="New invitation code" (closed)="formError.set(null)">
       <app-api-error-banner [error]="formError()" />
       <form [formGroup]="form" (ngSubmit)="save()" class="stack">
-        <div class="field" [class.invalid]="invalid('code')">
-          <label for="ic-code">Code</label>
-          <input id="ic-code" type="text" formControlName="code" placeholder="KL-20262-STUDENT" />
-          <span class="hint">Typed by a registrant, so keep it readable. Up to 40 characters.</span>
-          @if (invalid('code')) {
-            <span class="error">Required, 1-40 characters.</span>
-          }
-        </div>
+        <p class="hint" style="margin:0">
+          The code is generated when you save — unique, and made of characters that survive being
+          read out loud. You cannot choose it: a chosen one is a guess away from the next.
+        </p>
 
         <div class="field">
           <label for="ic-role">Role granted</label>
@@ -180,6 +184,9 @@ export class InvitationCodesPage {
   readonly codes = signal<InvitationCode[]>([]);
   readonly busyCode = signal<string | null>(null);
 
+  /** The code the server just minted, shown once so it can be read out or copied. */
+  readonly justMinted = signal<string | null>(null);
+
   readonly submitting = signal(false);
   readonly formError = signal<ApiError | null>(null);
 
@@ -195,10 +202,6 @@ export class InvitationCodesPage {
 
   private blankForm() {
     return new FormGroup({
-      code: new FormControl('', {
-        nonNullable: true,
-        validators: [Validators.required, Validators.minLength(1), Validators.maxLength(40)],
-      }),
       role: new FormControl<InvitationRole>('ROLE_STUDENT', { nonNullable: true, validators: [Validators.required] }),
       maxUses: new FormControl(50, {
         nonNullable: true,
@@ -209,7 +212,7 @@ export class InvitationCodesPage {
     });
   }
 
-  invalid(name: 'code' | 'maxUses'): boolean {
+  invalid(name: 'maxUses'): boolean {
     const control = this.form.controls[name];
     return control.invalid && control.touched;
   }
@@ -252,7 +255,6 @@ export class InvitationCodesPage {
 
     this.service
       .create({
-        code: raw.code.trim(),
         role: raw.role,
         maxUses: raw.maxUses,
         // The input gives a local datetime with no zone; the contract wants an instant.
@@ -260,9 +262,10 @@ export class InvitationCodesPage {
         notes: raw.notes.trim() || null,
       })
       .subscribe({
-        next: () => {
+        next: (created) => {
           this.submitting.set(false);
           this.formModal?.close();
+          this.justMinted.set(created.code);
           this.fetch();
         },
         error: (err: unknown) => {

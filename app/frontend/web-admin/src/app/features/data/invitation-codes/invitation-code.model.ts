@@ -31,9 +31,13 @@ export function remainingUses(code: InvitationCode): number {
   return Math.max(0, code.maxUses - code.timesUsed);
 }
 
-/** Mirrors InvitationCodeRequest. */
+/**
+ * Mirrors InvitationCodeRequest.
+ *
+ * <p>No `code`: the server mints it. One somebody types is either guessable —
+ * "KL-20262-STUDENT" is a guess away from "KL-20262-STAFF" — or unreadable.
+ */
 export interface InvitationCodeRequest {
-  code: string;
   role: InvitationRole;
   maxUses: number;
   expiresAt?: string | null;

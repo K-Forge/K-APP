@@ -11,9 +11,9 @@
 :root {
   color-scheme: light;
 
-  /* Nearly paper, with the barest green cast. The old #eef2f1 was grey-green enough that the
-     washes on top of it read as dirt rather than as colour. */
-  --bg: #f5f7f6;
+  /* Paper, but not a blank sheet. #f5f7f6 read as "too white"; this carries enough of the
+     institutional teal to look like a surface rather than an absence. */
+  --bg: #e9f1ef;
   --bg-elevated: #ffffff;
   --bg-inset: #e6ecea;
   --bg-hover: #dde5e3;
@@ -61,20 +61,22 @@
   --header-bg: #e0ebe9;
   --nav-bg: #eaf0ee;
 
-  /* The selected section, filled rather than tinted. At #e2efee on #e8efed it was two
-     percent of lightness apart from its own background - present in the CSS, invisible on
-     the screen, which is exactly the report that prompted this. */
-  --nav-active-bg: #3a6f6e;
-  --nav-active-text: #ffffff;
+  /* The selected section: a real step, not a slab.
+     #e2efee on #e8efed was two percent of lightness apart - invisible. Filling it with the
+     solid teal fixed that and overshot: a dark block in a pale sidebar is the loudest thing
+     on the screen and the eye goes there instead of to the content. Seven points of
+     lightness, a full-strength edge and bold text carry it without shouting. */
+  --nav-active-bg: #c9e0de;
+  --nav-active-text: #1d3a39;
 
   /* How much of each hue reaches the page ground.
      The green is off in this theme, at 0%. Three hues at sixteen percent over a grey-green
      base did not read as the institutional palette, it read as a stain - and the green was
      the one doing it, the same green that had already been pulled out of the text colours.
      It stays where it means something: the hairline under the header. */
-  --wash-strength: 11%;
+  --wash-strength: 16%;
   --wash-green: 0%;
-  --wash-accent: 5%;
+  --wash-accent: 11%;
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
 
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
@@ -95,10 +97,10 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --bg: #101615;
-    --bg-elevated: #182120;
-    --bg-inset: #1e2928;
-    --bg-hover: #263231;
+    --bg: #0c1a16;
+    --bg-elevated: #12241f;
+    --bg-inset: #162b25;
+    --bg-hover: #1d352e;
     --border: #2e3b39;
     --border-strong: #445250;
 
@@ -132,13 +134,13 @@
     --brand-pink: #e8578f;
     --brand-green: #c9d329;
 
-    --header-bg: #16201f;
-    --nav-bg: #131b1a;
-    --nav-active-bg: #24423f;
+    --header-bg: #102019;
+    --nav-bg: #0e1c17;
+    --nav-active-bg: #1c4238;
     --nav-active-text: #bfe8e6;
-    --wash-strength: 9%;
-    --wash-green: 9%;
-    --wash-accent: 6%;
+    --wash-strength: 15%;
+    --wash-green: 12%;
+    --wash-accent: 9%;
     --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.022'/%3E%3C/svg%3E");
 
   }
@@ -147,10 +149,10 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #101615;
-  --bg-elevated: #182120;
-  --bg-inset: #1e2928;
-  --bg-hover: #263231;
+  --bg: #0c1a16;
+  --bg-elevated: #12241f;
+  --bg-inset: #162b25;
+  --bg-hover: #1d352e;
   --border: #2e3b39;
   --border-strong: #445250;
 
@@ -184,13 +186,13 @@
   --brand-pink: #e8578f;
   --brand-green: #c9d329;
 
-  --header-bg: #16201f;
-  --nav-bg: #131b1a;
-  --nav-active-bg: #24423f;
+  --header-bg: #102019;
+  --nav-bg: #0e1c17;
+  --nav-active-bg: #1c4238;
   --nav-active-text: #bfe8e6;
-  --wash-strength: 9%;
-  --wash-green: 9%;
-  --wash-accent: 6%;
+  --wash-strength: 15%;
+  --wash-green: 12%;
+  --wash-accent: 9%;
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.022'/%3E%3C/svg%3E");
 
 
@@ -707,25 +709,51 @@ dialog::backdrop {
    ───────────────────────────────────────────────────────────────────────────── */
 body {
   background-color: var(--bg);
+
+  /*
+   * Six glows: the three institutional hues along the top edge and the same three along the
+   * bottom, so the page is lit from both ends rather than fading into a flat floor. Each is a
+   * radial anchored off-canvas, which is what makes it read as light coming in rather than as
+   * a circle drawn on the page.
+   *
+   * Strengths are per-theme tokens, not literals - light can take far more colour before it
+   * stops looking like paper than dark can before it looks muddy, and the green is switched
+   * off entirely in light, where it turned the whole ground the colour of a stain.
+   */
   background-image:
     radial-gradient(
-      70rem 34rem at 8% -8%,
+      70rem 34rem at 6% -10%,
       color-mix(in srgb, var(--brand-teal) var(--wash-strength), transparent) 0%,
-      transparent 65%
+      transparent 64%
     ),
     radial-gradient(
-      54rem 30rem at 96% 4%,
+      56rem 30rem at 52% -14%,
+      color-mix(in srgb, var(--brand-pink) var(--wash-accent), transparent) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      54rem 30rem at 98% -8%,
       color-mix(in srgb, var(--brand-green) var(--wash-green), transparent) 0%,
       transparent 60%
     ),
     radial-gradient(
-      44rem 40rem at 78% 96%,
+      62rem 32rem at 4% 110%,
+      color-mix(in srgb, var(--brand-green) var(--wash-green), transparent) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      58rem 32rem at 50% 114%,
+      color-mix(in srgb, var(--brand-teal) var(--wash-strength), transparent) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      64rem 34rem at 96% 108%,
       color-mix(in srgb, var(--brand-pink) var(--wash-accent), transparent) 0%,
-      transparent 60%
+      transparent 62%
     ),
     var(--grain);
   background-attachment: fixed;
-  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat;
 }
 
 /* A card has to lift off that ground rather than blend into it. */

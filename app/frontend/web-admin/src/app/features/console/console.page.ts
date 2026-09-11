@@ -172,6 +172,41 @@ function operationKey(op: Pick<ConsoleOperation, 'method' | 'path'>): string {
             }
 
             <app-json-view [value]="result.body" />
+
+            <!-- What the field names mean. Read from the contract, which already explains every
+                 one of them - kty, e, kid and the rest - and had never shown anybody. -->
+            @if (selectedOperation()?.responseFields?.length) {
+              <details class="fields" open>
+                <summary>What these fields mean</summary>
+                <div class="scroll-x">
+                  <table class="field-table">
+                    <thead>
+                      <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Meaning</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (field of selectedOperation()!.responseFields; track field.path) {
+                        <tr>
+                          <td class="mono">
+                            {{ field.path }}@if (field.required) {<span class="field-req" title="Always present">*</span>}
+                          </td>
+                          <td class="text-muted">{{ field.type }}</td>
+                          <td>
+                            {{ field.description || '—' }}
+                            @if (field.enumValues?.length) {
+                              <span class="text-muted">One of: {{ field.enumValues!.join(', ') }}.</span>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            }
           </div>
         }
       </div>
@@ -206,6 +241,43 @@ function operationKey(op: Pick<ConsoleOperation, 'method' | 'path'>): string {
     </div>
   `,
   styles: `
+    .fields {
+      margin-top: 0.85rem;
+      border-top: 1px solid var(--border);
+      padding-top: 0.75rem;
+    }
+    .fields summary {
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+    .field-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      margin-top: 0.6rem;
+    }
+    .field-table th,
+    .field-table td {
+      text-align: left;
+      padding: 0.3rem 0.75rem 0.3rem 0;
+      vertical-align: top;
+      border-bottom: 1px solid var(--border);
+    }
+    .field-table th {
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+    .field-table td:first-child {
+      white-space: nowrap;
+    }
+    .field-req {
+      color: var(--text-faint);
+    }
+
     .console-layout {
       display: grid;
       grid-template-columns: 1fr 20rem;

@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { SERVICES, type ServiceDescriptor } from './openapi-catalog';
 import type { ConsoleOperation, ConsoleParam } from './console-operation.model';
 import { deref, resolveSchema } from './openapi-ref.util';
+import { describeResponse } from './response-fields';
 import { HTTP_METHODS, isRef } from './openapi.types';
 import type { ExampleObject, OpenApiDocument, ParameterObject, RefObject, SchemaObject } from './openapi.types';
 import { buildExample } from './example.util';
@@ -64,6 +65,7 @@ function flattenOperations(service: ServiceDescriptor): ConsoleOperation[] {
         requestBodyExample: jsonBody ? firstExample(doc, jsonBody, bodySchema) : undefined,
         security: operation.security,
         xRoles: (operation as { 'x-roles'?: string[] })['x-roles'],
+        responseFields: describeResponse(doc, operation as { responses?: Record<string, unknown> }),
       });
     }
   }

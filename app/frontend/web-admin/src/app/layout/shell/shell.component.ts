@@ -75,7 +75,9 @@ const NAV_GROUPS: NavGroup[] = [
       <a class="skip-link" href="#shell-content" (click)="skipToContent($event)">Skip to content</a>
 
       <header class="shell-header">
-        <a class="brand" routerLink="/my-token">
+        <!-- The API console, not the token screen: the console is where somebody spends the
+             session, and the token is one click away from it anyway. -->
+        <a class="brand" routerLink="/api-console">
           <img src="/konrad-logo.png" alt="Fundación Universitaria Konrad Lorenz" width="34" height="34" />
           <span class="brand-text">
             <strong>KApp</strong>
@@ -253,7 +255,7 @@ const NAV_GROUPS: NavGroup[] = [
       letter-spacing: -0.01em;
     }
     .brand-sub {
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -326,7 +328,7 @@ const NAV_GROUPS: NavGroup[] = [
 
     .nav-group-title {
       margin: 0.9rem 0 0.3rem 0.6rem;
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.07em;
@@ -344,13 +346,15 @@ const NAV_GROUPS: NavGroup[] = [
       border-radius: var(--radius-md);
       color: var(--text-muted);
       text-decoration: none;
-      font-size: 0.875rem;
+      /* Was 0.875rem — a size below the body text, in the one place you read while looking
+         somewhere else. */
+      font-size: 0.9375rem;
       border-left: 3px solid transparent;
       transition: background var(--transition-fast), color var(--transition-fast);
     }
     .nav-icon {
-      width: 17px;
-      height: 17px;
+      width: 18px;
+      height: 18px;
       flex: 0 0 auto;
       fill: none;
       stroke: currentColor;

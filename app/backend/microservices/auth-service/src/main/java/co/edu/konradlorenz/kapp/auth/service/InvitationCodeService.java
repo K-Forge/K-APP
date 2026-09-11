@@ -34,6 +34,15 @@ import java.util.Set;
 @Service
 public class InvitationCodeService {
 
+    /** No O/0 or I/1: the pairs people misread when a code is read out loud. */
+
+    private static final String CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+    private static final int CODE_GROUP = 4;
+
+    private static final java.security.SecureRandom RANDOM = new java.security.SecureRandom();
+
+
     private static final Logger log = LoggerFactory.getLogger(InvitationCodeService.class);
 
     private final MongoTemplate mongo;
@@ -156,17 +165,43 @@ public class InvitationCodeService {
      *                                    unanswerable, which is what the unique index on
      *                                    {@code code} exists to prevent
      */
+    /**
+     * A unique code, minted here rather than typed by a person.
+     *
+     * <p>Grouped as {@code KL-7K2M-QX9P} - four characters at a time is what somebody reads back
+     * over a counter without asking twice. The alphabet leaves out O, 0, I and 1, which are the
+     * pairs people actually confuse; 32^8 is about a thousand billion values, so the codes that
+     * ship in a public repository stop being a list anybody can extend by guessing.
+     *
+     * <p>The uniqueness check is still here even at that size: the cost of a duplicate is one
+     * intake sharing another intake's quota, and ten collisions in a row would mean the random
+     * source is broken rather than that we were unlucky.
+     */
+    private String nextCode() {
+        for (int attempt = 0; attempt < 10; attempt++) {
+            StringBuilder code = new StringBuilder("KL-");
+            for (int i = 0; i < CODE_GROUP * 2; i++) {
+                if (i == CODE_GROUP) {
+                    code.append('-');
+                }
+                code.append(CODE_ALPHABET.charAt(RANDOM.nextInt(CODE_ALPHABET.length())));
+            }
+            String candidate = code.toString();
+            if (find(candidate) == null) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("Could not generate an unused invitation code");
+    }
+
     public InvitationCode create(InvitationCodeRequest request) {
-        String code = normalise(request.code());
         if (!GRANTABLE_ROLES.contains(request.role())) {
             throw new BusinessRuleException(
                     "An invitation code may only grant ROLE_STUDENT or ROLE_PROFESSOR",
                     List.of(new ApiError.FieldIssue("role",
                             "must be one of ROLE_STUDENT, ROLE_PROFESSOR")));
         }
-        if (find(code) != null) {
-            throw new DuplicateResourceException("Invitation code", code);
-        }
+        String code = nextCode();
 
         Instant now = Instant.now();
         InvitationCode created = new InvitationCode(

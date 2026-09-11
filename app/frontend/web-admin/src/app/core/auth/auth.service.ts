@@ -27,8 +27,29 @@ export class AuthService {
     );
   }
 
+  /**
+   * Clears the session and leaves the portal.
+   *
+   * <p>The fallback is not defensive padding. `/login` is a lazily loaded route, and its chunk
+   * is named by content hash - so after a deploy, a tab that has been open since before it
+   * cannot fetch that chunk any more. The router then cancels the navigation and resolves
+   * `false`, which left the token cleared and the person still sitting inside the portal: no
+   * session, every call failing, and no way out but a manual reload. A full document navigation
+   * both gets them to the sign-in page and fetches the build that actually exists.
+   */
   logout(): void {
     this.tokenStore.clear();
-    this.router.navigateByUrl('/login');
+    this.router
+      .navigateByUrl('/login')
+      .then((navigated) => {
+        if (!navigated) {
+          this.hardRedirectToLogin();
+        }
+      })
+      .catch(() => this.hardRedirectToLogin());
+  }
+
+  private hardRedirectToLogin(): void {
+    window.location.assign('/login');
   }
 }
