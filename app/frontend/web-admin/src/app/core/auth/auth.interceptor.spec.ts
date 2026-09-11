@@ -46,6 +46,36 @@ describe('authInterceptor', () => {
     req.flush({});
   });
 
+  // A stale token on /auth/login is rejected before the handler runs, so a correct password
+  // came back as "Authentication required" and only the second attempt worked - the 401 below
+  // having cleared the token in between. Tokens last an hour; everybody met this daily.
+  it('never sends a token to the endpoints that establish an identity', () => {
+    tokenStore.set('stale.expired.token');
+
+    for (const url of [
+      '/auth/login',
+      '/auth/register',
+      '/auth/verify',
+      '/auth/visitor-passes/KL-V-ABCD-1234/redeem',
+      '/.well-known/jwks.json',
+    ]) {
+      http.post(url, {}).subscribe({ error: () => undefined });
+      const req = httpMock.expectOne(url);
+      expect(req.request.headers.has('Authorization')).toBe(false);
+      req.flush({});
+    }
+  });
+
+  it('still sends it to everything else, including other auth endpoints', () => {
+    tokenStore.set('a.b.c');
+
+    http.get('/auth/admin/invitation-codes').subscribe();
+
+    const req = httpMock.expectOne('/auth/admin/invitation-codes');
+    expect(req.request.headers.get('Authorization')).toBe('Bearer a.b.c');
+    req.flush([]);
+  });
+
   it('sends no Authorization header when there is no token', () => {
     http.get('/api/map/buildings').subscribe();
 

@@ -62,6 +62,18 @@ const NAV_GROUPS: NavGroup[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="shell">
+      <!--
+        First stop in the tab order, invisible until it is focused. Without it a keyboard user
+        walks the whole sidebar - fourteen stops - before reaching the page's own first control,
+        on every single page.
+
+        The click is handled rather than left to the href. A bare fragment href goes through the
+        router, which resolved it to the empty route and redirected to /my-token - a skip link
+        that changes the page is worse than no skip link. The href stays so it still reads as a
+        link and works if scripting is off.
+      -->
+      <a class="skip-link" href="#shell-content" (click)="skipToContent($event)">Skip to content</a>
+
       <header class="shell-header">
         <a class="brand" routerLink="/my-token">
           <img src="/konrad-logo.png" alt="Fundación Universitaria Konrad Lorenz" width="34" height="34" />
@@ -124,7 +136,12 @@ const NAV_GROUPS: NavGroup[] = [
           @for (group of groups; track group.title) {
             <p class="nav-group-title">{{ group.title }}</p>
             @for (link of group.links; track link.path) {
-              <a [routerLink]="link.path" routerLinkActive="active" class="nav-link">
+              <a
+                [routerLink]="link.path"
+                routerLinkActive="active"
+                ariaCurrentWhenActive="page"
+                class="nav-link"
+              >
                 <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path [attr.d]="link.icon" />
                 </svg>
@@ -134,7 +151,7 @@ const NAV_GROUPS: NavGroup[] = [
           }
         </nav>
 
-        <main class="shell-content">
+        <main id="shell-content" class="shell-content" tabindex="-1">
           <router-outlet />
         </main>
       </div>
@@ -151,6 +168,33 @@ const NAV_GROUPS: NavGroup[] = [
        A tinted band rather than another white strip. The three institutional
        hues run along the bottom edge as a hairline, which is where the brand
        belongs in a tool: present, not shouting. */
+    /*
+     * Off-screen until focused, then pinned over the header. Not display:none - that would
+     * take it out of the tab order, which is the one thing it exists for.
+     */
+    .skip-link {
+      /* fixed, not absolute: it must sit over the header wherever the shell is scrolled to,
+         and it does not depend on an ancestor happening to be positioned. */
+      position: fixed;
+      left: 0.5rem;
+      top: -3rem;
+      z-index: 100;
+      padding: 0.5rem 0.85rem;
+      background: var(--bg-elevated);
+      color: var(--text);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      font-size: 0.8125rem;
+      text-decoration: none;
+      transition: top var(--transition-fast);
+    }
+    /* :focus, not :focus-visible. A skip link is only ever reached by keyboard, and
+       :focus-visible is a heuristic that does not fire when focus is moved by script - which
+       would leave the element focused and invisible, the worst of both. */
+    .skip-link:focus {
+      top: 0.5rem;
+    }
+
     .shell-header {
       display: flex;
       align-items: center;
@@ -387,6 +431,19 @@ const NAV_GROUPS: NavGroup[] = [
     }
   `})
 export class ShellComponent {
+
+  /**
+   * Moves focus into the page body without navigating.
+   *
+   * <p>`<main>` carries `tabindex="-1"` so it can receive focus programmatically while staying
+   * out of the tab order; without that, focus() on a non-interactive element does nothing and
+   * the next Tab starts from the top again.
+   */
+  skipToContent(event: Event): void {
+    event.preventDefault();
+    document.getElementById('shell-content')?.focus();
+  }
+
   private readonly auth = inject(AuthService);
   private readonly config = inject(ApiConfigService);
   protected readonly tokenStore = inject(TokenStore);
