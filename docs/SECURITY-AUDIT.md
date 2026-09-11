@@ -385,17 +385,26 @@ and the only case it protects — an account suspended while its e-mail was unve
 verified — is an administrator's own decision either way. It starts to matter the day
 `KAPP_REQUIRE_EMAIL_VERIFICATION` is turned on. Note it there.
 
-### S14 — Any administrator can deactivate every administrator, including themselves (Moderate) — OPEN BY DECISION
+### S14 — An administrator may deactivate another administrator, but not themselves (Moderate) — DECIDED
 
-There are four accounts and all four are `ROLE_ADMIN`. Now that S13 makes deactivation real,
-four clicks lock everybody out of the portal permanently — there is no create-user path (by
-design: accounts are born from registration) and no super-user, so recovery means editing
-MongoDB by hand.
+Deactivating an account genuinely removes access now (S13), and there is no create-user path in
+the portal by design: accounts are born from registration. That made the question real, and the
+answer is deliberately asymmetric.
 
-Left open on purpose, for now. Guarding it properly means deciding what an administrator is
-allowed to do to another administrator, and that question has a real answer only once the roles
-stop being "the four of us building it". Until then the team knows, and
-`scripts/create-dev-accounts.sh --recreate` is the way back.
+**Another administrator: allowed.** Four people are building this and any of them may need to
+shut an account down without waiting for whoever owns it to be awake. A portal where nobody can
+revoke anybody is not safer, it just moves the emergency into MongoDB.
+
+**Yourself: refused.** Not a policy question — an accident. Your own row sits in the same table
+as everybody else's, one tap away on a phone, and the consequence is being locked out of the
+only tool that could let you back in. The button is disabled on your own row and says why;
+`UsersPage.isSelf` and its tests pin it.
+
+**What this deliberately does not do** is stop the last administrator being switched off by
+somebody else. Guarding that means counting active administrators on every status change, in a
+service that does not own the credential and cannot see the roles without asking auth-service —
+a query on a hot path to prevent a case that four people who sit together will not hit. The way
+back, if it ever happens, is `scripts/create-dev-accounts.sh --recreate`.
 
 ## 4. Architectural notes
 

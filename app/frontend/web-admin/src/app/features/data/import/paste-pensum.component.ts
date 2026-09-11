@@ -1,10 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AppHttpError } from '../../../core/http/api-http-error';
 import type { ApiError } from '../../../core/http/api-error.model';
 import { ApiErrorBannerComponent } from '../../../shared/ui/api-error-banner/api-error-banner.component';
 import type { PensumImportReport } from './import.model';
 import { PensumImportService } from './import.service';
+import { ProgramsService } from '../programs/programs.service';
+import type { Program } from '../programs/program.model';
+import { PensumsService } from '../pensums/pensums.service';
+import type { PensumSummary } from '../pensums/pensum.model';
 import {
   ITEM_FIELDS,
   PENSUM_STATUSES,
@@ -56,15 +60,48 @@ import {
         <div class="grid-3">
           <div class="field">
             <label for="pp-pcode">Program code <span class="req" aria-hidden="true">*</span></label>
-            <input id="pp-pcode" [ngModel]="header().programCode" (ngModelChange)="patch('programCode', $event)" placeholder="506" />
+            <input
+              id="pp-pcode"
+              list="pp-program-codes"
+              [ngModel]="header().programCode"
+              (ngModelChange)="onProgramCode($event)"
+              placeholder="506"
+            />
+            <datalist id="pp-program-codes">
+              @for (p of programs(); track p.code) {
+                <option [value]="p.code">{{ p.name }}</option>
+              }
+            </datalist>
           </div>
           <div class="field" style="grid-column: span 2">
             <label for="pp-pname">Program name <span class="req" aria-hidden="true">*</span></label>
-            <input id="pp-pname" [ngModel]="header().programName" (ngModelChange)="patch('programName', $event)" placeholder="Ingeniería de Sistemas" />
+            <input
+              id="pp-pname"
+              list="pp-program-names"
+              [ngModel]="header().programName"
+              (ngModelChange)="patch('programName', $event)"
+              placeholder="Ingeniería de Sistemas"
+            />
+            <datalist id="pp-program-names">
+              @for (p of programs(); track p.code) {
+                <option [value]="p.name"></option>
+              }
+            </datalist>
           </div>
           <div class="field" style="grid-column: span 2">
             <label for="pp-fac">Faculty <span class="req" aria-hidden="true">*</span></label>
-            <input id="pp-fac" [ngModel]="header().faculty" (ngModelChange)="patch('faculty', $event)" placeholder="Facultad de Matemáticas e Ingenierías" />
+            <input
+              id="pp-fac"
+              list="pp-faculties"
+              [ngModel]="header().faculty"
+              (ngModelChange)="patch('faculty', $event)"
+              placeholder="Facultad de Matemáticas e Ingenierías"
+            />
+            <datalist id="pp-faculties">
+              @for (f of faculties(); track f) {
+                <option [value]="f"></option>
+              }
+            </datalist>
           </div>
           <div class="field">
             <label for="pp-plevel">Level</label>
@@ -76,7 +113,18 @@ import {
           </div>
           <div class="field">
             <label for="pp-code">Pensum code <span class="req" aria-hidden="true">*</span></label>
-            <input id="pp-code" [ngModel]="header().pensumCode" (ngModelChange)="patch('pensumCode', $event)" placeholder="1015" />
+            <input
+              id="pp-code"
+              list="pp-pensum-codes"
+              [ngModel]="header().pensumCode"
+              (ngModelChange)="patch('pensumCode', $event)"
+              placeholder="1015"
+            />
+            <datalist id="pp-pensum-codes">
+              @for (p of pensums(); track p.pensumCode) {
+                <option [value]="p.pensumCode">{{ p.programName }}</option>
+              }
+            </datalist>
           </div>
           <div class="field">
             <label for="pp-reform">Reform <span class="req" aria-hidden="true">*</span></label>
@@ -120,6 +168,36 @@ import {
         </p>
         <!-- The only control in the portal that had no label: a screen reader announced it as
              "edit text, blank", and the placeholder is a row of tab-separated numbers. -->
+        <!-- The example used to be the textarea's placeholder, which is exactly the wrong place
+             for it: it vanishes on the first keystroke, which is the moment you start needing
+             it. Out here it stays while you work. -->
+        <div class="example">
+          <p class="example-title">
+            One line per course. Columns separated by tabs, or by two or more spaces.
+            <strong>The order does not matter</strong> — you say which column is which in step 3.
+          </p>
+          <div class="scroll-x">
+            <table class="example-grid">
+              <thead>
+                <tr>
+                  @for (f of fields; track f.key) {
+                    <th [class.example-required]="f.required">
+                      {{ f.label }}{{ f.required ? ' *' : '' }}
+                    </th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  @for (f of fields; track f.key) {
+                    <td>{{ exampleRow[f.key] }}</td>
+                  }
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <label for="pp-paste" class="sr-only">The pensum table, pasted from the PDF</label>
         <textarea
           id="pp-paste"
@@ -127,7 +205,7 @@ import {
           [value]="pasted()"
           (input)="onPaste($event)"
           aria-describedby="pp-paste-hint"
-          placeholder="1001&#9;10011&#9;Cálculo Diferencial&#9;1&#9;3&#9;4&#9;CB&#9;"
+          placeholder="Paste the rows here."
         ></textarea>
         <div class="row">
           <button type="button" class="btn btn-primary" [disabled]="!pasted().trim()" (click)="parse()">
@@ -257,6 +335,13 @@ import {
               Prerequisites that name nothing in this paste:
               <strong>{{ unknownPrerequisites().join(', ') }}</strong>. The import refuses these,
               so fix the code or drop it.
+            </p>
+          }
+          @if (replacingExisting(); as existing) {
+            <p class="warn">
+              <strong>{{ existing.pensumCode }} already exists</strong> — {{ existing.programName }},
+              {{ existing.courses }} courses. Importing for real replaces it entirely. If you meant
+              a new pensum, give it a different code.
             </p>
           }
           @if (missingHeaderFields().length) {
@@ -415,6 +500,44 @@ import {
     .total-vs.total-bad {
       color: var(--danger);
     }
+    .example {
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 0.75rem;
+      background: var(--bg-inset);
+    }
+    .example-title {
+      margin: 0 0 0.5rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+    .example-grid {
+      border-collapse: collapse;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+    .example-grid th,
+    .example-grid td {
+      padding: 0.2rem 0.6rem;
+      text-align: left;
+      border-right: 1px solid var(--border);
+    }
+    .example-grid th {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .example-grid th.example-required {
+      color: var(--text);
+    }
+    .example-grid td {
+      font-family: var(--font-mono);
+      color: var(--text);
+    }
+    .example-grid th:last-child,
+    .example-grid td:last-child {
+      border-right: 0;
+    }
+
     .req {
       color: var(--danger);
       font-weight: 700;
@@ -449,10 +572,52 @@ import {
 })
 export class PastePensumComponent {
   private readonly service = inject(PensumImportService);
+  private readonly programsService = inject(ProgramsService);
+  private readonly pensumsService = inject(PensumsService);
+
+  /**
+   * What already exists, so the fields can offer it.
+   *
+   * <p>Comboboxes rather than plain dropdowns: importing a pensum is often the moment its
+   * programme is created too, so a control that only allows an existing value would block the
+   * common case. You pick from the list, or you type something new.
+   */
+  readonly programs = signal<Program[]>([]);
+  readonly pensums = signal<PensumSummary[]>([]);
+
+  /** Distinct faculties across the known programmes, for the faculty list. */
+  readonly faculties = computed(() =>
+    [...new Set(this.programs().map((p) => p.faculty).filter(Boolean))].sort(),
+  );
+
+  /** The pensum code typed, when it already exists — importing over it replaces it. */
+  readonly replacingExisting = computed(() => {
+    const code = this.header().pensumCode.trim();
+    return code ? (this.pensums().find((p) => p.pensumCode === code) ?? null) : null;
+  });
 
   readonly fields = ITEM_FIELDS;
   readonly programLevels = PROGRAM_LEVELS;
   readonly statuses = PENSUM_STATUSES;
+
+  /**
+   * One made-up row, shown above the box rather than inside it.
+   *
+   * <p>Keyed by field so the example column and the mapping dropdown for the same field can
+   * never drift apart - add a field to ITEM_FIELDS and this stops compiling until it gets an
+   * example, which is the point.
+   */
+  readonly exampleRow: Record<ItemField, string> = {
+    pensumItemCode: '1001',
+    courseCode: '10011',
+    courseName: 'Cálculo Diferencial',
+    courseLevel: '1',
+    credits: '3',
+    weeklyHours: '4',
+    areaCode: 'CB',
+    prerequisites: '10005;10007',
+    isElectiveSlot: 'no',
+  };
 
   /**
    * A signal, not a plain object, because everything downstream of it is a computed.
@@ -476,10 +641,41 @@ export class PastePensumComponent {
     levels: null,
   });
 
+  constructor() {
+    this.programsService.list().subscribe({
+      next: (programs) => this.programs.set(programs),
+      // A dead list is a smaller problem than a dead screen: the fields still accept typing.
+      error: () => this.programs.set([]),
+    });
+    this.pensumsService.list().subscribe({
+      next: (pensums) => this.pensums.set(pensums),
+      error: () => this.pensums.set([]),
+    });
+  }
+
+  /**
+   * Picking a programme fills in its name and faculty.
+   *
+   * <p>They are properties of the programme, not things to retype - and retyping them is how
+   * two rows of the same CSV end up disagreeing about the same pensum, which the import then
+   * refuses. Typing a code nobody has seen before leaves both alone: that is a new programme.
+   */
+  onProgramCode(value: string): void {
+    this.patch('programCode', value);
+    const known = this.programs().find((p) => p.code === value.trim());
+    if (known) {
+      this.patch('programName', known.name);
+      this.patch('faculty', known.faculty);
+    }
+  }
+
   /** Writes one header field, replacing the object so the computeds downstream see it. */
   patch<K extends keyof PensumHeader>(key: K, value: PensumHeader[K]): void {
     this.header.update((h) => ({ ...h, [key]: value }));
   }
+
+  /** Fires once a real import lands, so the screen around this can refresh its catalogue. */
+  readonly imported = output<void>();
 
   readonly pasted = signal('');
   readonly rows = signal<PastedRow[]>([]);
@@ -841,6 +1037,9 @@ export class PastePensumComponent {
       next: (report) => {
         this.busy.set(false);
         this.report.set(report);
+        if (!dryRun) {
+          this.imported.emit();
+        }
       },
       error: (err: unknown) => {
         this.busy.set(false);

@@ -21,19 +21,21 @@ interface LoginForm {
   template: `
     <div class="login-shell">
       <div class="card login-card">
-        <h1>KApp admin &amp; dev portal</h1>
-        <p class="text-muted">
-          Sign in with an <strong>administrator</strong> account. The token you receive is decoded
-          locally so you can see exactly what it contains.
-        </p>
+        <!-- The same lockup as the shell's header, so signing in and being signed in look like
+             the same product. The explanation that used to sit here is gone: nobody reaching
+             this screen needs to be told what a token is before they can type a password. -->
+        <div class="login-brand">
+          <img src="/konrad-logo.png" alt="Fundación Universitaria Konrad Lorenz" width="44" height="44" />
+          <div>
+            <h1>KApp</h1>
+            <p class="login-sub">Admin Portal</p>
+          </div>
+        </div>
 
         @if (refusedAsNonAdmin()) {
           <div class="card api-error" role="alert">
             <strong>That account is not an administrator.</strong>
-            <p style="margin:0.35rem 0 0">
-              The sign-in itself worked — this console is only for administrators. A student or
-              professor account is for the mobile app.
-            </p>
+            <p style="margin:0.35rem 0 0">The sign-in worked; this portal is admin-only.</p>
           </div>
         }
 
@@ -66,9 +68,7 @@ interface LoginForm {
           <div class="field" style="margin-top: 0.75rem">
             <label for="base-url">Base URL</label>
             <input id="base-url" type="text" [value]="baseUrl()" (change)="onBaseUrlChange($event)" placeholder="http://localhost:8080" />
-            <span class="hint">
-              Point this at a teammate's machine or a tunnel. Saved locally in this browser.
-            </span>
+            <span class="hint">Saved in this browser only.</span>
           </div>
         </details>
       </div>
@@ -84,7 +84,46 @@ interface LoginForm {
     }
     .login-card {
       width: 100%;
-      max-width: 26rem;
+      max-width: 24rem;
+      padding-top: 1.75rem;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+    /* The institutional three, along the top edge - the same signature the header carries. */
+    .login-card::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 3px;
+      background: linear-gradient(
+        90deg,
+        var(--brand-teal) 0 38%,
+        var(--brand-pink) 38% 72%,
+        var(--brand-green) 72% 100%
+      );
+    }
+    .login-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      margin-bottom: 1.5rem;
+    }
+    .login-brand img {
+      flex: 0 0 auto;
+    }
+    .login-brand h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      letter-spacing: -0.01em;
+    }
+    .login-sub {
+      margin: 0;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
     }
     .settings {
       margin-top: 1.5rem;

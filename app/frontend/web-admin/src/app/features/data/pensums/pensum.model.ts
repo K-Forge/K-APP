@@ -48,3 +48,22 @@ export const PENSUM_SKELETON: Pensum = {
   areas: [],
   courses: [],
 };
+
+/**
+ * A pensum without its courses — what `GET /api/catalog/pensums` returns.
+ *
+ * <p>Enough to fill a picker and a listing; the full document is one call away. Twenty-four
+ * pensums of sixty courses each would be fifteen hundred objects a dropdown has no use for.
+ */
+export interface PensumSummary {
+  pensumCode: string;
+  programCode: string;
+  programName: string;
+  faculty: string;
+  reform: string;
+  status: 'DRAFT' | 'ACTIVE' | 'OBSOLETE';
+  totalCredits: number;
+  totalHours: number;
+  levels: number;
+  courses: number;
+}

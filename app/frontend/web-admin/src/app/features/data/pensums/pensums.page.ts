@@ -7,7 +7,7 @@ import { ModalComponent } from '../../../shared/ui/modal/modal.component';
 import { ImportPanelComponent } from '../import/import-panel.component';
 import { PastePensumComponent } from '../import/paste-pensum.component';
 import { PensumsService } from './pensums.service';
-import { PENSUM_SKELETON, type Pensum } from './pensum.model';
+import { PENSUM_SKELETON, type Pensum, type PensumSummary } from './pensum.model';
 
 /**
  * Lookup-by-code rather than a table: the semaphore contract has no "list pensums" endpoint,
@@ -33,20 +33,37 @@ import { PENSUM_SKELETON, type Pensum } from './pensum.model';
 
       <div class="card stack">
         <div class="row" style="align-items: end">
-          <div class="field" style="margin-bottom: 0; flex: 1 1 16rem">
-            <label for="pensum">Pensum code</label>
-            <input id="pensum" type="text" [value]="searchCode()" (input)="onSearchInput($event)" placeholder="1015" />
+          <div class="field" style="margin-bottom: 0; flex: 1 1 22rem">
+            <label for="pensum">Pensum</label>
+            <!-- A list, not a text box. Asking somebody to remember "1015" was asking them to
+                 know the answer before the screen could tell them. -->
+            <select id="pensum" (change)="onPensumPicked($event)" [disabled]="catalogLoading()">
+              <option value="">
+                {{ catalogLoading() ? 'Loading the catalogue…' : 'Choose a pensum…' }}
+              </option>
+              @for (p of catalog(); track p.pensumCode) {
+                <option [value]="p.pensumCode" [selected]="p.pensumCode === searchCode()">
+                  {{ p.pensumCode }} · {{ p.programName }} · {{ p.reform }}{{ p.status === 'ACTIVE' ? '' : ' (' + p.status + ')' }}
+                </option>
+              }
+            </select>
           </div>
           <button type="button" class="btn" (click)="load()" [disabled]="loading() || !searchCode().trim()">
             {{ loading() ? 'Loading…' : 'Load' }}
           </button>
         </div>
 
+        @if (!catalogLoading() && catalog().length === 0) {
+          <p class="hint" style="margin:0">
+            No pensums yet. Build the first one from its PDF below.
+          </p>
+        }
+
         <app-api-error-banner [error]="error()" />
 
         @if (!loading() && !error() && !loaded()) {
           <div class="empty-state">
-            <p>Enter a pensum code — for example 1015, Ingeniería de Sistemas.</p>
+            <p>Choose one above to read it, edit it or delete it.</p>
           </div>
         }
 
@@ -143,7 +160,7 @@ import { PENSUM_SKELETON, type Pensum } from './pensum.model';
           <span class="text-muted"> — paste the table, correct it, import it</span>
         </summary>
         <div style="margin-top:1rem">
-          <app-paste-pensum />
+          <app-paste-pensum (imported)="loadCatalog()" />
         </div>
       </details>
 
@@ -228,6 +245,10 @@ export class PensumsPage {
   /** Bound automatically from ?pensum=... via withComponentInputBinding (see Programs "View pensum"). */
   readonly pensum = input('');
 
+  /** Every pensum, for the picker. Summaries only; the document is fetched on demand. */
+  readonly catalog = signal<PensumSummary[]>([]);
+  readonly catalogLoading = signal(true);
+
   readonly searchCode = signal('');
   readonly loading = signal(false);
   readonly error = signal<ApiError | null>(null);
@@ -243,6 +264,7 @@ export class PensumsPage {
   @ViewChild('formModal') private formModal?: ModalComponent;
 
   constructor() {
+    this.loadCatalog();
     // A signal input set by withComponentInputBinding (see app.config.ts) is not populated yet
     // when the constructor body runs - the router calls setInput() on the component instance
     // right after construction, not before it. Reading this.pensum() here once would silently
@@ -258,8 +280,31 @@ export class PensumsPage {
     });
   }
 
-  onSearchInput(event: Event): void {
-    this.searchCode.set((event.target as HTMLInputElement).value);
+  /** Picking one loads it. Keeping Load as well, for re-reading the same pensum after an edit. */
+  onPensumPicked(event: Event): void {
+    const code = (event.target as HTMLSelectElement).value;
+    this.searchCode.set(code);
+    if (code) {
+      this.fetchPensum(code);
+    } else {
+      this.loaded.set(null);
+      this.error.set(null);
+    }
+  }
+
+  /** Re-reads the catalogue, so a pensum just imported or deleted shows up in the picker. */
+  loadCatalog(): void {
+    this.catalogLoading.set(true);
+    this.pensumsService.list().subscribe({
+      next: (pensums) => {
+        this.catalog.set(pensums);
+        this.catalogLoading.set(false);
+      },
+      error: (err: unknown) => {
+        this.catalogLoading.set(false);
+        this.error.set(err instanceof AppHttpError ? err.apiError : null);
+      },
+    });
   }
 
   load(): void {
@@ -334,6 +379,7 @@ export class PensumsPage {
         this.formModal?.close();
         this.loaded.set(saved);
         this.searchCode.set(saved.pensumCode);
+        this.loadCatalog();
       },
       error: (err: unknown) => {
         this.formSubmitting.set(false);
@@ -363,6 +409,8 @@ export class PensumsPage {
       next: () => {
         this.deleting.set(false);
         this.loaded.set(null);
+        this.searchCode.set('');
+        this.loadCatalog();
       },
       error: (err: unknown) => {
         this.deleting.set(false);

@@ -363,13 +363,22 @@ const NAV_GROUPS: NavGroup[] = [
       background: var(--bg-hover);
       color: var(--text);
     }
-    /* The active item carries the institutional teal on its edge, so which
-       section you are in is legible from the corner of the eye. */
+    /*
+     * The active item is FILLED, not tinted.
+     *
+     * It used to be --primary-bg on --nav-bg: two colours about two percent of lightness
+     * apart, which is present in the stylesheet and invisible on the screen. A sidebar whose
+     * selected row you have to hunt for is a sidebar that is not doing its one job.
+     */
     .nav-link.active {
-      background: var(--primary-bg);
-      color: var(--primary-strong);
+      background: var(--nav-active-bg);
+      color: var(--nav-active-text);
       border-left-color: var(--brand-teal);
       font-weight: 600;
+    }
+    .nav-link.active:hover {
+      background: var(--nav-active-bg);
+      color: var(--nav-active-text);
     }
     .nav-link.active .nav-icon {
       opacity: 1;
