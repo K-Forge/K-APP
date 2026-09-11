@@ -18,8 +18,9 @@ Lienzo publicado: <https://claude.ai/code/artifact/73a5db81-690b-410e-a996-e70a5
 | `Tokens.dc.html` | Paleta, semántica, tipografía, contraste |
 | `canvas.json` | Posición de cada lámina y las notas al margen |
 
-El lienzo publicado (`kapp-login-e-inicio.html`) no se versiona: pesa 2,5 MB y se regenera
-desde estos archivos.
+`kapp-login-e-inicio.html` es el lienzo armado: **ábrelo en el navegador y lo ves todo junto**,
+con zoom y las notas al margen. No lo edites a mano — se regenera desde los archivos de arriba,
+así que cualquier cambio hecho ahí se pierde en la siguiente generación.
 
 ## Reglas de color
 
