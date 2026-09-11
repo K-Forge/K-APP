@@ -13,13 +13,13 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./layout/shell/shell.component').then((m) => m.ShellComponent),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'identity' },
+      { path: '', pathMatch: 'full', redirectTo: 'my-token' },
       {
-        path: 'identity',
+        path: 'my-token',
         loadComponent: () => import('./features/identity/identity.page').then((m) => m.IdentityPage),
       },
       {
-        path: 'console',
+        path: 'api-console',
         loadComponent: () => import('./features/console/console.page').then((m) => m.ConsolePage),
       },
       {
@@ -45,6 +45,9 @@ export const routes: Routes = [
       // The screen was called Curricula until somebody pointed out that nobody in the building
       // says that - it is a pensum. Kept as a redirect because Programs links here by path.
       { path: 'data/curricula', redirectTo: 'data/pensums' },
+      { path: 'identity', redirectTo: 'my-token' },
+      { path: 'roles', redirectTo: 'who-can-do-what' },
+      { path: 'console', redirectTo: 'api-console' },
       {
         path: 'data/invitation-codes',
         loadComponent: () =>
@@ -58,7 +61,7 @@ export const routes: Routes = [
       // Importing is not its own screen any more; it is the create half of Pensums.
       { path: 'data/import', redirectTo: 'data/pensums' },
       {
-        path: 'roles',
+        path: 'who-can-do-what',
         loadComponent: () => import('./features/roles/role-inspector.page').then((m) => m.RoleInspectorPage),
       },
     ],

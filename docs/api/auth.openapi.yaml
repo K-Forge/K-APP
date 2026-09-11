@@ -93,8 +93,11 @@ paths:
 
         Rules enforced:
 
-        - `email` must end in `@konradlorenz.edu.co`. Any other domain is
-          rejected with `400`; guests must use `POST /auth/register/guest`.
+        - `email` must end in one of the configured domains — `@konradlorenz.edu.co`
+          for institutional accounts, `@kforge.dev` for the team's own development
+          ones. Any other domain is rejected with `400`. **There is no guest
+          registration**: a visitor redeems a day pass instead, which creates no
+          account at all.
         - `invitationCode` is mandatory and is what decides the role. A student
           intake code yields `ROLE_STUDENT`, a staff code yields
           `ROLE_PROFESSOR`. An unknown, spent or expired code is rejected with

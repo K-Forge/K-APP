@@ -34,9 +34,9 @@ set -euo pipefail
 # whoever owns kforge.dev.
 ACCOUNTS=(
   "brian@kforge.dev|Brian Steven|Vargas Clavijo|506900001"
-  "ivan@kforge.dev|Ivan|Desarrollador|506900002"
-  "alejandro@kforge.dev|Alejandro|Desarrollador|506900003"
-  "santiago@kforge.dev|Santiago|Desarrollador|506900004"
+  "ivan@kforge.dev|Iván Darío|Ruiz Bernal|506900002"
+  "alejandro@kforge.dev|Alejandro|Parada Estupiñán|506900003"
+  "santiago@kforge.dev|Santiago|Rocha Ramírez|506900004"
 )
 
 GATEWAY="${KAPP_GATEWAY:-http://localhost:8080}"
@@ -176,7 +176,7 @@ for entry in "${ACCOUNTS[@]}"; do
 
   response=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 \
     -X POST "$GATEWAY/auth/register" \
-    -H 'Content-Type: application/json' \
+    -H 'Content-Type: application/json; charset=utf-8' \
     -d "$body" || echo "000")
 
   case "$response" in

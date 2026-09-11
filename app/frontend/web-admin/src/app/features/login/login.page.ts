@@ -151,7 +151,7 @@ export class LoginPage {
     this.auth.login(email, password).subscribe({
       next: () => {
         this.submitting.set(false);
-        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/identity';
+        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/my-token';
         this.router.navigateByUrl(returnUrl);
       },
       error: (err: unknown) => {

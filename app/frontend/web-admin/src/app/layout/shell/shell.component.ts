@@ -48,9 +48,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Inspect',
     links: [
-      { path: '/identity', label: 'My token', icon: 'M12 2l8 4v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6l8-4zM9 12l2 2 4-4' },
-      { path: '/roles', label: 'Who can do what', icon: 'M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11' },
-      { path: '/console', label: 'API console', icon: 'M8 9l-4 3 4 3M16 9l4 3-4 3M13 5l-2 14' },
+      { path: '/my-token', label: 'My token', icon: 'M12 2l8 4v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6l8-4zM9 12l2 2 4-4' },
+      { path: '/who-can-do-what', label: 'Who can do what', icon: 'M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11' },
+      { path: '/api-console', label: 'API console', icon: 'M8 9l-4 3 4 3M16 9l4 3-4 3M13 5l-2 14' },
     ],
   },
 ];
@@ -63,7 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
   template: `
     <div class="shell">
       <header class="shell-header">
-        <a class="brand" routerLink="/identity">
+        <a class="brand" routerLink="/my-token">
           <img src="/konrad-logo.png" alt="Fundación Universitaria Konrad Lorenz" width="34" height="34" />
           <span class="brand-text">
             <strong>KApp</strong>

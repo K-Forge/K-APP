@@ -32,9 +32,9 @@
   --danger-strong: #8f0d46;
   --danger-bg: #fbe7ee;
 
-  --success: #55620f;
-  --success-strong: #3d4a05;
-  --success-bg: #eef3cf;
+  --success: #2f6f5e;
+  --success-strong: #1f5044;
+  --success-bg: #dcefe8;
 
   --warning: #92620a;
   --warning-bg: #faedd3;
@@ -54,6 +54,12 @@
      chrome from the content without drawing attention to itself. */
   --header-bg: #e0ebe9;
   --nav-bg: #e8efed;
+
+  /* How much of each hue reaches the page ground. Light can take more before it
+     stops looking like paper; dark muddies fast. */
+  --wash-strength: 16%;
+  --wash-accent: 9%;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
 
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;
@@ -94,9 +100,9 @@
     --danger-strong: #f8b3cd;
     --danger-bg: #3a1626;
 
-    --success: #d3dd80;
-    --success-strong: #eaf0c0;
-    --success-bg: #2b3212;
+    --success: #6cc6a8;
+    --success-strong: #a6e2ce;
+    --success-bg: #133029;
 
     --warning: #f0c169;
     --warning-bg: #3a2c0d;
@@ -109,6 +115,10 @@
 
     --header-bg: #16201f;
     --nav-bg: #131b1a;
+    --wash-strength: 9%;
+    --wash-accent: 6%;
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.022'/%3E%3C/svg%3E");
+
   }
 }
 
@@ -136,9 +146,9 @@
   --danger-strong: #f8b3cd;
   --danger-bg: #3a1626;
 
-  --success: #d3dd80;
-  --success-strong: #eaf0c0;
-  --success-bg: #2b3212;
+  --success: #6cc6a8;
+  --success-strong: #a6e2ce;
+  --success-bg: #133029;
 
   --warning: #f0c169;
   --warning-bg: #3a2c0d;
@@ -151,6 +161,10 @@
 
   --header-bg: #16201f;
   --nav-bg: #131b1a;
+  --wash-strength: 9%;
+  --wash-accent: 6%;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.022'/%3E%3C/svg%3E");
+
 
 }
 
@@ -621,40 +635,39 @@ dialog::backdrop {
 /* ─────────────────────────────────────────────────────────────────────────────
    Depth
 
-   Three planes of near-white read as one flat sheet, which is the honest
-   complaint about the light theme. Two things fix it without turning a working
-   tool into a decorated one: the page ground is tinted towards the
-   institutional teal rather than being grey, and it carries a barely-there
-   grain so the eye has something to land on where a card is not.
+   Three planes of near-white read as one flat sheet. Two very soft radial washes
+   of the institutional hues give the page somewhere to be light and somewhere to
+   be less light, which is all depth is; a faint grain keeps large empty areas
+   from looking like a rendering error.
 
-   The grain is a data URI, not an image file: it is under 300 bytes, it never
-   makes a request, and it cannot go missing from a deploy.
+   This is where the brand green belongs. It is a pale lime: forced dark enough to
+   pass contrast as text it turns olive, so it is light here and nothing else.
+
+   Both are data URIs and gradients - nothing to request, nothing to go missing.
+   Fixed to the viewport so scrolling a long table does not drag the background
+   with it.
    ───────────────────────────────────────────────────────────────────────────── */
 body {
   background-color: var(--bg);
   background-image:
-    /* A wash of teal at the top, fading out - the page has a top, and this says so. */
-    linear-gradient(180deg, color-mix(in srgb, var(--brand-teal) 7%, transparent) 0, transparent 22rem),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-  background-attachment: fixed, fixed;
-}
-
-/* In dark the same grain reads as dirt on the screen, and the wash muddies an
-   already dark ground. Only the tint survives, at half strength. */
-:root[data-theme='dark'] body,
-:root:not([data-theme='light']) body {
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--brand-teal) 5%, transparent) 0,
-    transparent 22rem
-  );
-}
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme='dark']) body {
-    background-image:
-      linear-gradient(180deg, color-mix(in srgb, var(--brand-teal) 7%, transparent) 0, transparent 22rem),
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-  }
+    radial-gradient(
+      70rem 34rem at 8% -8%,
+      color-mix(in srgb, var(--brand-teal) var(--wash-strength), transparent) 0%,
+      transparent 65%
+    ),
+    radial-gradient(
+      54rem 30rem at 96% 4%,
+      color-mix(in srgb, var(--brand-green) var(--wash-strength), transparent) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      44rem 40rem at 78% 96%,
+      color-mix(in srgb, var(--brand-pink) var(--wash-accent), transparent) 0%,
+      transparent 60%
+    ),
+    var(--grain);
+  background-attachment: fixed;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
 }
 
 /* A card has to lift off that ground rather than blend into it. */

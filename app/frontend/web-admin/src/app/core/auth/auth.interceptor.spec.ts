@@ -21,7 +21,7 @@ describe('authInterceptor', () => {
     } catch {
       /* not available in this test environment */
     }
-    router = { url: '/console', navigateByUrl: vi.fn() };
+    router = { url: '/api-console', navigateByUrl: vi.fn() };
 
     TestBed.configureTestingModule({
       providers: [
