@@ -151,6 +151,13 @@ import {
             <input id="pp-lv" type="number" [ngModel]="header().levels" (ngModelChange)="patch('levels', $event)" [placeholder]="defaultLevels() || 9" />
           </div>
         </div>
+        @if (replacingExisting(); as existing) {
+          <p class="warn">
+            <strong>{{ existing.pensumCode }} already exists</strong> — {{ existing.programName }},
+            {{ existing.courses }} courses. Importing for real replaces it entirely. If you meant a
+            new pensum, give it a different code.
+          </p>
+        }
         <p class="hint" style="margin:0">
           Declared credits and hours are what the official document says. They are checked
           against the rows below, not trusted — that check is how we found the seeded plan
@@ -335,13 +342,6 @@ import {
               Prerequisites that name nothing in this paste:
               <strong>{{ unknownPrerequisites().join(', ') }}</strong>. The import refuses these,
               so fix the code or drop it.
-            </p>
-          }
-          @if (replacingExisting(); as existing) {
-            <p class="warn">
-              <strong>{{ existing.pensumCode }} already exists</strong> — {{ existing.programName }},
-              {{ existing.courses }} courses. Importing for real replaces it entirely. If you meant
-              a new pensum, give it a different code.
             </p>
           }
           @if (missingHeaderFields().length) {
