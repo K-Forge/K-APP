@@ -32,14 +32,14 @@ describe('PastePensumComponent', () => {
   // row's. Rows 2..n threw on a column index past the end of the row array, and Angular stopped
   // rendering the table after the first row - with no visible error, just four missing rows.
   it('renders an editable cell for every column of every row', () => {
-    const bodyRows = fixture.nativeElement.querySelectorAll('tbody tr');
+    const bodyRows = fixture.nativeElement.querySelectorAll('.paste-grid tbody tr');
     expect(bodyRows.length).toBe(5);
     const perRow = Array.from(bodyRows).map((tr) => (tr as HTMLElement).querySelectorAll('input').length);
     expect(perRow).toEqual([6, 6, 6, 6, 6]);
   });
 
   it('numbers the rows in order rather than repeating the first', () => {
-    const numbers = Array.from(fixture.nativeElement.querySelectorAll('tbody .rownum')).map((td) =>
+    const numbers = Array.from(fixture.nativeElement.querySelectorAll('.paste-grid tbody .rownum')).map((td) =>
       (td as HTMLElement).textContent!.trim().replace(/\D+$/, ''),
     );
     expect(numbers).toEqual(['1', '2', '3', '4', '5']);
@@ -47,7 +47,7 @@ describe('PastePensumComponent', () => {
 
   // Editing had the same off-by-a-dimension bug: a keystroke in row 4 landed in row 0.
   it('writes an edit into the row it was typed in', () => {
-    const bodyRows = fixture.nativeElement.querySelectorAll('tbody tr');
+    const bodyRows = fixture.nativeElement.querySelectorAll('.paste-grid tbody tr');
     const input = bodyRows[3].querySelectorAll('input')[1] as HTMLInputElement;
     input.value = 'Álgebra lineal I';
     input.dispatchEvent(new Event('input'));
@@ -100,7 +100,7 @@ describe('PastePensumComponent · reading the paste', () => {
     expect(f.componentInstance.headingRow()).toBeNull();
     expect(f.componentInstance.rows().length).toBe(6);
     expect(f.componentInstance.rows()[0].cells[0]).toBe('Código');
-    expect(f.nativeElement.querySelectorAll('tbody tr').length).toBe(6);
+    expect(f.nativeElement.querySelectorAll('.paste-grid tbody tr').length).toBe(6);
   });
 
   it('keeps every line when the paste has no heading', async () => {
