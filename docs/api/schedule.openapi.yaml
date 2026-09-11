@@ -124,6 +124,8 @@ tags:
 paths:
   /api/schedule/me:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: getMySchedule
       summary: Get the caller's schedule for a period
       description: |
@@ -165,6 +167,8 @@ paths:
                     path: /api/schedule/me
 
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: createMySchedule
       summary: Create the caller's schedule for a period
       description: |
@@ -218,6 +222,8 @@ paths:
           $ref: '#/components/responses/Conflict'
 
     delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: deleteMySchedule
       summary: Delete the caller's schedule for a period
       description: |
@@ -243,6 +249,8 @@ paths:
 
   /api/schedule/me/periods:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: listMySchedulePeriods
       summary: List the periods the caller has a schedule for
       description: |
@@ -280,6 +288,8 @@ paths:
 
   /api/schedule/me/enrollments:
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: addEnrollment
       summary: Add a course to the caller's schedule
       description: |
@@ -424,6 +434,8 @@ paths:
     parameters:
       - $ref: '#/components/parameters/EnrollmentIdPath'
     patch:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: updateEnrollment
       summary: Partially update an enrollment
       description: |
@@ -511,6 +523,8 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: deleteEnrollment
       summary: Remove a course from the caller's schedule
       description: |
@@ -532,6 +546,8 @@ paths:
     parameters:
       - $ref: '#/components/parameters/EnrollmentIdPath'
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: addMeeting
       summary: Add a weekly slot to an enrollment
       description: |
@@ -608,6 +624,8 @@ paths:
       - $ref: '#/components/parameters/EnrollmentIdPath'
       - $ref: '#/components/parameters/MeetingIdPath'
     patch:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: updateMeeting
       summary: Partially update a weekly slot
       description: |
@@ -689,6 +707,8 @@ paths:
           $ref: '#/components/responses/MeetingOverlapConflict'
 
     delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: deleteMeeting
       summary: Remove a weekly slot from an enrollment
       description: |
@@ -709,6 +729,8 @@ paths:
 
   /api/schedule/me/day:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: getMyDay
       summary: Get the caller's classes on one date
       description: |
@@ -787,6 +809,8 @@ paths:
 
   /api/schedule/me/week:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: getMyWeek
       summary: Get the caller's classes for one week
       description: |
@@ -877,6 +901,8 @@ paths:
 
   /api/schedule/{userId}:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: getScheduleByUserId
       summary: Get any student's schedule
       description: |

@@ -63,6 +63,7 @@ function flattenOperations(service: ServiceDescriptor): ConsoleOperation[] {
         requestBodySchema: bodySchema,
         requestBodyExample: jsonBody ? firstExample(doc, jsonBody, bodySchema) : undefined,
         security: operation.security,
+        xRoles: (operation as { 'x-roles'?: string[] })['x-roles'],
       });
     }
   }

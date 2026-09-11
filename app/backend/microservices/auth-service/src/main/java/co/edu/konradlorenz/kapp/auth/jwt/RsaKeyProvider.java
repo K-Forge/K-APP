@@ -28,7 +28,7 @@ import java.util.Base64;
  *
  * <p>It also lines the project up for Microsoft Entra ID, which signs RS256 and publishes
  * a JWKS. Migrating then means pointing the services at a different {@code jwk-set-uri},
- * not rewriting how five services validate tokens.
+ * not rewriting how the services validate tokens.
  */
 @Component
 public class RsaKeyProvider {

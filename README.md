@@ -66,7 +66,7 @@ MongoDB account with `readWrite` on exactly one database — so the separation b
 engine, not merely respected by the code.
 
 Delivery goes **straight to mobile**. There is a web portal, but it is an administration and development console
-for the team — not a product surface. The mobile clients are unblocked: the five OpenAPI contracts are served as
+for the team — not a product surface. The mobile clients are unblocked: the OpenAPI contracts are served as
 Prism mocks, so Kotlin and Swift work does not wait on the backend.
 
 ---
@@ -82,7 +82,7 @@ What that means when reading this repository:
   authorization matrix — including every combination that must be refused, which are the ones that
   matter.
 - **The native clients are the product, and they have not been started.** They are unblocked: the
-  five OpenAPI contracts are served as Prism mocks, so Kotlin and Swift work does not wait on the
+  OpenAPI contracts are served as Prism mocks, so Kotlin and Swift work does not wait on the
   backend.
 - **The scope was narrowed deliberately** in August 2026, because the university's academic data is
   not available. Courses, assignments and grading are out — not pending.
@@ -487,7 +487,7 @@ KApp/
 | [docs/ONBOARDING.md](docs/ONBOARDING.md) | **Start here on a new machine.** Ten minutes, in Spanish, no Java or MongoDB to install. |
 | [docs/RUNBOOK.md](docs/RUNBOOK.md) | **How to run it.** Profiles, accounts, and a troubleshooting section where every entry is a failure we actually hit. |
 | [docs/PROGRESS.md](docs/PROGRESS.md) | **What is built**, what each phase delivered, and what is blocked on whom. |
-| [docs/api/](docs/api/) | The five OpenAPI 3.1 contracts. **The source of truth** — linted in CI and served as mocks. |
+| [docs/api/](docs/api/) | The OpenAPI 3.1 contracts, one per service. **The source of truth** — linted in CI and served as mocks. |
 | [docs/adr/](docs/adr/) | Architecture decision records: what was decided, what else was considered, and the consequences including the bad ones. |
 | [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Scope. Every entry is built or explicitly out — no pending requirements nobody intends to implement. |
 | [docs/DESIGN.md](docs/DESIGN.md) | The system as it is, with diagrams. |

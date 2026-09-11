@@ -13,7 +13,7 @@ It is not a product for students or staff - it never ships to a store, has no de
   roles, issuer, issued-at and a live expiry countdown, with a clear warning once it's expired.
   The four native-client developers building Kotlin and Swift clients need this to verify their
   own token handling without guessing.
-- **Fire a real request at any endpoint in seconds.** The API console reads all five OpenAPI
+- **Fire a real request at any endpoint in seconds.** The API console reads every OpenAPI
   contracts, lets you pick a service and an operation, fills path/query parameters typed from the
   spec (enums render as dropdowns, not free text you have to get exactly right), edits the JSON
   body, and shows status, timing, response headers and a pretty-printed body. This is what lets a
@@ -24,7 +24,7 @@ It is not a product for students or staff - it never ships to a store, has no de
   render from), programs (read-only - see below) and curricula (create/replace as a JSON
   document).
 - **Check the authorization matrix by hand.** The role inspector shows which of the four roles the
-  signed-in account holds and, for every endpoint across all five specs, which role(s) the
+  signed-in account holds and, for every endpoint across all the specs, which role(s) the
   documentation says can reach it.
 
 ### What's deliberately not here
@@ -106,7 +106,7 @@ from the spec's own `example`/`examples` where one exists, or synthesizing a pla
 from the schema (`core/openapi/example.util.ts`) where it doesn't. The console and the role
 inspector both read from this one flattened list; neither re-implements spec parsing.
 
-The role inspector adds one more piece: none of the five specs carries a machine-readable role
+The role inspector adds one more piece: none of the specs carries a machine-readable role
 annotation, so `core/openapi/role-requirement.ts` parses the *prose* each operation states its
 required role(s) in - three different phrasings show up across the five files ("Allowed roles:",
 "**Access:**", "Roles:"), plus an "any authenticated role" form. Where an operation states nothing
@@ -121,7 +121,7 @@ documented" rather than inventing an answer when even that doesn't apply.
   Angular 22 app - `ApplicationRef` change detection reacts to signal writes directly).
 - **One HTTP client, one error path.** `ApiClientService` resolves every request against the
   currently configured base URL and normalizes every failure - including a request that never
-  reached a server at all - into `ApiError`, the envelope shared byte-for-byte across all five
+  reached a server at all - into `ApiError`, the envelope shared byte-for-byte across every
   backend services. Every screen renders it through the same `ApiErrorBannerComponent`.
 - **One token store.** `TokenStore` decodes the JWT for display (it never verifies the signature -
   that's the gateway's job; this is a "what does this token actually say" tool, not an

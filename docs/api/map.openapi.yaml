@@ -96,6 +96,8 @@ paths:
   /api/map/buildings:
 
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: listBuildings
       summary: List buildings
       description: |
@@ -177,6 +179,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
 
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: createBuilding
       summary: Create a building
       description: |
@@ -249,6 +253,8 @@ paths:
       - $ref: '#/components/parameters/BuildingCodePath'
 
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: getBuildingByCode
       summary: Get a building by code
       description: |
@@ -308,6 +314,8 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     put:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: updateBuilding
       summary: Update a building
       description: |
@@ -379,6 +387,8 @@ paths:
           $ref: '#/components/responses/Conflict'
 
     delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: deleteBuilding
       summary: Delete a building
       description: |
@@ -407,6 +417,8 @@ paths:
       - $ref: '#/components/parameters/FloorLevelPath'
 
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: getFloor
       summary: Get a floor and every space on it
       description: |
@@ -516,6 +528,8 @@ paths:
   /api/map/spaces/search:
 
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: searchSpaces
       summary: Search spaces across the campus
       description: |
@@ -700,6 +714,8 @@ paths:
   /api/map/spaces:
 
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: createSpace
       summary: Create a space
       description: |
@@ -784,6 +800,8 @@ paths:
       - $ref: '#/components/parameters/BuildingCodeDisambiguator'
 
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: getSpaceByCode
       summary: Resolve a room code to its space, floor and building
       description: |
@@ -849,6 +867,8 @@ paths:
           $ref: '#/components/responses/Conflict'
 
     put:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: updateSpace
       summary: Update a space
       description: |
@@ -918,6 +938,8 @@ paths:
           $ref: '#/components/responses/Conflict'
 
     delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: deleteSpace
       summary: Delete a space
       description: |
@@ -943,6 +965,8 @@ paths:
   /api/map/campuses:
 
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: listCampuses
       summary: List campuses
       description: |

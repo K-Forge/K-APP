@@ -1,22 +1,47 @@
 import { ALL_ROLES, type Role } from '../auth/auth.model';
 import type { ConsoleOperation } from './console-operation.model';
 
+/** `declared` means the contract said so in `x-roles`; `inferred` means its prose was read. */
+export type RoleSource = 'declared' | 'inferred';
+
 export type RoleRequirement =
-  | { kind: 'public' }
-  | { kind: 'roles'; roles: Role[] }
-  | { kind: 'unknown' };
+  | { kind: 'public'; source: RoleSource }
+  | { kind: 'roles'; roles: Role[]; source: RoleSource }
+  | { kind: 'service-only'; source: RoleSource }
+  | { kind: 'unknown'; source: RoleSource };
 
 /**
- * None of the five OpenAPI specs carries a machine-readable role annotation (no `x-roles`
- * extension) - authorization is documented as prose in each operation's `description`, in three
- * different phrasings across the five files ("Allowed roles: ...", "**Access: ...**", "Roles:
- * ..."). This parses that prose rather than guessing blind, and says so plainly (`unknown`) when
- * an operation states nothing usable, instead of inventing an answer for a tool whose whole job
- * is verifying the real authorization matrix by hand.
+ * Every operation in the specs now carries `x-roles`, written from the authorization the
+ * services actually enforce - the `@PreAuthorize` annotations and, for the map, its security
+ * configuration.
+ *
+ * <p>It used to parse the prose in each operation's `description`, and that was wrong in a way
+ * worth recording. The last-resort branch asked only "does this role name appear in the text",
+ * which cannot tell a role that is *allowed* from one that is *refused*: `GET /api/users/me`
+ * says "ROLE_GUEST is refused with 403", so the page listed ROLE_GUEST among the roles that may
+ * call it - confidently backwards, about the one rule that had just been tightened for security.
+ * A tool whose only job is to say who can do what must not guess from English.
+ *
+ * <p>The prose parsing stays as a fallback for an operation somebody adds without `x-roles`,
+ * and {@link RoleRequirement} says which of the two produced the answer so the page can show it.
  */
 export function resolveRoleRequirement(op: ConsoleOperation): RoleRequirement {
+  const declared = (op as { xRoles?: unknown }).xRoles;
+  if (Array.isArray(declared)) {
+    if (declared.length === 0) {
+      return { kind: 'public', source: 'declared' };
+    }
+    if (declared.includes('SERVICE_ONLY')) {
+      return { kind: 'service-only', source: 'declared' };
+    }
+    const roles = declared.filter((r): r is Role => (ALL_ROLES as readonly string[]).includes(r));
+    if (roles.length) {
+      return { kind: 'roles', roles, source: 'declared' };
+    }
+  }
+
   if (Array.isArray(op.security) && op.security.length === 0) {
-    return { kind: 'public' };
+    return { kind: 'public', source: 'inferred' };
   }
 
   // YAML block-literal descriptions soft-wrap prose across lines; flattening whitespace means a
@@ -24,20 +49,20 @@ export function resolveRoleRequirement(op: ConsoleOperation): RoleRequirement {
   const text = `${op.summary} ${op.description}`.replace(/\s+/g, ' ');
 
   if (/`?ROLE_ADMIN`?\s*only/i.test(text)) {
-    return { kind: 'roles', roles: ['ROLE_ADMIN'] };
+    return { kind: 'roles', roles: ['ROLE_ADMIN'], source: 'inferred' };
   }
   if (/any authenticated role except\s*`?ROLE_GUEST`?/i.test(text)) {
-    return { kind: 'roles', roles: ['ROLE_STUDENT', 'ROLE_PROFESSOR', 'ROLE_ADMIN'] };
+    return { kind: 'roles', roles: ['ROLE_STUDENT', 'ROLE_PROFESSOR', 'ROLE_ADMIN'], source: 'inferred' };
   }
   if (/any authenticated role/i.test(text)) {
-    return { kind: 'roles', roles: [...ALL_ROLES] };
+    return { kind: 'roles', roles: [...ALL_ROLES], source: 'inferred' };
   }
 
   const listMatch = text.match(/(?:Allowed roles|Access|Roles):\s*([^.]+)/i);
   if (listMatch) {
     const roles = extractRoles(listMatch[1]);
     if (roles.length) {
-      return { kind: 'roles', roles };
+      return { kind: 'roles', roles, source: 'inferred' };
     }
   }
 
@@ -48,10 +73,10 @@ export function resolveRoleRequirement(op: ConsoleOperation): RoleRequirement {
 
   const anyRoles = extractRoles(text);
   if (anyRoles.length) {
-    return { kind: 'roles', roles: anyRoles };
+    return { kind: 'roles', roles: anyRoles, source: 'inferred' };
   }
 
-  return { kind: 'unknown' };
+  return { kind: 'unknown', source: 'inferred' };
 }
 
 function extractRoles(text: string): Role[] {
@@ -67,13 +92,13 @@ function extractRoles(text: string): Role[] {
 function fallbackByPath(op: ConsoleOperation): RoleRequirement | null {
   if (op.serviceId === 'semaphore') {
     if (op.path.startsWith('/api/catalog')) {
-      return { kind: 'roles', roles: op.method === 'get' ? ['ROLE_STUDENT', 'ROLE_PROFESSOR', 'ROLE_ADMIN'] : ['ROLE_ADMIN'] };
+      return { kind: 'roles', roles: op.method === 'get' ? ['ROLE_STUDENT', 'ROLE_PROFESSOR', 'ROLE_ADMIN'] : ['ROLE_ADMIN'], source: 'inferred' };
     }
     if (op.path === '/api/semaphore/{userId}') {
-      return { kind: 'roles', roles: ['ROLE_ADMIN'] };
+      return { kind: 'roles', roles: ['ROLE_ADMIN'], source: 'inferred' };
     }
     if (op.path.startsWith('/api/semaphore/me')) {
-      return { kind: 'roles', roles: ['ROLE_STUDENT'] };
+      return { kind: 'roles', roles: ['ROLE_STUDENT'], source: 'inferred' };
     }
   }
   return null;

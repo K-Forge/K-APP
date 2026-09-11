@@ -34,7 +34,7 @@ or Android Studio you actively do not want it.
 
 | Profile    | What starts                           | RAM     | Use it when                                       |
 | ---------- | ------------------------------------- | ------- | ------------------------------------------------- |
-| `mock`     | 5 Prism mock servers                  | ~200 MB | Building a mobile screen against the API contract |
+| `mock`     | one Prism mock server per contract                  | ~200 MB | Building a mobile screen against the API contract |
 | `core`     | mongo, discovery, gateway, auth, user | ~2.5 GB | Working on sign-in or profiles                    |
 | `academic` | core + semaphore, schedule            | ~3.5 GB | Working on curricula or timetables                |
 | `map`      | core + map                            | ~3 GB   | Working on the campus map                         |
@@ -176,7 +176,7 @@ Give each teammate their line from `.dev-accounts` privately.
 ### Switching between the local database and Atlas
 
 ```bash
-scripts/set-atlas-uris.sh          # point the five services at the shared cluster
+scripts/set-atlas-uris.sh          # point the services at the shared cluster
 scripts/set-atlas-uris.sh --local  # and back, for a plane or bad Wi-Fi
 ```
 

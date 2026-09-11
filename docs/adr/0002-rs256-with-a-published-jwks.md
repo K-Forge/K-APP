@@ -37,7 +37,7 @@ well, but that is now defence in depth rather than the only defence.
 
 **It is the shape Entra ID already speaks.** Entra signs RS256 and publishes a JWKS. Adopting the
 same mechanism means [ADR 0003](0003-oidc-over-saml-for-mobile-authentication.md) is a change of
-configuration rather than a redesign of how five services authenticate.
+configuration rather than a redesign of how the services authenticate.
 
 ## Consequences
 

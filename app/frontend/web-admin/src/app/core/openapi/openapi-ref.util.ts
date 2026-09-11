@@ -1,7 +1,7 @@
 import type { OpenApiDocument, RefObject, SchemaObject } from './openapi.types';
 import { isRef } from './openapi.types';
 
-/** Resolves a local `#/a/b/c` JSON pointer against the document. Every $ref in these five specs is local. */
+/** Resolves a local `#/a/b/c` JSON pointer against the document. Every $ref in these the specs is local. */
 export function resolveRef<T>(doc: OpenApiDocument, ref: string): T {
   const segments = ref.replace(/^#\//, '').split('/');
   let node: unknown = doc;

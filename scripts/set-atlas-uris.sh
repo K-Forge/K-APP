@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Points the five services at an Atlas cluster, or back at the local container.
+# Points the services at an Atlas cluster, or back at the local container.
 #
 #   scripts/set-atlas-uris.sh            # ask for the host and the five passwords
 #   scripts/set-atlas-uris.sh --local    # go back to the local MongoDB
@@ -87,7 +87,7 @@ if [ "${1:-}" = "--local" ]; then
 fi
 
 # ── Atlas ───────────────────────────────────────────────────────────────────────────
-echo "Pointing the five services at an Atlas cluster."
+echo "Pointing the services at an Atlas cluster."
 echo "Walkthrough, if you have not created it yet: docs/ATLAS-SETUP.md"
 echo
 

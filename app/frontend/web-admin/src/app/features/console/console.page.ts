@@ -27,7 +27,7 @@ function operationKey(op: Pick<ConsoleOperation, 'method' | 'path'>): string {
       <div class="stack console-main">
         <app-page-intro
           title="API console"
-          what="Call any endpoint of the five services with your own token, without leaving the browser or writing a curl."
+          what="Call any endpoint of the services with your own token, without leaving the browser or writing a curl."
           [can]="['Pick an operation from the contracts', 'Fill path, query and body from the contract examples', 'Send it and read the real response', 'Look back at what you already sent']"
           note="It sends your actual token to the actual gateway — this is not a simulation. A DELETE here deletes. It is also the way to verify a row on the &#39;Who can do what&#39; screen: sign in as that role and call it."
         />

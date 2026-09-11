@@ -238,6 +238,6 @@ existen. Es el error más común del proyecto.
 ## Dónde seguir
 
 - [`RUNBOOK.md`](RUNBOOK.md) — todos los comandos, perfiles y problemas conocidos
-- [`docs/api/`](api/) — los cinco contratos de la API. **Son la verdad**: si el código y el
+- [`docs/api/`](api/) — los contratos de la API. **Son la verdad**: si el código y el
   contrato no coinciden, el contrato manda
 - [`PROGRESS.md`](PROGRESS.md) — qué está hecho y qué falta

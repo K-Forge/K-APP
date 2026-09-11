@@ -81,6 +81,8 @@ tags:
 paths:
   /auth/register:
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
       operationId: registerInstitutionalUser
       summary: Register an institutional account
       description: |
@@ -133,6 +135,8 @@ paths:
 
   /auth/login:
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
       operationId: login
       summary: Exchange credentials for an access token
       description: |
@@ -187,6 +191,8 @@ paths:
 
   /auth/verify:
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
       operationId: verifyEmail
       summary: Confirm an e-mail address
       description: |
@@ -218,6 +224,8 @@ paths:
 
   /auth/verify/resend:
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
       operationId: resendVerificationEmail
       summary: Request a new verification e-mail
       description: |
@@ -256,6 +264,8 @@ paths:
 
   /.well-known/jwks.json:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
       operationId: getJwks
       summary: Fetch the JSON Web Key Set
       description: |
@@ -291,6 +301,8 @@ paths:
 
   /auth/health:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
       operationId: getAuthHealth
       summary: Report service liveness
       description: |
@@ -314,6 +326,8 @@ paths:
 
   /auth/admin/invitation-codes:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: listInvitationCodes
       summary: List invitation codes
       description: |
@@ -346,6 +360,8 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: createInvitationCode
       summary: Create an invitation code
       description: |
@@ -383,6 +399,8 @@ paths:
         schema: { type: string, maxLength: 40 }
         example: KL-20262-STUDENT
     patch:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: updateInvitationCode
       summary: Activate or deactivate an invitation code
       description: |
@@ -415,6 +433,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: deleteInvitationCode
       summary: Delete an invitation code
       description: |
@@ -443,6 +463,8 @@ paths:
           maxLength: 20
         example: KL-V-7K2M-QX9P
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
       operationId: redeemVisitorPass
       summary: Redeem a visitor day pass
       description: |
@@ -511,6 +533,8 @@ paths:
 
   /auth/admin/visitor-passes:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: listVisitorPasses
       summary: Read the visitor register
       description: |
@@ -541,6 +565,8 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: createVisitorPass
       summary: Issue a visitor day pass
       description: |
@@ -581,6 +607,8 @@ paths:
           maxLength: 20
         example: KL-V-7K2M-QX9P
     delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: deleteVisitorPass
       summary: Revoke an unredeemed pass
       description: |

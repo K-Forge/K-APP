@@ -78,6 +78,8 @@ tags:
 paths:
   /api/catalog/programs:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: listPrograms
       summary: List academic programs
       description: |
@@ -106,6 +108,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
 
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: createProgram
       summary: Create an academic program
       description: |
@@ -137,6 +141,8 @@ paths:
     parameters:
       - $ref: '#/components/parameters/ProgramCodePath'
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: getProgram
       summary: Get one academic program
       description: Returns a single program by its institutional code.
@@ -162,6 +168,8 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     put:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: replaceProgram
       summary: Replace an academic program
       description: Requires `ROLE_ADMIN`. The code in the path wins; a differing code in the body is a 400.
@@ -188,6 +196,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: deleteProgram
       summary: Delete an academic program
       description: |
@@ -210,6 +220,8 @@ paths:
     parameters:
       - $ref: '#/components/parameters/PensumCodePath'
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: getCurriculum
       summary: Get a full curriculum
       description: |
@@ -237,6 +249,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
     put:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: replaceCurriculum
       summary: Replace a curriculum
       description: |
@@ -278,6 +292,8 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: deleteCurriculum
       summary: Delete a curriculum
       description: |
@@ -297,6 +313,8 @@ paths:
           $ref: '#/components/responses/Conflict'
   /api/catalog/curricula:
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: createCurriculum
       summary: Create a curriculum
       description: |
@@ -346,6 +364,8 @@ paths:
 
   /api/catalog/curricula/import:
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: importCurricula
       summary: Import pensums in bulk from a CSV
       description: |
@@ -415,6 +435,8 @@ paths:
     parameters:
       - $ref: '#/components/parameters/PensumCodePath'
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: listCurriculumCourses
       summary: List the items of a curriculum
       description: |
@@ -473,6 +495,8 @@ paths:
 
   /api/semaphore/me:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT]
       operationId: getMySemaphore
       summary: Get the caller's semáforo
       description: |
@@ -526,6 +550,8 @@ paths:
 
   /api/semaphore/me/summary:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT]
       operationId: getMySemaphoreSummary
       summary: Get the caller's progress summary
       description: |
@@ -579,6 +605,8 @@ paths:
 
   /api/semaphore/me/eligible:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT]
       operationId: listMyEligibleCourses
       summary: List the courses the caller can take next
       description: |
@@ -638,6 +666,8 @@ paths:
     parameters:
       - $ref: '#/components/parameters/CourseCodePath'
     put:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT]
       operationId: updateMyCourseStatus
       summary: Set the status of one course on the caller's semáforo
       description: |
@@ -708,6 +738,8 @@ paths:
     parameters:
       - $ref: '#/components/parameters/PensumItemCodePath'
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT]
       operationId: resolveMyElectiveSlot
       summary: Resolve an elective slot to a real course
       description: |
@@ -759,6 +791,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT]
       operationId: clearMyElectiveSlot
       summary: Clear an elective slot resolution
       description: |
@@ -786,6 +820,8 @@ paths:
     parameters:
       - $ref: '#/components/parameters/UserIdPath'
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: getStudentSemaphore
       summary: Get another student's semáforo
       description: |
@@ -814,6 +850,8 @@ paths:
 
   /api/semaphore/me/plans:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT]
       operationId: listMyAcademicPlans
       summary: List the student's academic plans
       description: |
@@ -837,6 +875,8 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
     post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT]
       operationId: createMyAcademicPlan
       summary: Create an academic plan
       description: |
@@ -875,6 +915,8 @@ paths:
     parameters:
       - $ref: '#/components/parameters/PlanIdPath'
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT]
       operationId: getMyAcademicPlan
       summary: Get one academic plan
       description: |
@@ -895,6 +937,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
     patch:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT]
       operationId: updateMyAcademicPlan
       summary: Rename a plan or make it the primary one
       description: |
@@ -927,6 +971,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT]
       operationId: deleteMyAcademicPlan
       summary: Delete an academic plan
       description: |
@@ -949,6 +995,8 @@ paths:
       - $ref: '#/components/parameters/PlanIdPath'
       - $ref: '#/components/parameters/CourseCodePath'
     put:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT]
       operationId: placeCourseInMyPlan
       summary: Move a course to a different level
       description: |
@@ -987,6 +1035,8 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT]
       operationId: resetCourseInMyPlan
       summary: Return a course to the level the pensum gives it
       description: |

@@ -246,7 +246,7 @@ and the file is labeled as development-only in the README.
 
 ### S10 — MongoDB ran without authentication (High) — RESOLVED
 
-**Evidence** — the `mongo` container started with no `--auth`, and all five services connected with
+**Evidence** — the `mongo` container started with no `--auth`, and all the services connected with
 `mongodb://mongo:27017/<database>` and no credentials. Any process that could reach port 27017
 inside the compose network could read and write every database.
 

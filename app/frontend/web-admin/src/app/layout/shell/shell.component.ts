@@ -64,7 +64,7 @@ const NAV_GROUPS: NavGroup[] = [
     <div class="shell">
       <header class="shell-header">
         <a class="brand" routerLink="/identity">
-          <img src="konrad-logo.png" alt="" width="32" height="32" />
+          <img src="/konrad-logo.png" alt="Fundación Universitaria Konrad Lorenz" width="34" height="34" />
           <span class="brand-text">
             <strong>KApp</strong>
             <span class="brand-sub">Admin Portal</span>
@@ -187,9 +187,17 @@ const NAV_GROUPS: NavGroup[] = [
       border-radius: var(--radius-md);
       padding: 0.15rem 0.35rem;
     }
+    /* The mark is a transparent PNG of overlapping shapes. It needs room and no
+       container: a rounded tile behind it reads as a button, and at 32px the
+       overlaps muddied into noise.
+
+       The src is absolute. Relative, the browser resolves it against the current
+       route - so it loaded on /identity and 404'd on /data/programs, showing the
+       alt text instead. Every route in this app is nested except the first one
+       anybody sees, which is exactly how that survived a look. */
     .brand img {
-      border-radius: 6px;
       flex: 0 0 auto;
+      display: block;
     }
     .brand-text {
       display: flex;

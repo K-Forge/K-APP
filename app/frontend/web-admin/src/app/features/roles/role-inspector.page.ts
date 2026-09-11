@@ -16,7 +16,7 @@ interface InspectedRow {
 
 /**
  * Answers "what can this role actually reach" by combining the caller's own token with a role
- * requirement parsed from every operation across the five specs (see role-requirement.ts for how,
+ * requirement parsed from every operation across the specs (see role-requirement.ts for how,
  * and its honest limits). Meant for checking the authorization matrix by hand, not as a substitute
  * for the server's own enforcement - every requirement here is read from documentation prose, not
  * verified against a live response.
@@ -29,9 +29,9 @@ interface InspectedRow {
     <div class="stack">
       <app-page-intro
         title="Who can do what"
-        what="Every endpoint across the five services, and which roles the API contract says may call it."
+        what="Every endpoint across the services, and which roles the API contract says may call it."
         [can]="['Filter by service, by role, or by path', 'See which operations are public', 'Spot the ones whose contract says nothing usable']"
-        note="This reads the prose in the OpenAPI descriptions — it reports what the contracts CLAIM, not what the code does. To check a row is true, call it yourself in the API console with a token for that role, or read the backend&#39;s authorization matrix tests, which assert the real behaviour per role and are the thing that would fail if the two ever disagreed."
+        note="Read from each operation&#39;s x-roles, written from the authorization the services actually enforce — their @PreAuthorize annotations and the map&#39;s security configuration. A row marked 'inferred' was guessed from the description&#39;s prose instead, and should be treated as one. Either way, the thing that would fail if a rule and its contract ever disagreed is the backend&#39;s authorization matrix tests; the API console is how you check a single row by hand."
       />
 
       <div class="card stack">
@@ -87,6 +87,10 @@ interface InspectedRow {
                 <td>
                   @if (row.requirement.kind === 'public') {
                     <span class="badge badge-success">public</span>
+                  } @else if (row.requirement.kind === 'service-only') {
+                    <span class="badge badge-neutral" title="Reachable only from inside the compose network, with the shared internal token. It has no gateway route at all.">
+                      service only
+                    </span>
                   } @else if (row.requirement.kind === 'roles') {
                     <div class="row spread">
                       @for (role of row.requirement.roles; track role) {
@@ -95,6 +99,12 @@ interface InspectedRow {
                     </div>
                   } @else {
                     <span class="badge badge-warning">not documented</span>
+                  }
+                  @if (row.requirement.source === 'inferred') {
+                    <span
+                      class="badge badge-warning"
+                      title="Read from the description's prose, not declared in x-roles. Treat it as a guess and check it in the API console."
+                    >inferred</span>
                   }
                 </td>
                 <td>

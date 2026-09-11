@@ -35,4 +35,11 @@ FROM nginx:1.27-alpine AS runtime
 COPY app/frontend/web-admin/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/app/frontend/web-admin/dist/web-admin/browser /usr/share/nginx/html
 
+# nginx runs as its own user and serves nothing it cannot read. A file that arrives with a
+# restrictive mode - which is what happens when one is copied from somewhere else with `cp -p`,
+# or checked out under a tight umask - is served as 403, which looks like a configuration
+# problem and is not. Normalising here costs nothing and removes the whole class.
+RUN find /usr/share/nginx/html -type f -exec chmod 644 {} + \
+ && find /usr/share/nginx/html -type d -exec chmod 755 {} +
+
 EXPOSE 80

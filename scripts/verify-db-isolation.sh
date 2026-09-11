@@ -5,7 +5,7 @@
 #
 #   scripts/verify-db-isolation.sh
 #
-# For each of the five service accounts it checks two things: that the account can read
+# For each service account it checks two things: that the account can read
 # and write its OWN database, and that it is refused on the other four. A credential that
 # leaks out of one service must not open another service's data.
 #

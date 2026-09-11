@@ -82,6 +82,8 @@ tags:
 paths:
   /api/users/me:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: getMyProfile
       summary: Get the authenticated user's profile
       description: |
@@ -143,6 +145,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
 
     patch:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
       operationId: updateMyProfile
       summary: Update the authenticated user's profile
       description: |
@@ -244,6 +248,8 @@ paths:
 
   /api/users:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: listUsers
       summary: List and search user profiles
       description: |
@@ -356,6 +362,8 @@ paths:
 
   /api/users/{userId}:
     get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: getUserById
       summary: Get a user profile by id
       description: |
@@ -418,6 +426,8 @@ paths:
 
   /api/users/{userId}/status:
     patch:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
       operationId: setUserStatus
       summary: Activate or deactivate a user
       description: |
@@ -477,6 +487,9 @@ paths:
 
   /internal/users:
     post:
+      # Not role-protected: reachable only from inside the compose network, with the
+      # shared internal token, and it has no gateway route at all.
+      x-roles: [SERVICE_ONLY]
       operationId: upsertInternalUser
       summary: Create or update a profile from another service
       description: |

@@ -23,4 +23,12 @@ export interface ConsoleOperation {
   requestBodyExample?: unknown;
   /** Empty array means the spec marks this operation public (`security: []`). */
   security?: unknown[];
+
+  /**
+   * The operation's `x-roles`, written from what the services actually enforce. An empty array
+   * means public; `['SERVICE_ONLY']` means an internal endpoint guarded by a shared token rather
+   * than by a role. Absent only on an operation somebody added without it, which falls back to
+   * reading the description's prose - see `resolveRoleRequirement`.
+   */
+  xRoles?: string[];
 }

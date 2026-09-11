@@ -132,7 +132,7 @@ Compose profiles exist so nobody has to run seven JVMs to work on one service:
 ```bash
 cd app/backend/microservices
 
-# Mobile / frontend work: the five Prism mocks alone. No JVM, no Mongo, ~200 MB.
+# Mobile / frontend work: the the Prism mocks alone. No JVM, no Mongo, ~200 MB.
 docker compose --profile mock up -d      # ports 4010-4014
 
 # Backend work: only what you need

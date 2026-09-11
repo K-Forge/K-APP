@@ -17,7 +17,7 @@ production deployment.
 | Area | Status | Tests | Notes |
 |---|---|---|---|
 | Platform foundation | Complete | — | Boot 3.5, MongoDB, RS256/JWKS, Mongock, Testcontainers |
-| API contract | Complete | — | Five OpenAPI 3.1 specs, linted in CI, served as mocks |
+| API contract | Complete | — | Hand-written OpenAPI 3.1 specs, linted in CI, served as mocks |
 | **Database isolation** | **Complete** | — | One MongoDB account per service, `readWrite` on one database. Verified by `scripts/verify-db-isolation.sh` |
 | **Auth: sign-in and registration** | **Merged** | **99** | Registration, verification, invitation codes with full admin CRUD, `IdentityProviderPort` |
 | **User profiles** | **Merged** | **97** | Profiles, internal upsert, accent-insensitive indexed search |
@@ -112,7 +112,7 @@ Tracked in `docs/SECURITY-AUDIT.md`.
 **All seven phases of the September plan are closed.** What remains is not backend work.
 
 **The mobile clients.** They are the product and they have not been started. They are unblocked: the
-five contracts are served as Prism mocks, so Kotlin and Swift work does not wait on anything here.
+the contracts are served as Prism mocks, so Kotlin and Swift work does not wait on anything here.
 
 **The data.** The 24 pensums and roughly 40 floors are transcription, not programming — the CSV
 import and the grid editor exist so the team can do it in parallel without touching code.

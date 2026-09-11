@@ -50,7 +50,7 @@ import org.springframework.security.web.access.AccessDeniedHandler;
  * <p>It is not wired now because the second issuer does not exist yet - there is no tenant
  * id and no discovery document - and a resolver with one entry is strictly more machinery
  * than {@code jwk-set-uri} for identical behaviour. What matters is that adding the second
- * issuer is a change to this bean, not a redesign of how five services validate tokens.
+ * issuer is a change to this bean, not a redesign of how the services validate tokens.
  */
 @Configuration
 public class AuthSecurityConfig {

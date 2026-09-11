@@ -11,12 +11,12 @@
 :root {
   color-scheme: light;
 
-  --bg: #f5f7f6;
+  --bg: #eef2f1;
   --bg-elevated: #ffffff;
-  --bg-inset: #eef1f0;
-  --bg-hover: #e7ebea;
-  --border: #d7dedc;
-  --border-strong: #b7c2bf;
+  --bg-inset: #e6ecea;
+  --bg-hover: #dde5e3;
+  --border: #cbd6d3;
+  --border-strong: #a7b6b2;
 
   --text: #16211f;
   --text-muted: #52625e;
@@ -52,8 +52,8 @@
   /* The header and sidebar are tinted rather than white. Three stacked white
      planes read as flat; a faint wash of the institutional teal separates the
      chrome from the content without drawing attention to itself. */
-  --header-bg: #eaf1f0;
-  --nav-bg: #f0f4f3;
+  --header-bg: #e0ebe9;
+  --nav-bg: #e8efed;
 
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;
@@ -616,4 +616,57 @@ dialog::backdrop {
     flex-wrap: wrap;
     gap: 0.5rem;
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Depth
+
+   Three planes of near-white read as one flat sheet, which is the honest
+   complaint about the light theme. Two things fix it without turning a working
+   tool into a decorated one: the page ground is tinted towards the
+   institutional teal rather than being grey, and it carries a barely-there
+   grain so the eye has something to land on where a card is not.
+
+   The grain is a data URI, not an image file: it is under 300 bytes, it never
+   makes a request, and it cannot go missing from a deploy.
+   ───────────────────────────────────────────────────────────────────────────── */
+body {
+  background-color: var(--bg);
+  background-image:
+    /* A wash of teal at the top, fading out - the page has a top, and this says so. */
+    linear-gradient(180deg, color-mix(in srgb, var(--brand-teal) 7%, transparent) 0, transparent 22rem),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  background-attachment: fixed, fixed;
+}
+
+/* In dark the same grain reads as dirt on the screen, and the wash muddies an
+   already dark ground. Only the tint survives, at half strength. */
+:root[data-theme='dark'] body,
+:root:not([data-theme='light']) body {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand-teal) 5%, transparent) 0,
+    transparent 22rem
+  );
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) body {
+    background-image:
+      linear-gradient(180deg, color-mix(in srgb, var(--brand-teal) 7%, transparent) 0, transparent 22rem),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  }
+}
+
+/* A card has to lift off that ground rather than blend into it. */
+.card {
+  box-shadow: var(--shadow-sm);
+}
+
+/* The three institutional hues carry meaning here rather than decorating:
+   a role, a status, a refusal. */
+.badge-success {
+  border-color: color-mix(in srgb, var(--brand-green) 45%, transparent);
+}
+.badge-neutral {
+  border-color: var(--border-strong);
 }
