@@ -23,10 +23,11 @@
   <img src="https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java 21"/>
   <img src="https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" alt="Spring Boot 3.5"/>
   <img src="https://img.shields.io/badge/Spring%20Cloud-2025.0-6DB33F?style=for-the-badge&logo=spring&logoColor=white" alt="Spring Cloud 2025.0"/>
-  <img src="https://img.shields.io/badge/MongoDB-7-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB 7"/>
-  <img src="https://img.shields.io/badge/Tests-613%20integration-0EA5E9?style=for-the-badge" alt="613 integration tests"/>
+  <img src="https://img.shields.io/badge/MongoDB-7%20local%20%C2%B7%20Atlas%208-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB 7 local, Atlas 8 shared"/>
+  <img src="https://img.shields.io/badge/Tests-691%20backend%20%C2%B7%2059%20portal-0EA5E9?style=for-the-badge" alt="691 backend and 59 portal tests"/>
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
-  <img src="https://img.shields.io/badge/Status-Thesis%20proposal%20phase-EAB308?style=for-the-badge" alt="Thesis proposal phase"/>
+  <img src="https://img.shields.io/badge/Backend-MVP%20complete-22C55E?style=for-the-badge" alt="Backend MVP complete"/>
+  <img src="https://img.shields.io/badge/Clients-not%20started-EAB308?style=for-the-badge" alt="Native clients not started"/>
   <img src="https://img.shields.io/badge/License-Internal%20use-8B5CF6?style=for-the-badge" alt="Internal use license"/>
 </p>
 
@@ -77,10 +78,11 @@ KApp is a **degree thesis project**, due **November 2026**, built by six people 
 
 What that means when reading this repository:
 
-- **The backend is built and tested.** Five services, **613 integration tests** on Testcontainers,
-  from a repository that had none in August. Every service asserts its full role-by-endpoint
-  authorization matrix — including every combination that must be refused, which are the ones that
-  matter.
+- **The backend is built, tested and ready for the clients to build against.** Five services,
+  **691 integration tests** on Testcontainers, from a repository that had none in August. Every
+  service asserts its full role-by-endpoint authorization matrix — including every combination that
+  must be refused, which are the ones that matter. The five OpenAPI contracts are the interface and
+  they are stable: build against them.
 - **The native clients are the product, and they have not been started.** They are unblocked: the
   OpenAPI contracts are served as Prism mocks, so Kotlin and Swift work does not wait on the
   backend.
@@ -90,9 +92,13 @@ What that means when reading this repository:
   implicit.
 - **There is no production deployment.** It runs on the lead developer's machine until university
   hardware exists, and it has not been hardened for a public network. See [Security](#security).
-- **What is blocked, and on whom**, is listed in [`docs/PROGRESS.md`](docs/PROGRESS.md) — an Atlas
-  cluster, an SMTP relay, an Entra ID application registration, one sketched floor, and the 24
-  pensums as CSV.
+- **The shared development database is live.** A MongoDB Atlas cluster holds the five databases,
+  one per service with its own account, so the whole team works against the same data without
+  installing anything. `docker compose --profile cloud` points at it;
+  [`docs/ONBOARDING.md`](docs/ONBOARDING.md) is the setup a teammate follows.
+- **What is still blocked, and on whom**, is listed in [`docs/PROGRESS.md`](docs/PROGRESS.md) — an
+  SMTP relay, an Entra ID application registration, the floor sketches, and the 24 pensums as
+  PDFs.
 - The original Spring Boot monolith was removed once the migration completed. It remains retrievable
   from the git history; `app/backend/microservices/` is the only backend.
 
@@ -132,9 +138,10 @@ open app/backend/microservices/map-service/src/main/resources/static/admin/grid-
 
 ### The admin and developer console
 
-An Angular portal at `localhost:4300`: CRUD over programs, curricula, users, buildings, spaces,
-invitation codes and visitor passes; bulk pensum import; an API console driven by the OpenAPI specs
-themselves; and a role inspector showing what each role may reach. It is a **team console, not a
+An Angular portal at `localhost:4300`: CRUD over programs, pensums, users, buildings, spaces,
+invitation codes and visitor passes; a paste-and-correct importer that turns a pensum PDF into a
+catalogue entry; an API console driven by the OpenAPI specs themselves, which explains every field
+of a response from the contract; and a role inspector showing what each role may reach. It is a **team console, not a
 product surface** — nothing a student ever sees.
 
 ```bash
@@ -178,7 +185,7 @@ flowchart TB
 
         COMMON["common library<br/>error envelope, CurrentUser, roles"]
 
-        subgraph data["MongoDB 7 — one database AND one account per service"]
+        subgraph data["MongoDB — one database AND one account per service"]
             DBA[("kapp_auth")]
             DBU[("kapp_user")]
             DBS[("kapp_semaphore")]
@@ -262,7 +269,7 @@ sequenceDiagram
   clients are never blocked on the backend.
 - **Versioned migrations.** Mongock change units are ordered, audited and lock-protected, so several developers and
   CI can point at one database without racing.
-- **613 integration tests** on Testcontainers, from a repository that had none in August.
+- **691 integration tests** on Testcontainers, from a repository that had none in August.
 - **A campus map drawn from data.** Floors are grids, not photographs — which removed the project's
   longest-lead dependency, since a schematic floor is captured by walking it.
 
@@ -283,7 +290,7 @@ sequenceDiagram
 | OpenFeign | Inter-service calls | Three edges only, all one-directional. |
 | Spring Data MongoDB | Persistence | Document-shaped aggregates with a single writer each. See [ADR 0001](docs/adr/0001-mongodb-over-postgresql.md). |
 | **Mongock 5.5.1** | Migrations | Versioned, ordered, audited change units with a distributed lock — which the project previously had none of. |
-| MongoDB 7 | Database | One engine, not polyglot. See [ADR 0004](docs/adr/0004-one-database-engine-not-polyglot.md). |
+| MongoDB 7 (local) · Atlas 8 (shared) | Database | One engine, not polyglot. See [ADR 0004](docs/adr/0004-one-database-engine-not-polyglot.md). A shared Atlas cluster carries the five development databases so nobody installs a server; the tests still use Testcontainers locally, because pointing them at a shared cluster would make one person's run wipe another's data. |
 | Testcontainers | Testing | Real MongoDB per suite; no in-memory substitute pretending to be a database. |
 | OpenAPI 3.1 + Prism | Contracts | Hand-written, linted in CI, served as mocks so client work never waits. |
 | Maven (multi-module) | Build | The parent POM centralises every version, so parallel branches never edit it. |
@@ -331,7 +338,7 @@ That writes sixteen values: a MongoDB account per service, the shared internal t
 
 ### 3. Nothing to initialise
 
-Mongock creates every index and loads the seed data — curricula, buildings, spaces, invitation codes — on startup.
+Mongock creates every index and loads the seed data — pensums, buildings, spaces, invitation codes — on startup.
 `app/database/init.sql` is the legacy PostgreSQL schema, kept for reference only; nothing reads it.
 
 ### 4. Start the microservices
@@ -390,6 +397,31 @@ environment.
 
 Older aliases `dev:web`, `start:web`, `start:frontend` and `start:microservices` are kept for backwards
 compatibility.
+
+### Building a client against this
+
+The backend is ready to be built against. Two ways in, and the choice is about what you are doing
+rather than which is better:
+
+**Against the contracts.** `docker compose --profile mock up -d` serves the five OpenAPI specs as
+Prism mocks. Every endpoint answers with the examples in the contract, immediately, with no
+database and no sign-in. This is the one to use while a screen is being laid out.
+
+**Against the real services.** `docker compose --profile cloud --profile core up -d` starts the
+services against the shared Atlas cluster — real data, real tokens, real 403s. Ask Brian for the
+`.env`; [`docs/ONBOARDING.md`](docs/ONBOARDING.md) is the walkthrough.
+
+Either way the interface is the same and it is in [`docs/api/`](docs/api/), not in this README:
+
+- **Everything goes through the gateway on `:8080`.** Service ports are unpublished on purpose.
+- **`POST /auth/login` returns an RS256 access token**; send it as `Authorization: Bearer <token>`.
+  It lasts an hour, there is no refresh endpoint yet, and a `401` means "send the user back to
+  sign-in" — see the Auth contract, which says so in the spec rather than leaving you to find out.
+- **Every error has the same shape**: `timestamp`, `status`, `error`, `message`, `path`, and
+  `details` when a field is at fault. Bind your form errors to `details`; show `message` to a person.
+- **`x-roles` on every operation** says which roles may call it, written from what the services
+  actually enforce. The portal's "Who can do what" screen renders the same data if you would rather
+  read it as a table.
 
 ### Demo mode
 
