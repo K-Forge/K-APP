@@ -4,6 +4,7 @@ import { ALL_ROLES, type Role } from '../../../core/auth/auth.model';
 import { AppHttpError } from '../../../core/http/api-http-error';
 import type { ApiError } from '../../../core/http/api-error.model';
 import type { PageResponse } from '../../../core/http/page-response.model';
+import { TokenStore } from '../../../core/auth/token.store';
 import { ApiErrorBannerComponent } from '../../../shared/ui/api-error-banner/api-error-banner.component';
 import { DataTableComponent } from '../../../shared/ui/data-table/data-table.component';
 import { JsonViewComponent } from '../../../shared/ui/json-view/json-view.component';
@@ -98,11 +99,15 @@ const PAGE_SIZE = 20;
                     type="button"
                     class="btn btn-sm"
                     [class.btn-danger]="user.active"
-                    [disabled]="updatingId() === user.id"
+                    [disabled]="updatingId() === user.id || isSelf(user)"
+                    [title]="isSelf(user) ? 'This is your own account. Deactivating it would sign you out and there is no way back in from here.' : ''"
                     (click)="toggleActive(user)"
                   >
                     {{ user.active ? 'Deactivate' : 'Activate' }}
                   </button>
+                  @if (isSelf(user)) {
+                    <span class="text-muted" style="font-size: 0.75rem">you</span>
+                  }
                 </td>
               </tr>
             }
@@ -123,6 +128,7 @@ const PAGE_SIZE = 20;
 })
 export class UsersPage {
   private readonly usersService = inject(UsersService);
+  private readonly tokens = inject(TokenStore);
 
   readonly roles = ALL_ROLES;
 
@@ -191,6 +197,23 @@ export class UsersPage {
   view(user: UserProfile): void {
     this.selectedUser.set(user);
     this.detailModal?.open();
+  }
+
+  /**
+   * Your own row, which you may not switch off.
+   *
+   * <p>Deactivating an account genuinely removes access now, and there is no create-user path
+   * here by design - accounts are born from registration. Turning your own off signs you out of
+   * a portal you cannot let yourself back into; the way back is editing MongoDB by hand. One
+   * disabled button is cheaper than that.
+   *
+   * <p>This is not the whole problem: all four accounts are administrators, so any of them can
+   * still switch off the other three. That one needs a decision about what an administrator may
+   * do to another administrator, and it is recorded as S14 in SECURITY-AUDIT.md rather than
+   * guessed at here.
+   */
+  isSelf(user: UserProfile): boolean {
+    return user.id === this.tokens.decoded()?.claims.sub;
   }
 
   toggleActive(user: UserProfile): void {
