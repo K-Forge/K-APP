@@ -5,7 +5,7 @@
     { "file": "HomeIOS.dc.html",       "title": "Inicio · iOS",       "x": 990,  "y": 0,    "w": 390,  "h": 844 },
     { "file": "HomeAndroid.dc.html",   "title": "Inicio · Android",   "x": 1500, "y": 0,    "w": 360,  "h": 800 },
     { "file": "EstadosLogin.dc.html",  "title": "Estados del login",  "x": 0,    "y": 1020, "w": 1780, "h": 640 },
-    { "file": "EstadosHome.dc.html",   "title": "Estados del inicio", "x": 0,    "y": 1780, "w": 1340, "h": 700 },
+    { "file": "EstadosHome.dc.html",   "title": "Estados del inicio", "x": 0,    "y": 1780, "w": 1340, "h": 660 },
     { "file": "Tokens.dc.html",        "title": "Tokens y handoff",   "x": 0,    "y": 2620, "w": 1200, "h": 1080 }
   ],
   "annotations": [
@@ -17,18 +17,25 @@
       "text": "Hoy solo Login e Inicio.\n\nSemáforo, Horario, Mapa y Perfil siguen en los wireframes viejos — cuando los pulamos van en otra página de este mismo canvas.\n\nLos datos son de ejemplo pero con la forma real de los contratos de docs/api: el 79% sale de ProgressSummary, la clase sale de ClassOccurrence."
     },
     {
-      "id": "teclado",
+      "id": "banda",
       "x": -460,
       "y": 330,
       "w": 380,
-      "text": "Arriba no hay status bar dibujada a propósito: la pinta el sistema encima.\n\nCon el teclado abierto la hoja blanca sube y hace scroll; el botón Ingresar nunca queda tapado. Eso se resuelve en código, no está en la maqueta."
+      "text": "La banda, en una sola línea\n\nLa K a la izquierda y el saludo pegado a su derecha, en la misma fila que el avatar. Se quitó la fecha: no la necesitaba nadie y costaba 46 px de alto.\n\nEse espacio se fue a respirar entre secciones y a dejar la barra flotante despegada del contenido."
+    },
+    {
+      "id": "teclado",
+      "x": -460,
+      "y": 640,
+      "w": 380,
+      "text": "Arriba no hay status bar dibujada a propósito: la pinta el sistema encima. Debajo de la barra flotante pasa lo mismo con la navegación del sistema en Android.\n\nCon el teclado abierto la hoja blanca sube y hace scroll; el botón Ingresar nunca queda tapado. Eso se resuelve en código, no está en la maqueta."
     },
     {
       "id": "una-sola-app",
       "x": -460,
-      "y": 620,
+      "y": 960,
       "w": 380,
-      "text": "Una sola app, dos compilaciones\n\nLas dos pantallas comparten campo, botón, radios, pesos y capitalización. Antes divergían por seguir cada guía al pie de la letra; gana la marca.\n\nLo único distinto: la familia tipográfica (SF Pro / Roboto), los márgenes de área segura y la barra de navegación — flotante en iOS, anclada en Android."
+      "text": "Una sola app, dos compilaciones\n\nLas dos pantallas comparten campo, botón, radios, pesos, capitalización y ahora también la barra flotante. Antes divergían por seguir cada guía al pie de la letra; gana la marca.\n\nLo único distinto: la familia tipográfica (SF Pro / Roboto), los márgenes de área segura y la pastilla del ítem activo — la seña de Material, la única que Android no le presta a iOS."
     },
     {
       "id": "color-materia",
