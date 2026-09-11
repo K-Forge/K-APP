@@ -1,0 +1,679 @@
+{
+  "pensumCode": "1015",
+  "programCode": "506",
+  "programName": "Ingeniería de Sistemas",
+  "faculty": "Facultad de Matemáticas e Ingenierías",
+  "reform": "Reforma del Plan de Estudios 2018",
+  "status": "ACTIVE",
+  "totalCredits": 142,
+  "totalHours": 194,
+  "levels": 9,
+  "areas": [
+    {
+      "code": "CB",
+      "name": "Ciencias Basicas",
+      "color": "#539392",
+      "credits": 36,
+      "hours": 44
+    },
+    {
+      "code": "BIS",
+      "name": "Basicas de Ingeniería de Sistemas",
+      "color": "#522567",
+      "credits": 28,
+      "hours": 40
+    },
+    {
+      "code": "ISA",
+      "name": "Ingeniería de Sistemas Aplicada",
+      "color": "#C9D329",
+      "credits": 66,
+      "hours": 92
+    },
+    {
+      "code": "SI",
+      "name": "Sociedad e Interculturalidad",
+      "color": "#D51A65",
+      "credits": 12,
+      "hours": 18
+    }
+  ],
+  "courses": [
+    {
+      "code": "10011",
+      "pensumItemCode": "1001",
+      "name": "Precalculo",
+      "level": 1,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "CB",
+      "isElectiveSlot": false,
+      "prerequisites": [],
+      "sinuCode": "10011"
+    },
+    {
+      "code": "IS-ALGLINEAL",
+      "pensumItemCode": "IS-ALGLINEAL",
+      "name": "Algebra Lineal",
+      "level": 1,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "CB",
+      "isElectiveSlot": false,
+      "prerequisites": [],
+      "sinuCode": null
+    },
+    {
+      "code": "20015",
+      "pensumItemCode": "1004",
+      "name": "Fundamentos de Programacion",
+      "level": 1,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "BIS",
+      "isElectiveSlot": false,
+      "prerequisites": [],
+      "sinuCode": "20015"
+    },
+    {
+      "code": "IS-INTRO-IS",
+      "pensumItemCode": "IS-INTRO-IS",
+      "name": "Introduccion a la Ingeniería de Sistemas",
+      "level": 1,
+      "credits": 2,
+      "weeklyHours": 3,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-LECTOESC",
+      "pensumItemCode": "IS-LECTOESC",
+      "name": "Lectura y Escritura Academica",
+      "level": 1,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "SI",
+      "isElectiveSlot": false,
+      "prerequisites": [],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-CATEDRAKL",
+      "pensumItemCode": "IS-CATEDRAKL",
+      "name": "Catedra Konrad Lorenz",
+      "level": 1,
+      "credits": 2,
+      "weeklyHours": 3,
+      "area": "SI",
+      "isElectiveSlot": false,
+      "prerequisites": [],
+      "sinuCode": null
+    },
+    {
+      "code": "10024",
+      "pensumItemCode": "1102",
+      "name": "Calculo I",
+      "level": 2,
+      "credits": 4,
+      "weeklyHours": 5,
+      "area": "CB",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "10011"
+      ],
+      "sinuCode": "10024"
+    },
+    {
+      "code": "IS-MATDISC",
+      "pensumItemCode": "IS-MATDISC",
+      "name": "Matematicas Discretas",
+      "level": 2,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "CB",
+      "isElectiveSlot": false,
+      "prerequisites": [],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-FISMEC",
+      "pensumItemCode": "IS-FISMEC",
+      "name": "Fisica Mecanica",
+      "level": 2,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "CB",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "10011"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "20028",
+      "pensumItemCode": "1105",
+      "name": "Tecnicas de Programacion I",
+      "level": 2,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "BIS",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "20015"
+      ],
+      "sinuCode": "20028"
+    },
+    {
+      "code": "IS-ARQCOMP",
+      "pensumItemCode": "IS-ARQCOMP",
+      "name": "Arquitectura de Computadores",
+      "level": 2,
+      "credits": 3,
+      "weeklyHours": 5,
+      "area": "BIS",
+      "isElectiveSlot": false,
+      "prerequisites": [],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-CALCULO2",
+      "pensumItemCode": "IS-CALCULO2",
+      "name": "Calculo II",
+      "level": 3,
+      "credits": 4,
+      "weeklyHours": 5,
+      "area": "CB",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "10024"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-FISELEC",
+      "pensumItemCode": "IS-FISELEC",
+      "name": "Fisica Electromagnetica",
+      "level": 3,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "CB",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "IS-FISMEC"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "20037",
+      "pensumItemCode": "1203",
+      "name": "Tecnicas de Programacion II",
+      "level": 3,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "BIS",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "20028"
+      ],
+      "sinuCode": "20037"
+    },
+    {
+      "code": "IS-BASEDAT1",
+      "pensumItemCode": "IS-BASEDAT1",
+      "name": "Bases de Datos I",
+      "level": 3,
+      "credits": 3,
+      "weeklyHours": 5,
+      "area": "BIS",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "20028"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-CONSTDEM",
+      "pensumItemCode": "IS-CONSTDEM",
+      "name": "Constitucion y Democracia",
+      "level": 3,
+      "credits": 2,
+      "weeklyHours": 3,
+      "area": "SI",
+      "isElectiveSlot": false,
+      "prerequisites": [],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-ECUADIF",
+      "pensumItemCode": "IS-ECUADIF",
+      "name": "Ecuaciones Diferenciales",
+      "level": 4,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "CB",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "IS-CALCULO2"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-ESTRDATOS",
+      "pensumItemCode": "IS-ESTRDATOS",
+      "name": "Estructuras de Datos",
+      "level": 4,
+      "credits": 3,
+      "weeklyHours": 5,
+      "area": "BIS",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "20037"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-SISTOPER",
+      "pensumItemCode": "IS-SISTOPER",
+      "name": "Sistemas Operativos",
+      "level": 4,
+      "credits": 3,
+      "weeklyHours": 5,
+      "area": "BIS",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "IS-ARQCOMP"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-POO",
+      "pensumItemCode": "IS-POO",
+      "name": "Programacion Orientada a Objetos",
+      "level": 4,
+      "credits": 3,
+      "weeklyHours": 5,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "20037"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-ANALDIS",
+      "pensumItemCode": "IS-ANALDIS",
+      "name": "Analisis y Diseno de Sistemas",
+      "level": 4,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "IS-BASEDAT1"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-PROBAB",
+      "pensumItemCode": "IS-PROBAB",
+      "name": "Probabilidad",
+      "level": 5,
+      "credits": 3,
+      "weeklyHours": 3,
+      "area": "CB",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "10024"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-REDES",
+      "pensumItemCode": "IS-REDES",
+      "name": "Redes de Computadores",
+      "level": 5,
+      "credits": 3,
+      "weeklyHours": 5,
+      "area": "BIS",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "IS-ARQCOMP"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-TEORCOMP",
+      "pensumItemCode": "IS-TEORCOMP",
+      "name": "Teoria de la Computacion",
+      "level": 5,
+      "credits": 3,
+      "weeklyHours": 3,
+      "area": "BIS",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "IS-MATDISC"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-INGECON",
+      "pensumItemCode": "IS-INGECON",
+      "name": "Ingenieria Economica",
+      "level": 5,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "10024"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-PROGWEB",
+      "pensumItemCode": "IS-PROGWEB",
+      "name": "Programacion Web",
+      "level": 5,
+      "credits": 3,
+      "weeklyHours": 5,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "IS-POO"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "17080",
+      "pensumItemCode": "1602",
+      "name": "Estadistica Descriptiva",
+      "level": 6,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "CB",
+      "isElectiveSlot": false,
+      "prerequisites": [],
+      "sinuCode": "17080"
+    },
+    {
+      "code": "IS-METNUM",
+      "pensumItemCode": "IS-METNUM",
+      "name": "Metodos Numericos",
+      "level": 6,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "CB",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "IS-ECUADIF"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-INVOPER",
+      "pensumItemCode": "IS-INVOPER",
+      "name": "Investigacion de Operaciones",
+      "level": 6,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "CB",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "IS-PROBAB"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "46018",
+      "pensumItemCode": "1604",
+      "name": "Ingenieria de Software I",
+      "level": 6,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "20037"
+      ],
+      "sinuCode": "46018"
+    },
+    {
+      "code": "IS-ARQSOFT",
+      "pensumItemCode": "IS-ARQSOFT",
+      "name": "Arquitectura de Software",
+      "level": 6,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "46018"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": null,
+      "pensumItemCode": "ELECTIVA_I",
+      "name": "Electiva I",
+      "level": 6,
+      "credits": 3,
+      "weeklyHours": 3,
+      "area": "ISA",
+      "isElectiveSlot": true,
+      "prerequisites": [],
+      "sinuCode": null
+    },
+    {
+      "code": "48022",
+      "pensumItemCode": "1703",
+      "name": "Ingenieria de Software II",
+      "level": 7,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "46018"
+      ],
+      "sinuCode": "48022"
+    },
+    {
+      "code": "IS-INTELART",
+      "pensumItemCode": "IS-INTELART",
+      "name": "Inteligencia Artificial",
+      "level": 7,
+      "credits": 3,
+      "weeklyHours": 5,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "IS-ESTRDATOS"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-SEGINFO",
+      "pensumItemCode": "IS-SEGINFO",
+      "name": "Seguridad Informatica",
+      "level": 7,
+      "credits": 3,
+      "weeklyHours": 5,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "IS-REDES"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-SISTDIST",
+      "pensumItemCode": "IS-SISTDIST",
+      "name": "Sistemas Distribuidos",
+      "level": 7,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "IS-REDES"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-ETICAPRO",
+      "pensumItemCode": "IS-ETICAPRO",
+      "name": "Etica Profesional",
+      "level": 7,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "SI",
+      "isElectiveSlot": false,
+      "prerequisites": [],
+      "sinuCode": null
+    },
+    {
+      "code": null,
+      "pensumItemCode": "ELECTIVA_II",
+      "name": "Electiva II",
+      "level": 7,
+      "credits": 3,
+      "weeklyHours": 3,
+      "area": "ISA",
+      "isElectiveSlot": true,
+      "prerequisites": [],
+      "sinuCode": null
+    },
+    {
+      "code": "59035",
+      "pensumItemCode": "2033",
+      "name": "Desarrollo de Aplicaciones Moviles",
+      "level": 8,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "48022"
+      ],
+      "sinuCode": "59035"
+    },
+    {
+      "code": "56201",
+      "pensumItemCode": "1806",
+      "name": "Metodologia de la Investigacion",
+      "level": 8,
+      "credits": 2,
+      "weeklyHours": 3,
+      "area": "SI",
+      "isElectiveSlot": false,
+      "prerequisites": [],
+      "sinuCode": "56201"
+    },
+    {
+      "code": "IS-GERPROY",
+      "pensumItemCode": "IS-GERPROY",
+      "name": "Gerencia de Proyectos de TI",
+      "level": 8,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "48022"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-AUDSIST",
+      "pensumItemCode": "IS-AUDSIST",
+      "name": "Auditoria de Sistemas",
+      "level": 8,
+      "credits": 3,
+      "weeklyHours": 4,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "IS-SEGINFO"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": null,
+      "pensumItemCode": "ELECTIVA_III",
+      "name": "Electiva III",
+      "level": 8,
+      "credits": 3,
+      "weeklyHours": 3,
+      "area": "ISA",
+      "isElectiveSlot": true,
+      "prerequisites": [],
+      "sinuCode": null
+    },
+    {
+      "code": null,
+      "pensumItemCode": "ELECTIVA_IV",
+      "name": "Electiva IV",
+      "level": 8,
+      "credits": 3,
+      "weeklyHours": 3,
+      "area": "ISA",
+      "isElectiveSlot": true,
+      "prerequisites": [],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-TRABGRADO",
+      "pensumItemCode": "IS-TRABGRADO",
+      "name": "Trabajo de Grado",
+      "level": 9,
+      "credits": 5,
+      "weeklyHours": 6,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "56201"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": "IS-PRACTEMP",
+      "pensumItemCode": "IS-PRACTEMP",
+      "name": "Practica Empresarial",
+      "level": 9,
+      "credits": 3,
+      "weeklyHours": 8,
+      "area": "ISA",
+      "isElectiveSlot": false,
+      "prerequisites": [
+        "48022"
+      ],
+      "sinuCode": null
+    },
+    {
+      "code": null,
+      "pensumItemCode": "ELECTIVA_V",
+      "name": "Electiva V",
+      "level": 9,
+      "credits": 3,
+      "weeklyHours": 3,
+      "area": "ISA",
+      "isElectiveSlot": true,
+      "prerequisites": [],
+      "sinuCode": null
+    },
+    {
+      "code": null,
+      "pensumItemCode": "ELECTIVA_VI",
+      "name": "Electiva VI",
+      "level": 9,
+      "credits": 3,
+      "weeklyHours": 3,
+      "area": "ISA",
+      "isElectiveSlot": true,
+      "prerequisites": [],
+      "sinuCode": null
+    }
+  ]
+}

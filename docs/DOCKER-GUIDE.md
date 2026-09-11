@@ -1,6 +1,10 @@
 # KApp · Containerization Guide with Docker Desktop
 
-> Step-by-step guide to containerize and run the microservices on Docker Desktop.
+> **Superseded by [RUNBOOK.md](RUNBOOK.md) for anything you actually want to run.**
+> That file covers starting, stopping, profiles, accounts and troubleshooting against the
+> current stack. This one predates the move to MongoDB and still describes PostgreSQL
+> environment variables that no longer exist. It is kept for the Dockerfile and image
+> optimisation background, which is still accurate.
 
 ---
 
@@ -82,7 +86,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 
 ### 5.1 Configure environment variables
 
-Create a `.env` file in `app/backend/microservices/` (see [`.env.example`](../.env.example) at the repository root
+Create a `.env` file in `app/backend/microservices/` (see [`.env.example`](../app/backend/microservices/.env.example) beside it
 for the full list):
 
 ```env

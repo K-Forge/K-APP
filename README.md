@@ -11,21 +11,23 @@
   </tr>
 </table>
 
-<p align="center"><strong>University mobile app for Fundación Universitaria Konrad Lorenz. Native Android (Kotlin) and iOS (Swift) clients, powered by a server-side Spring Boot microservices backend with JWT and PostgreSQL.</strong></p>
+<p align="center"><strong>University mobile app for Fundación Universitaria Konrad Lorenz. Native Android (Kotlin) and iOS (Swift) clients, powered by a Spring Boot microservices backend on MongoDB, with RS256 tokens verified by every service.</strong></p>
 
 <p align="center">
   <a href="https://github.com/K-Forge/KApp/actions/workflows/ci.yml"><img src="https://github.com/K-Forge/KApp/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"/></a>
   &nbsp;
-  <a href="https://kapp-black.vercel.app"><img src="https://img.shields.io/badge/Live%20demo-kapp--black.vercel.app-000000?logo=vercel&logoColor=white" alt="Live demo"/></a>
+  <a href="https://kapp-black.vercel.app"><img src="https://img.shields.io/badge/Demo-frozen%20prototype-6B7280?logo=vercel&logoColor=white" alt="Demo of the frozen prototype"/></a>
   <br/><br/>
   <img src="https://img.shields.io/badge/Android-Kotlin-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android (Kotlin)"/>
   <img src="https://img.shields.io/badge/iOS-Swift-F05138?style=for-the-badge&logo=swift&logoColor=white" alt="iOS (Swift)"/>
   <img src="https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java 21"/>
-  <img src="https://img.shields.io/badge/Spring%20Boot-3.2-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" alt="Spring Boot 3.2"/>
-  <img src="https://img.shields.io/badge/Spring%20Cloud-2023.0-6DB33F?style=for-the-badge&logo=spring&logoColor=white" alt="Spring Cloud 2023.0"/>
-  <img src="https://img.shields.io/badge/PostgreSQL-15+-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL 15+"/>
+  <img src="https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" alt="Spring Boot 3.5"/>
+  <img src="https://img.shields.io/badge/Spring%20Cloud-2025.0-6DB33F?style=for-the-badge&logo=spring&logoColor=white" alt="Spring Cloud 2025.0"/>
+  <img src="https://img.shields.io/badge/MongoDB-7%20local%20%C2%B7%20Atlas%208-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB 7 local, Atlas 8 shared"/>
+  <img src="https://img.shields.io/badge/Tests-691%20backend%20%C2%B7%2059%20portal-0EA5E9?style=for-the-badge" alt="691 backend and 59 portal tests"/>
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
-  <img src="https://img.shields.io/badge/Status-Thesis%20proposal%20phase-EAB308?style=for-the-badge" alt="Thesis proposal phase"/>
+  <img src="https://img.shields.io/badge/Backend-MVP%20complete-22C55E?style=for-the-badge" alt="Backend MVP complete"/>
+  <img src="https://img.shields.io/badge/Clients-not%20started-EAB308?style=for-the-badge" alt="Native clients not started"/>
   <img src="https://img.shields.io/badge/License-Internal%20use-8B5CF6?style=for-the-badge" alt="Internal use license"/>
 </p>
 
@@ -52,177 +54,200 @@
 ## Overview
 
 KApp is the **university mobile application** for the Fundación Universitaria Konrad Lorenz community, developed by
-the K-Forge development club. The product is mobile-first: native **Android (Kotlin)** and **iOS (Swift)** clients
-give students and staff access to their academic life from their phones — identity and authentication, user and
-profile administration, course and group enrollment, and the assignment/submission/grading cycle.
+the K-Forge development club. It is a thesis project, and its scope was narrowed deliberately in August 2026 for a
+reason worth stating plainly: **the university's academic data is not available**, so the product cannot depend on
+it. Accounts are created inside KApp, and the MVP is four things a student uses day to day — **identity and
+profile, the campus map, a customisable preloaded timetable, and a customisable preloaded career semáforo**.
+Courses, assignments and grading are explicitly out of scope; see [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
 
-The clients are thin. Everything they consume lives **server-side, as a Spring Boot microservices backend**: six
-independent services register with a Eureka discovery server and are reached through a single API Gateway that
-centralizes routing and JWT validation. Services communicate over REST through OpenFeign clients, share a common
-library of DTOs and exception handling, and persist to a PostgreSQL 15+ schema with enumerated types, audit triggers
-and referential integrity enforced at database level.
+The clients are thin. Everything they consume lives **server-side**: six independent Spring Boot services register
+with a Eureka discovery server and are reached through a single API Gateway. **Every service validates the access
+token itself** against a published JWKS rather than trusting a header the gateway sets, and each holds its own
+MongoDB account with `readWrite` on exactly one database — so the separation between services is enforced by the
+engine, not merely respected by the code.
 
-Delivery is sequenced deliberately: **backend first, web second, mobile third**. The web frontend — plain
-HTML/CSS/JS, migrating to Angular — exists to exercise and validate the API end to end while the backend is being
-built, and to settle the interface design. Once that design is stable it gets ported to the native Kotlin and Swift
-clients, which are the final product.
+Delivery goes **straight to mobile**. There is a web portal, but it is an administration and development console
+for the team — not a product surface. The mobile clients are unblocked: the OpenAPI contracts are served as
+Prism mocks, so Kotlin and Swift work does not wait on the backend.
 
 ---
 
 ## Project Status
 
-KApp started as an idea intended to become a **degree thesis project**, and it is currently in the
-**pre-proposal and documentation phase** (_anteproyecto_).
+KApp is a **degree thesis project**, due **November 2026**, built by six people in their spare time.
 
 What that means when reading this repository:
 
-- The research and specification work is the primary deliverable at this stage. It lives in [`docs/`](docs/):
-  software requirements specification, functional requirements, system design, and a study of academic database
-  models.
-- The backend published here is a **working architectural reference prototype**, validated locally. Its purpose is
-  to prove that the proposed architecture holds, not to serve production traffic.
-- The native clients are **not implemented yet**, by design: `app/frontend/mobile/kotlin/` and
-  `app/frontend/mobile/swift/` hold placeholders. The current phase is backend plus the web client that tests it;
-  the mobile clients come after the interface design settles, which is why they sit at low priority in
-  [docs/PROGRESS.md](docs/PROGRESS.md) despite being the end product.
-- There is **no production deployment**. Configuration defaults target local development, and the platform has not
-  been hardened for a public-facing environment. See [Security](#security).
-- The original Spring Boot monolith was removed once the migration to microservices completed. It remains
-  retrievable from the git history; `app/backend/microservices/` is the only backend.
-
-Known gaps are not left implicit. [docs/PROGRESS.md](docs/PROGRESS.md#pending-work) lists the pending work —
-governance, presentation, engineering and manual items — with the current state of each and what it needs.
+- **The backend is built, tested and ready for the clients to build against.** Five services,
+  **691 integration tests** on Testcontainers, from a repository that had none in August. Every
+  service asserts its full role-by-endpoint authorization matrix — including every combination that
+  must be refused, which are the ones that matter. The five OpenAPI contracts are the interface and
+  they are stable: build against them.
+- **The native clients are the product, and they have not been started.** They are unblocked: the
+  OpenAPI contracts are served as Prism mocks, so Kotlin and Swift work does not wait on the
+  backend.
+- **The scope was narrowed deliberately** in August 2026, because the university's academic data is
+  not available. Courses, assignments and grading are out — not pending.
+  [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) says what is in and what is out, with nothing left
+  implicit.
+- **There is no production deployment.** It runs on the lead developer's machine until university
+  hardware exists, and it has not been hardened for a public network. See [Security](#security).
+- **The shared development database is live.** A MongoDB Atlas cluster holds the five databases,
+  one per service with its own account, so the whole team works against the same data without
+  installing anything. `docker compose --profile cloud` points at it;
+  [`docs/ONBOARDING.md`](docs/ONBOARDING.md) is the setup a teammate follows.
+- **What is still blocked, and on whom**, is listed in [`docs/PROGRESS.md`](docs/PROGRESS.md) — an
+  SMTP relay, an Entra ID application registration, the floor sketches, and the 24 pensums as
+  PDFs.
+- The original Spring Boot monolith was removed once the migration completed. It remains retrievable
+  from the git history; `app/backend/microservices/` is the only backend.
 
 ---
 
 ## Interface
 
-The web client is where the API is exercised end to end, and it holds the interface design that the Kotlin and
-Swift clients will inherit. The screens below run against the microservices backend; the data shown is sample data.
+**The product's screens do not exist yet.** The Android and iOS clients are the deliverable and they
+have not been built; showing mockups here as if they were shipped would be the wrong impression to
+leave. What exists today are the two tools the team uses to build it.
 
-A **live demo** of these screens runs at **[kapp-black.vercel.app](https://kapp-black.vercel.app)** — sign in with
-any credentials. It is powered by a demo mode ([`js/demo.js`](app/frontend/web/js/demo.js)) that answers the API
-with sample data when no backend is reachable, so the interface can be browsed by anyone. The mode stays inert
-during local development — see [Demo mode](#demo-mode).
+### The floor editor
 
-Captured at phone width (390 x 844), the viewport the layout is designed around: the stylesheets are mobile-first,
-and the desktop arrangement is the enhancement layered on top through breakpoints.
+This is how a floor of the campus gets captured: walk it, count the squares, mark the lifts and
+stairs, trace the corridors in the colour they are actually painted, place the rooms. One
+self-contained HTML file — no server, no network, no build.
 
-<table>
-  <tr>
-    <td width="20%" align="center" valign="top">
-      <img src="./assets/screenshots/01-login.png" alt="Authentication screen" width="100%"/>
-      <br/><sub><b>Authentication</b><br/>Institutional credentials, JWT issued by <code>auth-service</code></sub>
-    </td>
-    <td width="20%" align="center" valign="top">
-      <img src="./assets/screenshots/02-dashboard.png" alt="Student dashboard" width="100%"/>
-      <br/><sub><b>Dashboard</b><br/>Announcements and role-aware navigation</sub>
-    </td>
-    <td width="20%" align="center" valign="top">
-      <img src="./assets/screenshots/03-courses.png" alt="Enrolled courses" width="100%"/>
-      <br/><sub><b>Courses</b><br/>Enrollment served by <code>course-service</code></sub>
-    </td>
-    <td width="20%" align="center" valign="top">
-      <img src="./assets/screenshots/04-assignments.png" alt="Assignments" width="100%"/>
-      <br/><sub><b>Assignments</b><br/>Pending and submitted work from <code>assignment-service</code></sub>
-    </td>
-    <td width="20%" align="center" valign="top">
-      <img src="./assets/screenshots/05-admin.png" alt="Administration panel" width="100%"/>
-      <br/><sub><b>Administration</b><br/>User, course and assignment management, admin role only</sub>
-    </td>
-  </tr>
-</table>
+It matters more than a tool usually would. The map used to be modelled as a photograph of an
+architectural plan, and obtaining those plans depended on other people's calendars — it was the
+project's longest-lead item and the one most likely to slip before November. A schematic floor is
+captured in an afternoon by the people who need it.
+[ADR 0006](docs/adr/0006-schematic-map-not-floor-plan-images.md) records the trade.
+
+<p align="center">
+  <img src="./assets/screenshots/06-grid-editor.png" alt="The floor editor, showing floor 3 of Bloque A" width="100%"/>
+  <br/>
+  <sub>Floor 3 of Bloque A, loaded from the seed. The three <b>301</b> rooms — north, central and
+  south — are three different rooms sharing one base code, which is the case most likely to send a
+  student to the wrong door. Corridors run in the colours the wings are painted; the auditorium
+  spans several cells. The editor refuses a room that would not fit or that would overlap another,
+  so a mistake surfaces while somebody is still standing in the building.</sub>
+</p>
+
+```bash
+open app/backend/microservices/map-service/src/main/resources/static/admin/grid-editor.html
+```
+
+### The admin and developer console
+
+An Angular portal at `localhost:4300`: CRUD over programs, pensums, users, buildings, spaces,
+invitation codes and visitor passes; a paste-and-correct importer that turns a pensum PDF into a
+catalogue entry; an API console driven by the OpenAPI specs themselves, which explains every field
+of a response from the contract; and a role inspector showing what each role may reach. It is a **team console, not a
+product surface** — nothing a student ever sees.
+
+```bash
+cd app/backend/microservices && docker compose --profile core --profile dev up -d
+```
+
+### The frozen prototype
+
+An earlier plain HTML/JS client is still in the tree at `app/frontend/web/`, and the **[live
+demo](https://kapp-black.vercel.app)** runs it. It shows courses, assignments and grading — none of
+which is being built any more. It is kept as the interface study it was, not as a description of the
+product; see [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) for what is and is not in scope.
 
 ---
 
 ## System Architecture
 
-The mobile clients run on the user's device; every service runs on the server side. The gateway is the only
-component exposed to clients, and service locations are resolved dynamically through Eureka instead of being
-hardcoded.
+The mobile clients run on the user's device; every service runs server-side. **The gateway is the only reachable
+component** — service ports are deliberately unpublished — and service locations are resolved through Eureka rather
+than hardcoded.
 
 ```mermaid
 flowchart TB
     subgraph clients["Client devices"]
-        AND["Android client<br/>Kotlin, planned"]
-        IOS["iOS client<br/>Swift, planned"]
-        WEB["Web frontend<br/>HTML / CSS / JS to Angular<br/>API test surface, design reference"]
+        AND["Android · Kotlin"]
+        IOS["iOS · Swift"]
+        PORTAL["Admin portal · Angular<br/>team console, not a product surface"]
     end
 
     subgraph server["Server side"]
-        GW["API Gateway :8080<br/>Spring Cloud Gateway<br/>routing, JWT filter, Resilience4j"]
-        EUR["Discovery Server :8761<br/>Netflix Eureka"]
+        GW["API Gateway :8080<br/>routing, CORS, rate limiting"]
+        EUR["Discovery :8761<br/>Netflix Eureka"]
 
-        subgraph services["Microservices"]
-            AUTH["auth-service :8081<br/>login, registration, JWT issuing"]
-            USER["user-service :8082<br/>people, members, students, employees"]
-            COURSE["course-service :8083<br/>programs, courses, groups, enrollment"]
-            ASSIGN["assignment-service :8084<br/>assignments, submissions, grading"]
+        subgraph services["Microservices — ports NOT published"]
+            AUTH["auth-service :8081<br/>credentials, RS256 tokens, JWKS,<br/>invitation codes, visitor passes"]
+            USER["user-service :8082<br/>profiles, directory search"]
+            SEM["semaphore-service :8083<br/>catalogue, progress, academic plans"]
+            SCH["schedule-service :8084<br/>enrolments, meetings, agenda"]
+            MAP["map-service :8085<br/>buildings, floors, spaces, search"]
         end
 
-        COMMON["common library<br/>shared DTOs and GlobalExceptionHandler"]
-        DB[("PostgreSQL 15+<br/>schema, enums, audit_log")]
+        COMMON["common library<br/>error envelope, CurrentUser, roles"]
+
+        subgraph data["MongoDB — one database AND one account per service"]
+            DBA[("kapp_auth")]
+            DBU[("kapp_user")]
+            DBS[("kapp_semaphore")]
+            DBC[("kapp_schedule")]
+            DBM[("kapp_map")]
+        end
     end
 
     AND --> GW
     IOS --> GW
-    WEB --> GW
+    PORTAL --> GW
 
-    GW --> AUTH
-    GW --> USER
-    GW --> COURSE
-    GW --> ASSIGN
+    GW --> AUTH & USER & SEM & SCH & MAP
 
     AUTH -.register.-> EUR
     USER -.register.-> EUR
-    COURSE -.register.-> EUR
-    ASSIGN -.register.-> EUR
+    SEM -.register.-> EUR
+    SCH -.register.-> EUR
+    MAP -.register.-> EUR
     GW -.discover.-> EUR
 
-    COURSE -->|OpenFeign| USER
-    ASSIGN -->|OpenFeign| USER
-    ASSIGN -->|OpenFeign| COURSE
+    AUTH -->|OpenFeign| USER
+    SEM -->|OpenFeign| USER
+    SCH -->|OpenFeign| SEM
 
-    AUTH --> DB
-    USER --> DB
-    COURSE --> DB
-    ASSIGN --> DB
+    AUTH --> DBA
+    USER --> DBU
+    SEM --> DBS
+    SCH --> DBC
+    MAP --> DBM
 
-    COMMON -.shared dependency.-> AUTH
-    COMMON -.shared dependency.-> USER
-    COMMON -.shared dependency.-> COURSE
-    COMMON -.shared dependency.-> ASSIGN
+    COMMON -.shared.-> AUTH & USER & SEM & SCH & MAP
 ```
 
-Authentication is centralized: `auth-service` verifies credentials against BCrypt hashes and issues an HS512-signed
-JWT; the gateway validates every subsequent request and propagates the authenticated identity downstream.
+**The gateway does not decide identity.** It routes; each service validates the token's signature itself against
+auth-service's published JWKS. Trusting a header the gateway set was a finding in the security audit: anyone able to
+reach a service port directly could forge it. A signed token cannot be forged, so the two protections — unpublished
+ports and per-service validation — are independent on purpose.
 
 ```mermaid
 sequenceDiagram
     participant C as Client
     participant G as API Gateway :8080
-    participant A as auth-service :8081
+    participant A as auth-service
     participant S as Domain service
-    participant D as PostgreSQL
 
     C->>G: POST /auth/login (email, password)
-    G->>A: forward (public path, filter bypassed)
-    A->>D: load member by university_email
-    D-->>A: password_hash, role
-    A->>A: BCrypt verify, build JWT (HS512, roles claim)
-    A-->>C: 200 JwtResponse (token)
+    G->>A: forward (public path)
+    A->>A: BCrypt verify, sign RS256 JWT (roles claim)
+    A-->>C: 200 access token, 1 hour
 
-    Note over C,G: Subsequent authenticated request
+    Note over C,S: Any subsequent request
 
-    C->>G: GET /api/student/courses (Bearer token)
-    G->>G: JwtAuthenticationFilter validates signature and expiry
-    alt token invalid or missing
-        G-->>C: 401 Unauthorized
-    else token valid
-        G->>S: forward with X-User-Email header
-        S->>D: query domain data
-        D-->>S: rows
-        S-->>C: 200 payload
+    C->>G: GET /api/semaphore/me (Bearer token)
+    G->>S: forward, token untouched
+    S->>A: GET /.well-known/jwks.json (once, then cached)
+    A-->>S: public keys
+    S->>S: verify signature, check @PreAuthorize
+    alt wrong role
+        S-->>C: 403
+    else
+        S-->>C: 200
     end
 ```
 
@@ -230,45 +255,48 @@ sequenceDiagram
 
 ## Key Features
 
-- **Single entry point.** All client traffic goes through the API Gateway; routes for each service are declared
-  explicitly in `GatewayConfig` and resolved by service id (`lb://user-service`) rather than by host and port.
-- **Centralized authentication.** A global gateway filter (`JwtAuthenticationFilter`, order `-100`) validates the
-  token once, at the edge, and injects the authenticated identity into the downstream request.
-- **Dynamic service discovery.** Services register with Eureka and are load-balanced by logical name, so instances
-  can be added or moved without touching the gateway configuration.
-- **Resilience by configuration.** Resilience4j circuit breakers, connect/response timeouts and Docker health checks
-  are declared in configuration, keeping failure policy out of business code.
-- **Service-to-service communication over OpenFeign.** Declarative clients (`UserServiceClient`,
-  `CourseServiceClient`) keep cross-service calls typed and readable.
-- **Shared contract module.** The `common` library concentrates DTOs and a `GlobalExceptionHandler`, so error
-  responses and payload shapes stay consistent across services.
-- **Database-level integrity.** The PostgreSQL schema defines enumerated domains, foreign keys, `updated_at`
-  triggers and an `audit_log` table with an automatic logging function.
-- **Reproducible local setup.** Bash orchestration scripts start services in dependency order with health-check
-  polling, and Docker Compose provides the containerized equivalent.
+- **Single entry point.** All client traffic goes through the gateway; routes are declared explicitly and resolved
+  by service id (`lb://user-service`). Eureka's discovery locator is **off**, so registering a service does not
+  silently publish it.
+- **Per-service token validation.** Every service is an OAuth2 resource server verifying RS256 against a published
+  JWKS. Identity comes from the signed token, never from a header.
+- **Authorization asserted, not assumed.** Every endpoint carries an explicit rule, and each service's full
+  role-by-endpoint matrix is asserted in tests — **including every combination that must be refused**, which are the
+  ones that matter.
+- **Database isolation the engine enforces.** One database *and one account* per service, each with `readWrite` on
+  exactly one. `scripts/verify-db-isolation.sh` proves it in 25 checks.
+- **Contract-first.** Five hand-written OpenAPI 3.1 specs, linted in CI and served as Prism mocks, so the mobile
+  clients are never blocked on the backend.
+- **Versioned migrations.** Mongock change units are ordered, audited and lock-protected, so several developers and
+  CI can point at one database without racing.
+- **691 integration tests** on Testcontainers, from a repository that had none in August.
+- **A campus map drawn from data.** Floors are grids, not photographs — which removed the project's
+  longest-lead dependency, since a schematic floor is captured by walking it.
 
 ---
 
 ## Tech Stack
 
-| Technology                    | Role in the architecture | Rationale                                                                                 |
-| ----------------------------- | ------------------------ | ----------------------------------------------------------------------------------------- |
-| Kotlin (Android)              | Primary client           | Native Android app: the product's main delivery target.                                   |
-| Swift (iOS)                   | Primary client           | Native iOS app consuming the same gateway API as Android.                                 |
-| Java 21                       | Backend language         | Long-term support release; modern language features across all modules.                   |
-| Spring Boot 3.2               | Service runtime          | Auto-configuration and production-ready defaults for six independent services.            |
-| Spring Cloud 2023.0.0         | Distributed system layer | Provides Gateway, Eureka, OpenFeign and Resilience4j as a version-aligned set.            |
-| Spring Cloud Gateway          | Edge routing             | Reactive gateway with global filters; the natural place for cross-cutting authentication. |
-| Netflix Eureka                | Service discovery        | Removes hardcoded service addresses and enables client-side load balancing.               |
-| Spring Security + JJWT 0.11.5 | Authentication           | BCrypt password hashing and stateless HS512 JWT sessions.                                 |
-| OpenFeign                     | Inter-service calls      | Declarative HTTP clients integrated with discovery and load balancing.                    |
-| Resilience4j                  | Fault tolerance          | Circuit breaking to keep a failing dependency from cascading.                             |
-| Spring Data JPA + Hibernate   | Persistence              | Repository abstraction over a normalized relational model.                                |
-| PostgreSQL 15+                | Database                 | Enumerated types, JSONB auditing and strong constraint support.                           |
-| Maven (multi-module)          | Build                    | Parent POM centralizes dependency and plugin versions for the seven modules.              |
-| Docker + Docker Compose       | Containerization         | Reproducible local topology with dependency ordering and health checks.                   |
-| HTML / CSS / JS               | Web test surface         | Zero-build client that exercises the API and holds the design later ported to mobile.     |
-| pnpm + Bun                    | Tooling                  | pnpm manages repository tooling; Bun serves the static web client.                        |
+| Technology | Role | Why this one |
+| --- | --- | --- |
+| Kotlin (Android) | Primary client | The product's main delivery target. |
+| Swift (iOS) | Primary client | Consumes the same gateway API as Android. |
+| Java 21 | Backend language | Long-term support release. |
+| Spring Boot **3.5** | Service runtime | **Not Boot 4**: Mongock publishes no Boot 4 artifact. |
+| Spring Cloud **2025.0** | Distributed layer | The release train for Boot 3.5; 2025.1.x targets Boot 4. |
+| Spring Cloud Gateway | Edge routing | One entry point, with an explicit routing table rather than discovery-based exposure. |
+| Netflix Eureka | Service discovery | Services are addressed by logical name, not host and port. |
+| Spring Security 6.5 (OAuth2 resource server) | Authorization | **RS256** with a published JWKS. A shared symmetric secret handed to six services is six places that can mint an admin token — and Entra ID signs RS256, so that migration becomes a property change. |
+| OpenFeign | Inter-service calls | Three edges only, all one-directional. |
+| Spring Data MongoDB | Persistence | Document-shaped aggregates with a single writer each. See [ADR 0001](docs/adr/0001-mongodb-over-postgresql.md). |
+| **Mongock 5.5.1** | Migrations | Versioned, ordered, audited change units with a distributed lock — which the project previously had none of. |
+| MongoDB 7 (local) · Atlas 8 (shared) | Database | One engine, not polyglot. See [ADR 0004](docs/adr/0004-one-database-engine-not-polyglot.md). A shared Atlas cluster carries the five development databases so nobody installs a server; the tests still use Testcontainers locally, because pointing them at a shared cluster would make one person's run wipe another's data. |
+| Testcontainers | Testing | Real MongoDB per suite; no in-memory substitute pretending to be a database. |
+| OpenAPI 3.1 + Prism | Contracts | Hand-written, linted in CI, served as mocks so client work never waits. |
+| Maven (multi-module) | Build | The parent POM centralises every version, so parallel branches never edit it. |
+| Docker + Docker Compose | Containerisation | Profiles (`core`, `academic`, `map`, `full`, `dev`, `cloud`) so a laptop runs only what is needed. |
+| Angular 22 + Vitest | Admin portal | A team console, not a product surface. |
+| pnpm | Tooling | Repository tooling and the portal's dependencies. |
 
 ---
 
@@ -276,14 +304,15 @@ sequenceDiagram
 
 ### Prerequisites
 
-| Requirement             | Version                       | Used for                                |
-| ----------------------- | ----------------------------- | --------------------------------------- |
-| Java (JDK)              | 21+                           | Building and running the microservices. |
-| Maven                   | 3.9+ (or the bundled wrapper) | Multi-module build.                     |
-| PostgreSQL              | 15+ (local or managed)        | Application database.                   |
-| Docker + Docker Compose | Latest stable                 | Containerized topology (optional).      |
-| pnpm                    | 10+ (via Corepack)            | Repository tooling.                     |
-| Bun                     | Latest stable                 | Serving the static web client.          |
+| Requirement | Version | Used for |
+| --- | --- | --- |
+| Docker Desktop | 4.x+ | **Everything.** MongoDB runs in a container; so do the services and the tests' own database. |
+| Java (JDK) | 21 | Only to build or run tests outside Docker. |
+| Maven | Use the bundled `./mvnw` | Do not install one. |
+| pnpm | 10+ (via Corepack) | Only to develop the admin portal itself. |
+
+There is **no database to install**: Docker Compose starts MongoDB, and the tests start their own
+through Testcontainers.
 
 ### 1. Clone and install tooling
 
@@ -296,19 +325,21 @@ pnpm install
 
 ### 2. Configure environment variables
 
-```bash
-cp .env.example .env
-```
-
-Fill in the database credentials and a `JWT_SECRET` of at least 64 bytes (HS512 requirement — a shorter value makes
-the services fail on startup). The gateway and `auth-service` must share the same secret.
-
-### 3. Initialize the database
+Secrets are **generated on your machine**, not copied from an example file — a password pasted into a chat or a
+commit stays in that history forever:
 
 ```bash
-psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -f app/database/init.sql
-psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -f app/database/test_data.sql   # sample data, development only
+cd app/backend/microservices
+../../../scripts/generate-dev-secrets.sh > .env
 ```
+
+That writes sixteen values: a MongoDB account per service, the shared internal token, and the signing key id.
+`.env` is gitignored and must stay that way.
+
+### 3. Nothing to initialise
+
+Mongock creates every index and loads the seed data — pensums, buildings, spaces, invitation codes — on startup.
+`app/database/init.sql` is the legacy PostgreSQL schema, kept for reference only; nothing reads it.
 
 ### 4. Start the microservices
 
@@ -367,6 +398,31 @@ environment.
 Older aliases `dev:web`, `start:web`, `start:frontend` and `start:microservices` are kept for backwards
 compatibility.
 
+### Building a client against this
+
+The backend is ready to be built against. Two ways in, and the choice is about what you are doing
+rather than which is better:
+
+**Against the contracts.** `docker compose --profile mock up -d` serves the five OpenAPI specs as
+Prism mocks. Every endpoint answers with the examples in the contract, immediately, with no
+database and no sign-in. This is the one to use while a screen is being laid out.
+
+**Against the real services.** `docker compose --profile cloud --profile core up -d` starts the
+services against the shared Atlas cluster — real data, real tokens, real 403s. Ask Brian for the
+`.env`; [`docs/ONBOARDING.md`](docs/ONBOARDING.md) is the walkthrough.
+
+Either way the interface is the same and it is in [`docs/api/`](docs/api/), not in this README:
+
+- **Everything goes through the gateway on `:8080`.** Service ports are unpublished on purpose.
+- **`POST /auth/login` returns an RS256 access token**; send it as `Authorization: Bearer <token>`.
+  It lasts an hour, there is no refresh endpoint yet, and a `401` means "send the user back to
+  sign-in" — see the Auth contract, which says so in the spec rather than leaving you to find out.
+- **Every error has the same shape**: `timestamp`, `status`, `error`, `message`, `path`, and
+  `details` when a field is at fault. Bind your form errors to `details`; show `message` to a person.
+- **`x-roles` on every operation** says which roles may call it, written from what the services
+  actually enforce. The portal's "Who can do what" screen renders the same data if you would rather
+  read it as a table.
+
 ### Demo mode
 
 The backend is not hosted anywhere, so a plain static deployment of the web client would show a login screen that
@@ -409,73 +465,101 @@ and the framework preset should be left as "Other".
 KApp/
 ├── app/
 │   ├── backend/
-│   │   ├── microservices/          # Active backend — Maven multi-module project
-│   │   │   ├── discovery-server/   # Eureka registry (:8761)
-│   │   │   ├── api-gateway/        # Routing, JWT filter, CORS, circuit breakers (:8080)
-│   │   │   ├── auth-service/       # Authentication and token issuing (:8081)
-│   │   │   ├── user-service/       # User and profile management (:8082)
-│   │   │   ├── course-service/     # Courses, groups and enrollment (:8083)
-│   │   │   ├── assignment-service/ # Assignments, submissions, grading (:8084)
-│   │   │   ├── common/             # Shared DTOs and global exception handling
-│   │   │   ├── docker-compose.yml  # Containerized topology
-│   │   │   └── pom.xml             # Parent POM (dependency and version management)
-│   │   └── postman/                # API collections (Admin CRUD, user flows)
+│   │   ├── microservices/            # The backend — Maven multi-module project
+│   │   │   ├── discovery-server/     # Eureka registry (:8761)
+│   │   │   ├── api-gateway/          # Routing, CORS, rate limiting (:8080) — the only open port
+│   │   │   ├── auth-service/         # Credentials, RS256 tokens, JWKS, invitation codes,
+│   │   │   │                         #   visitor passes (:8081)
+│   │   │   ├── user-service/         # Profiles and directory search (:8082)
+│   │   │   ├── semaphore-service/    # Catalogue, student progress, academic plans (:8083)
+│   │   │   ├── schedule-service/     # Enrolments, meetings, agenda (:8084)
+│   │   │   ├── map-service/          # Buildings, floors, spaces, search (:8085)
+│   │   │   │   └── src/main/resources/static/admin/grid-editor.html   # The floor editor
+│   │   │   ├── common/               # Error envelope, CurrentUser, role constants
+│   │   │   ├── course-service/       # FROZEN — out of the reactor, compose and CI
+│   │   │   ├── assignment-service/   # FROZEN — same
+│   │   │   ├── mongo-init/rs-init.js # Replica set, service accounts, and the health probe
+│   │   │   ├── docker-compose.yml    # Profiles: mock, core, academic, map, full, dev, cloud
+│   │   │   └── pom.xml               # Parent POM — every version lives here
+│   │   └── postman/                  # API collections
 │   ├── frontend/
-│   │   ├── web/                    # Web client used to test the API (HTML/CSS/JS)
-│   │   │   ├── css/                # base, layout and shell stylesheets
-│   │   │   ├── js/app.js           # Client logic: session, routing, API access
-│   │   │   ├── js/demo.js          # Sample-data mode for backend-less deployments
-│   │   │   └── images/             # Static assets
+│   │   ├── web-admin/                # Admin and developer console (Angular 22)
+│   │   ├── web/                      # FROZEN prototype — the live demo runs this
 │   │   └── mobile/
-│   │       ├── kotlin/             # Android client (planned)
-│   │       └── swift/              # iOS client (planned)
-│   └── database/
-│       ├── init.sql                # Schema: enums, tables, triggers, audit_log
-│       ├── test_data.sql           # Sample data — development only
-│       └── delete_all_data.sql     # Database reset helper
-├── docs/                           # Specification, design and research
-│   └── researches/                 # Academic article reviews (PDF)
-├── scripts/                        # Local orchestration scripts (bash)
-├── assets/                         # Branding assets
-│   └── screenshots/                # Interface captures used in this README
-├── .github/workflows/ci.yml        # Build pipeline (JDK 21, Maven)
-├── vercel.json                     # Static deployment of the web client
-├── AGENTS.md                       # Operational context for AI agents
-├── LICENSE                         # Internal use license
-└── package.json                    # Repository tooling and scripts
+│   │       ├── kotlin/               # Android client — the product, not started
+│   │       └── swift/                # iOS client — the product, not started
+│   └── database/init.sql             # Legacy PostgreSQL schema. Reference only; nothing reads it
+├── docs/
+│   ├── api/                          # Five OpenAPI 3.1 contracts — the source of truth
+│   ├── adr/                          # Architecture decision records
+│   ├── templates/                    # The pensum import CSV and its column reference
+│   ├── PROGRESS.md                   # What is built, and what is blocked on whom
+│   ├── RUNBOOK.md                    # How to start, stop and troubleshoot it
+│   ├── SECURITY-AUDIT.md             # Findings S1–S12 and what closed each
+│   ├── REQUIREMENTS.md · DESIGN.md   # Scope and architecture
+│   └── ATLAS-SETUP.md                # Standing up the shared development cluster
+├── scripts/
+│   ├── generate-dev-secrets.sh       # Writes .env — secrets never leave the machine
+│   ├── create-dev-accounts.sh        # The four team accounts
+│   ├── verify-db-isolation.sh        # Proves each service reaches its own database and no other
+│   └── verify-visitor-pass.py        # End-to-end check of the day pass through the gateway
+├── .github/workflows/ci.yml          # Backend, contracts and portal
+├── AGENTS.md                         # Operational context for AI agents
+└── package.json                      # Repository tooling
 ```
 
 ---
 
 ## Documentation
 
-| Document                                                   | Content                                               |
-| ---------------------------------------------------------- | ----------------------------------------------------- |
-| [docs/SRS.md](docs/SRS.md)                                 | Software requirements specification.                  |
-| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)               | Functional and non-functional requirements.           |
-| [docs/DESIGN.md](docs/DESIGN.md)                           | System and interface design decisions.                |
-| [docs/MICROSERVICES-IDEAS.md](docs/MICROSERVICES-IDEAS.md) | Service decomposition analysis.                       |
-| [docs/DOCKER-GUIDE.md](docs/DOCKER-GUIDE.md)               | Container setup and operation guide.                  |
-| [docs/PROGRESS.md](docs/PROGRESS.md)                       | Implementation progress and the explicit list of pending work. |
-| [docs/K-COLORS.md](docs/K-COLORS.md)                       | Brand color palette.                                  |
-| [docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md)           | Security audit findings and public-release checklist. |
-| [docs/researches/](docs/researches/)                       | Academic research: article reviews on university mobile apps and student engagement (ScienceDirect, Taylor & Francis, Scopus). |
-| [AGENTS.md](AGENTS.md)                                     | Repository context and rules for AI agents.           |
+**Start here** depending on what you came for:
+
+| Document | Content |
+| --- | --- |
+| [docs/ONBOARDING.md](docs/ONBOARDING.md) | **Start here on a new machine.** Ten minutes, in Spanish, no Java or MongoDB to install. |
+| [docs/RUNBOOK.md](docs/RUNBOOK.md) | **How to run it.** Profiles, accounts, and a troubleshooting section where every entry is a failure we actually hit. |
+| [docs/PROGRESS.md](docs/PROGRESS.md) | **What is built**, what each phase delivered, and what is blocked on whom. |
+| [docs/api/](docs/api/) | The OpenAPI 3.1 contracts, one per service. **The source of truth** — linted in CI and served as mocks. |
+| [docs/adr/](docs/adr/) | Architecture decision records: what was decided, what else was considered, and the consequences including the bad ones. |
+| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Scope. Every entry is built or explicitly out — no pending requirements nobody intends to implement. |
+| [docs/DESIGN.md](docs/DESIGN.md) | The system as it is, with diagrams. |
+| [docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md) | Findings S1–S12, what closed each, and what must happen before this is reachable from outside. |
+| [docs/ATLAS-SETUP.md](docs/ATLAS-SETUP.md) | Standing up the shared development cluster. |
+| [docs/templates/](docs/templates/) | The pensum import CSV and its column reference. |
+| [docs/INTEGRATION-NOTES.md](docs/INTEGRATION-NOTES.md) | Findings worth carrying forward — the kind that cost a day to learn. |
+| [docs/SRS.md](docs/SRS.md) | The original software requirements specification. Predates the August narrowing. |
+| [docs/MICROSERVICES-IDEAS.md](docs/MICROSERVICES-IDEAS.md) | Service decomposition analysis. Ideas, not commitments. |
+| [docs/DOCKER-GUIDE.md](docs/DOCKER-GUIDE.md) · [docs/K-COLORS.md](docs/K-COLORS.md) | Container guide; brand palette. |
+| [docs/researches/](docs/researches/) | Academic article reviews on university mobile apps and student engagement. |
+| [AGENTS.md](AGENTS.md) | Repository context and rules for AI agents. |
 
 ---
 
 ## Security
 
-This repository is published for reading and technical evaluation. **Nothing here is deployed**: there is no server,
-no hosted environment and no user data. The configuration targets local development and has not been hardened —
-role-based authorization is not enforced, CORS is permissive, and domain services trust identity headers set by the
-gateway.
+**Nothing here is deployed**: no server, no hosted environment, no user data. It runs on one laptop.
 
-Rather than leave that implicit, the prototype was audited against itself and the findings written down:
-[docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md) lists every issue with severity, evidence at file and line, and the
-remediation each one needs. It doubles as the design checklist for the planned re-architecture. Secrets are read
-from environment variables (see [.env.example](.env.example)) and the working tree carries no credential literal;
-two development credentials from the deleted monolith remain readable in the git history and are recorded there.
+The prototype was audited against itself in August and the findings written down, with severity, evidence at file
+and line, and what each needed: [docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md). **That description used to say
+role-based authorization was not enforced, CORS was permissive, and services trusted an identity header set by the
+gateway. All three were findings, and all three are closed** — every service now validates the token itself, every
+endpoint carries an explicit rule asserted per role in tests, and the CORS wildcard is an allow-list.
+
+Three findings remain open, deliberately, and each says what has to happen before KApp is reachable from outside a
+laptop:
+
+- **S7** — tokens simply expire after an hour; there is no refresh and no revocation.
+- **S11** — the four development accounts hold `ROLE_ADMIN`, and the two seeded invitation codes ship in this
+  repository. Both are correct while this runs on one machine and **must be revoked before it does not**.
+- **H1** — two development credentials from the deleted monolith remain readable in the git history.
+
+Secrets are generated per machine by `scripts/generate-dev-secrets.sh` and never committed; the working tree carries
+no credential literal.
+
+KApp stores one piece of personal data: the identity document a visitor presents for a day pass. It is readable only
+by an administrator and **deleted automatically after 30 days** by a database TTL index —
+[ADR 0007](docs/adr/0007-visitor-day-pass-instead-of-guest-accounts.md) records the Ley 1581 obligations and how each
+is met.
 
 To report a vulnerability, follow the security policy published by the
 [K-Forge organization](https://github.com/K-Forge) or write to kforge.dev@gmail.com. Please do not open a public

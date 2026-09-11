@@ -1,250 +1,215 @@
-# KApp · Design Document
+# KApp · Design
 
-> Version 1.0 · February 2026
-> K-Forge Development Club · Fundación Universitaria Konrad Lorenz
+> Last updated: 5 September 2026.
+> Supersedes the February 2026 version, which described a PostgreSQL/JPA system with HS512 tokens
+> and services that no longer run.
+
+This describes what exists. For *why* a decision was taken, see [`adr/`](adr/) — the decision table
+that used to live here has been replaced by those records, because a table of decisions with no
+reasoning is the part people stop trusting first.
 
 ---
 
-## 1. Architectural Vision
+## 1. Shape of the system
 
-KApp is a mobile-first product: native Android (Kotlin) and iOS (Swift) clients on the device, and everything they
-consume running server-side as a **microservices architecture** built on Spring Cloud, migrated from an initial
-monolith that has since been deleted from the tree. Each service encapsulates a business domain and communicates
-over REST with Eureka-based discovery.
-
-Delivery is sequenced backend first, web second, mobile third: the web client exercises the API while the backend is
-built and settles the interface design that the native clients will inherit.
+Six services behind one gateway. The clients are native mobile apps; the web portal is an
+administration and development console for the team, not a product surface.
 
 ```mermaid
-graph TD
-    subgraph Clients
-        A["Android (Kotlin)"]
-        B["iOS (Swift)"]
-        C["Angular Web (TypeScript)"]
+flowchart TB
+    subgraph clients["Clients"]
+        AND["Android · Kotlin"]
+        IOS["iOS · Swift"]
+        PORTAL["Admin portal · Angular<br/>localhost:4300"]
     end
 
-    A & B & C --> GW["API Gateway :8080<br/>(Spring Cloud)"]
+    GW["API Gateway :8080<br/>the only reachable entry point"]
+    EUREKA["Discovery :8761"]
 
-    GW -- "JWT validation + routing" --> AUTH["Auth Service :8081"]
-    GW --> USER["User Service :8082"]
-    GW --> COURSE["Course Service :8083"]
-    GW --> ASSIGN["Assignment Service :8084"]
+    subgraph svc["Services — ports NOT published"]
+        AUTH["auth-service :8081<br/>credentials, tokens, JWKS,<br/>invitation codes, visitor passes"]
+        USER["user-service :8082<br/>profiles, directory search"]
+        SEM["semaphore-service :8083<br/>catalogue, progress, academic plans"]
+        SCH["schedule-service :8084<br/>enrolments, meetings, agenda"]
+        MAP["map-service :8085<br/>buildings, floors, spaces, search"]
+    end
 
-    EUREKA["Discovery Server :8761<br/>(Eureka)"] -.-o AUTH & USER & COURSE & ASSIGN & GW
+    subgraph data["MongoDB — one database AND one account per service"]
+        DBA[("kapp_auth")]
+        DBU[("kapp_user")]
+        DBS[("kapp_semaphore")]
+        DBC[("kapp_schedule")]
+        DBM[("kapp_map")]
+    end
 
-    AUTH & USER & COURSE & ASSIGN --> DB[("PostgreSQL :5432<br/>(Neon Cloud)")]
+    AND --> GW
+    IOS --> GW
+    PORTAL --> GW
+    GW --> AUTH & USER & SEM & SCH & MAP
+    AUTH -.registers.-> EUREKA
+    USER -.registers.-> EUREKA
+    SEM -.registers.-> EUREKA
+    SCH -.registers.-> EUREKA
+    MAP -.registers.-> EUREKA
+    GW -.resolves.-> EUREKA
+
+    AUTH --> DBA
+    USER --> DBU
+    SEM --> DBS
+    SCH --> DBC
+    MAP --> DBM
 ```
 
----
-
-## 2. Technology Stack
-
-| Layer             | Technology                          |
-| ----------------- | ----------------------------------- |
-| Runtime           | Java 21, Spring Boot 3.2            |
-| Cloud             | Spring Cloud 2023.0.0               |
-| Discovery         | Netflix Eureka                      |
-| Gateway           | Spring Cloud Gateway (reactive)     |
-| Security          | Spring Security + JWT (JJWT 0.11.5) |
-| Resilience        | Resilience4j circuit breaker        |
-| IPC               | OpenFeign (synchronous REST)        |
-| ORM               | Spring Data JPA + Hibernate         |
-| Database          | PostgreSQL 15+ (Neon cloud)         |
-| Build             | Maven (multi-module POM)            |
-| Containers        | Docker + Docker Compose             |
-| Frontend (web)    | HTML/CSS/JS today, Angular planned — API test surface and design reference |
-| Frontend (mobile) | Kotlin (Android), Swift (iOS) — final product, not started |
-| Package manager   | pnpm (dependencies) + Bun (scripts) |
+**Service ports 8081–8085 are deliberately unpublished.** Being able to reach a service directly was
+finding S1. Every service also validates the token itself, so reaching one would gain nothing even
+if the port were open — the two protections are independent on purpose.
 
 ---
 
-## 3. Microservices
+## 2. Stack
 
-### 3.1 Discovery Server `:8761`
-
-- **Responsibility:** service registration and discovery
-- **Annotation:** `@EnableEurekaServer`
-- **Dashboard:** `http://localhost:8761`
-
-### 3.2 API Gateway `:8080`
-
-- **Responsibility:** single entry point, routing, JWT validation, CORS
-- **Key components:**
-  - `GatewayConfig` — route definitions per service
-  - `JwtAuthenticationFilter` — global authentication filter
-  - `CorsConfig` — centralized CORS
-- **Flow:**
-  1. Request → JWT validation
-  2. Extract `X-User-Email` from the token
-  3. Route to the right microservice through Eureka
-
-### 3.3 Auth Service `:8081`
-
-- **Responsibility:** login, JWT generation, credential validation
-- **Endpoint:** `POST /auth/login`
-- **Roles:** `ROLE_STUDENT`, `ROLE_PROFESSOR`, `ROLE_ADMIN`
-- **Security:** BCrypt for passwords, HS512 for JWT
-
-### 3.4 User Service `:8082`
-
-- **Responsibility:** CRUD for people, members, students and employees
-- **External endpoints:** `/api/admin/{people|members|students|employees}`
-- **Internal endpoints:** `/api/users/internal/*` (Feign calls)
-
-### 3.5 Course Service `:8083`
-
-- **Responsibility:** courses, groups, programs, enrollment
-- **Dependencies:** User Service (through Feign)
-- **Endpoints:** `/api/student/courses`, `/api/professor/courses`, `/api/admin/courses`
-
-### 3.6 Assignment Service `:8084`
-
-- **Responsibility:** assignments, submissions, grading
-- **Dependencies:** User Service + Course Service (through Feign)
-- **Endpoints:** `/api/student/assignments`, `/api/professor/assignments`
-
-### 3.7 Common Library
-
-- **Type:** Maven module (not executable)
-- **Contents:** DTOs, exceptions, `GlobalExceptionHandler`
+| Layer | Technology | Note |
+|---|---|---|
+| Runtime | Java 21, Spring Boot **3.5.16** | Not Boot 4: Mongock publishes no Boot 4 artifact |
+| Cloud | Spring Cloud **2025.0.3** | The train for Boot 3.5. 2025.1.x targets Boot 4 |
+| Discovery | Netflix Eureka | |
+| Gateway | Spring Cloud Gateway (WebFlux) | Explicit routing table; the discovery locator is **off** (S4) |
+| Security | Spring Security 6.5, OAuth2 resource server | **RS256** with a published JWKS — [ADR 0002](adr/0002-rs256-with-a-published-jwks.md) |
+| IPC | OpenFeign | Three edges only — see §4 |
+| Persistence | Spring Data MongoDB | One engine — [ADR 0004](adr/0004-one-database-engine-not-polyglot.md) |
+| Migrations | Mongock 5.5.1 | `@EnableMongock` is **mandatory**: it ships no auto-configuration |
+| Contracts | OpenAPI 3.1, hand-written, linted in CI | Served as Prism mocks so client work never waits |
+| Tests | JUnit 5 + Testcontainers | 613 integration tests |
+| Portal | Angular 22, Vitest, pnpm | |
+| Mobile | Kotlin (Android), Swift (iOS) | The product. Unblocked by the mocks |
 
 ---
 
-## 4. Service-to-Service Communication
-
-```mermaid
-graph LR
-    ASSIGN["Assignment Service"] -- Feign --> COURSE["Course Service"] -- Feign --> USER["User Service"]
-```
-
-- **Protocol:** synchronous HTTP REST through OpenFeign
-- **Discovery:** Eureka (by service name)
-- **Headers:** `X-User-Email` injected by the API Gateway
-- **Future:** asynchronous communication with RabbitMQ/Kafka
-
----
-
-## 5. Security
-
-### Authentication Flow
+## 3. Identity
 
 ```mermaid
 sequenceDiagram
     participant C as Client
-    participant GW as API Gateway
-    participant AUTH as Auth Service
-    participant SVC as Course Service
+    participant G as Gateway
+    participant A as auth-service
+    participant S as any service
 
-    C->>AUTH: POST /auth/login (email + password)
-    AUTH-->>C: JWT { sub: email, roles: [...], exp: 24h }
+    C->>G: POST /auth/login
+    G->>A: (routed)
+    A-->>C: RS256 access token (1 h)
 
-    C->>GW: GET /api/student/courses (Bearer JWT)
-    GW->>GW: Validate JWT
-    GW->>SVC: Request + X-User-Email header
-    SVC-->>GW: Response
-    GW-->>C: Response
+    C->>G: GET /api/... + Bearer
+    G->>S: (routed, token untouched)
+    S->>A: GET /.well-known/jwks.json (once, then cached)
+    A-->>S: public keys
+    S-->>C: 200 / 401 / 403
 ```
 
-### Security Layers
+**The gateway does not decide identity.** It routes; each service validates the signature itself.
+That is what closes S1: a forged header buys nothing, because the token is signed and the service
+checks it.
 
-1. **API Gateway:** centralized JWT validation
-2. **Services:** trust the `X-User-Email` header set by the Gateway
-3. **Database:** passwords hashed with BCrypt
-4. **CORS:** centralized configuration at the Gateway
-5. **Circuit breaker:** Resilience4j for fault tolerance
+**`jwk-set-uri`, never `issuer-uri`.** `issuer-uri` performs OIDC discovery at bean creation, which
+deadlocks startup: every service would need auth-service up before it could start, including on a
+cold `docker compose up`. The keys are fetched lazily on the first authenticated request, which is
+why that one request can be slow and the second is not.
 
-> Design assumption under review: layer 2 only holds while the services are unreachable from outside the gateway,
-> and the current setup does not guarantee that. Role enforcement is also missing. Both gaps are documented in
-> [SECURITY-AUDIT.md](SECURITY-AUDIT.md), findings S1 and S2.
+### Roles
+
+| | map | catalogue | own semáforo | own timetable | own profile | administration |
+|---|---|---|---|---|---|---|
+| `ROLE_GUEST` (visitor pass) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `ROLE_STUDENT` | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| `ROLE_PROFESSOR` | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ |
+| `ROLE_ADMIN` | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
+
+A professor has **no semáforo**: they have no academic record of their own. An administrator reads a
+student's through `GET /api/semaphore/{userId}`, which never accepts `"me"` as an identity source.
+
+Every cell in that table is asserted by a test, including every ❌ — those are the ones that matter.
 
 ---
 
-## 6. Data Model
+## 4. Service-to-service calls
 
-### ER Diagram (simplified)
+Three edges, all synchronous OpenFeign, all one-directional:
 
 ```mermaid
-erDiagram
-    Person ||--o{ Member : "extends"
-    Member ||--o| Student : "is a"
-    Member ||--o| Employee : "is a"
-
-    Course ||--|{ Group : "has"
-    Group ||--o{ StudentCourse : "enrolls"
-    Student ||--o{ StudentCourse : "enrolled in"
-    Group ||--|{ Assignment : "has"
-    Assignment ||--o{ Submission : "receives"
-    Student ||--o{ Submission : "submits"
+flowchart LR
+    AUTH["auth-service"] -->|"POST /internal/users<br/>during registration"| USER["user-service"]
+    SEM["semaphore-service"] -->|"which program is this student in?"| USER
+    SCH["schedule-service"] -->|"which courses are in this pensum?"| SEM
 ```
 
-### Main Tables
+**There are deliberately no more.** Two things the mockups suggested were left to the client
+instead:
 
-| Table            | Service            | Description                |
-| ---------------- | ------------------ | -------------------------- |
-| `person`         | user-service       | Base personal data         |
-| `member`         | user-service       | University credentials     |
-| `student`        | user-service       | Student-specific data      |
-| `employee`       | user-service       | Employee-specific data     |
-| `course`         | course-service     | Course catalog             |
-| `course_group`   | course-service     | Groups per course          |
-| `student_course` | course-service     | Enrollments                |
-| `assignment`     | assignment-service | Assignments                |
-| `submission`     | assignment-service | Submissions                |
-| `audit_log`      | shared             | Audit trail                |
+- *"Next class"* — `GET /api/schedule/me/day` already returns the day in order; the client picks the
+  next one from its own clock.
+- *"Courses in your plan not yet in your timetable"* — the client has both screens. Crossing them
+  locally avoids a fourth edge and, more importantly, means the timetable still loads when the
+  semáforo is down.
+
+`POST /internal/users` is reachable only from inside the compose network, carries a shared internal
+token, and **has no gateway route at all**.
 
 ---
 
-## 7. Port Configuration
+## 5. Data model, in one paragraph each
 
-| Service            | Port   | Container       |
-| ------------------ | ------ | --------------- |
-| Discovery Server   | 8761   | kapp-discovery  |
-| API Gateway        | 8080   | kapp-gateway    |
-| Auth Service       | 8081   | kapp-auth       |
-| User Service       | 8082   | kapp-user       |
-| Course Service     | 8083   | kapp-course     |
-| Assignment Service | 8084   | kapp-assignment |
-| PostgreSQL         | 5432   | (Neon cloud)    |
+**auth** — `credentials` (one per account, BCrypt, verification token stored hashed),
+`invitation_codes` (redeemed by an atomic `findAndModify` guarded on the quota, so two simultaneous
+registrations cannot both take the last use), `visitor_passes` (with a **TTL index** that deletes
+each record 30 days after redemption — [ADR 0007](adr/0007-visitor-day-pass-instead-of-guest-accounts.md)).
 
----
+**user** — `users`, with pre-computed `searchTokens` so accent-insensitive search is an index hit
+rather than a regex scan. MongoDB 7 reports `IXSCAN` for an unanchored case-insensitive regex while
+walking the whole index; the assertion to make is about bounds and documents examined, not the stage
+name.
 
-## 8. Design Decisions
+**semaphore** — `programs`, `pensums` (a pensum with its courses, areas and prerequisite graph),
+`studentProgress` (one document per student, materialised lazily on first read), and
+`academicPlans`, which stores **only the courses a student moved**. The pensum stays immutable; the
+plan is a thin layer over it, so a correction to the published pensum reaches every plan without
+rewriting any.
 
-| Decision                        | Rationale                                        |
-| ------------------------------- | ------------------------------------------------ |
-| Microservices over a monolith   | Independent scaling, fault isolation              |
-| Eureka over Consul / K8s DNS    | Native Spring Cloud integration                   |
-| JWT over server-side sessions   | Stateless, horizontally scalable                  |
-| Feign over RestTemplate         | Declarative, integrated with Eureka               |
-| Shared database (for now)       | Initial simplicity; migrate to database-per-service |
-| Reactive gateway                | Non-blocking I/O for routing                      |
-| pnpm + Bun                      | pnpm for dependencies, Bun to run scripts         |
+**schedule** — `enrollments` and `meetings`, with overlap detection in the domain.
+
+**map** — `buildings` (floors embedded, since nothing queries a floor without knowing its building)
+and `spaces` (a flat collection, because the primary access pattern is "find a room anywhere"). A
+floor is a **grid**, not a plan image — [ADR 0006](adr/0006-schematic-map-not-floor-plan-images.md).
 
 ---
 
-## 9. Technical Roadmap
+## 6. Database isolation
 
-Ordered by the delivery sequence — harden the backend, settle the design on web, then port to mobile. Kept in sync
-with `PROGRESS.md` and `AGENTS.md`.
+```mermaid
+flowchart LR
+    A["auth-service<br/>kapp_auth_user"] -->|readWrite| DBA[("kapp_auth")]
+    A -.->|refused| DBM[("kapp_map")]
+    M["map-service<br/>kapp_map_user"] -->|readWrite| DBM
+    M -.->|refused| DBA
+```
 
-1. [X] Migration to microservices
-2. [X] Service discovery (Eureka)
-3. [X] API Gateway + JWT
-4. [X] Circuit breaker
-5. [X] CI build pipeline (GitHub Actions)
-6. [ ] Role-based authorization enforcement
-7. [ ] Centralized Config Server
-8. [ ] Angular frontend — reference design for the mobile clients
-9. [ ] Refresh tokens and logout
-10. [ ] Rate limiting at the Gateway
-11. [ ] Kotlin frontend (Android)
-12. [ ] Swift frontend (iOS)
-13. [ ] Continuous deployment
-14. [ ] Distributed tracing (Zipkin)
-15. [ ] Message queue (asynchronous communication)
-16. [ ] Database per service
-17. [ ] Kubernetes deployment
+Each service holds an account with `readWrite` on exactly one database, created **inside** that
+database so the database is also its `authSource` — a leaked connection string opens one database
+and does not name the others. `scripts/verify-db-isolation.sh` proves it: 25 checks, each account
+against every database. [ADR 0005](adr/0005-per-service-database-credentials.md).
 
 ---
 
-_Baseline document — it will grow as development advances._
+## 7. Where the decisions live
+
+| Decision | Record |
+|---|---|
+| MongoDB rather than PostgreSQL | [ADR 0001](adr/0001-mongodb-over-postgresql.md) |
+| RS256 with a published JWKS | [ADR 0002](adr/0002-rs256-with-a-published-jwks.md) |
+| OIDC rather than SAML | [ADR 0003](adr/0003-oidc-over-saml-for-mobile-authentication.md) |
+| One engine, not polyglot | [ADR 0004](adr/0004-one-database-engine-not-polyglot.md) |
+| One account per service | [ADR 0005](adr/0005-per-service-database-credentials.md) |
+| A schematic map, not floor plan images | [ADR 0006](adr/0006-schematic-map-not-floor-plan-images.md) |
+| A visitor day pass, not guest accounts | [ADR 0007](adr/0007-visitor-day-pass-instead-of-guest-accounts.md) |
+
+Findings and their fixes: [`SECURITY-AUDIT.md`](SECURITY-AUDIT.md).
+What is built and what is blocked on whom: [`PROGRESS.md`](PROGRESS.md).
+How to run it: [`RUNBOOK.md`](RUNBOOK.md).

@@ -1,216 +1,188 @@
-# KApp · Implementation Status
+# Implementation Status
 
-> Last updated: July 2026
+> Read this before proposing large changes. Last updated: 5 September 2026.
 
-Delivery is sequenced **backend first, web second, mobile third**. The web client is the surface used to test the
-API and to settle the interface design; the Kotlin and Swift clients inherit that design afterwards. Their low
-position in the priority list below is that sequencing, not a change of target: the mobile apps are the product.
+KApp is in the thesis pre-proposal phase (_anteproyecto_). The scope was deliberately narrowed in
+August 2026: because the university's academic data is not available, the product cannot depend on
+it. Accounts are created from scratch, and the MVP covers **users, campus map, a customisable
+preloaded schedule and a customisable preloaded career semaforo**. Everything else is deferred.
+
+The backend runs on the lead developer's machine until university hardware exists. There is no
+production deployment.
 
 ---
 
 ## Summary
 
-| Area                          | Status       | Progress |
-|-------------------------------|--------------|----------|
-| Infrastructure                | [X] Complete | 100%     |
-| Backend services              | [X] Complete | 100%     |
-| Web frontend (test surface)   | [Med] Partial | 30%     |
-| Android frontend (product)    | [ ] Not started | 0%    |
-| iOS frontend (product)        | [ ] Not started | 0%    |
-| DevOps                        | [Med] Partial | 50%     |
-| Documentation                 | [Med] Partial | 70%     |
+| Area | Status | Tests | Notes |
+|---|---|---|---|
+| Platform foundation | Complete | — | Boot 3.5, MongoDB, RS256/JWKS, Mongock, Testcontainers |
+| API contract | Complete | — | Hand-written OpenAPI 3.1 specs, linted in CI, served as mocks |
+| **Database isolation** | **Complete** | — | One MongoDB account per service, `readWrite` on one database. Verified by `scripts/verify-db-isolation.sh` |
+| **Auth: sign-in and registration** | **Merged** | **99** | Registration, verification, invitation codes with full admin CRUD, `IdentityProviderPort` |
+| **User profiles** | **Merged** | **97** | Profiles, internal upsert, accent-insensitive indexed search |
+| **Catalogue and semáforo** | **Merged** | **214** | Programs and pensums with full CRUD, student progress, personal academic plans, bulk CSV import |
+| **Timetables** | **Merged** | **140** | Enrolments, meetings, overlap detection |
+| **Campus map** | **Merged** | **50** | Schematic floors on a grid, wings, corridors, a basement, and an offline grid editor. No floor plan images |
+| **Admin and developer portal** | **Merged** | **30** | Angular, from a compose `dev` profile. Full CRUD, bulk import, an API console driven by the specs, and a role inspector |
+| **Visitor day pass** | **Merged** | **23** | A one-day token that opens the map and nothing else. No account, no e-mail. Identity documents deleted after 30 days by a TTL index |
+| Android (Kotlin) | Not started | — | The product. Unblocked by the mocks |
+| iOS (Swift) | Not started | — | The product. Unblocked by the mocks |
+| Deployment | Not started | — | Runs locally; university hardware pending |
+
+**635 integration tests** in the backend and **54 in the admin portal**, from a repository that
+had none in August. Every service asserts its full role-by-endpoint authorization matrix with one
+assertion per case, including every combination that must be refused — those are the ones that
+matter.
+
+### Phases closed since the August rebuild
+
+| Phase | What it delivered |
+|---|---|
+| 1 · Per-service credentials | Each service holds its own MongoDB account with `readWrite` on one database. The separation between services is now enforced by the engine rather than respected by the code — 25 of 25 checks. Four development accounts are created by `scripts/create-dev-accounts.sh`, which generates their passwords locally. **Atlas is pending Brian creating the cluster** — see `ATLAS-SETUP.md` |
+| 2 · Admin endpoints | The eight operations the contracts already promised: program create/replace/delete, pensum delete, and invitation-code list/create/activate/delete. Deleting never cascades, and every `409` names what blocks it |
+| 3 · Plans and bulk import | Personal academic plans stored as deltas over the immutable pensum, and a CSV import for the 24 programs that validates the whole file before writing anything |
+| 4 · Schematic map | A floor is a grid the client draws, not a photograph with pins on it. Wings as a field, corridors with the colour they are painted, a basement at level −1, and `accessVia` so the app can say "sube por el ascensor central". **This removed the longest-lead item on the project** — obtaining architectural plans was human latency, and a schematic floor is captured by walking it with `/admin/grid-editor.html` |
+| 5 · Visitor day pass | Reception issues a code; a visitor redeems it with an identity document and gets 24 hours of map-only access. No account is created. The token is an ordinary `ROLE_GUEST` one, so "map only" is the matrix every service already enforces rather than a second mechanism that could drift. Open guest registration is gone. **KApp now stores personal data under Ley 1581** — 30-day retention, enforced by MongoDB rather than by a job |
+| 6 · Admin portal | CRUD over everything administrable, with a `409` shown as its reason rather than a generic error. Fixed a regression the map change caused — the portal's models still carried `planImageUrl` and pin percentages, so editing a building or space through it would have failed. Two pages said a capability did not exist; both were true when written and had stopped being so. Also closed a real defect: `accessVia` was never validated, and a code matching nothing produces directions to a lift that is not there |
+| 7 · Documentation | `REQUIREMENTS.md` rewritten to the real MVP — every entry built or explicitly out of scope. `DESIGN.md` rewritten with current diagrams, its decision table replaced by links to `adr/`. Four new ADRs. `README.md` corrected: it claimed PostgreSQL, HS512, and that role-based authorization was not enforced |
 
 ---
 
-## Microservices
+## What exists
 
-| Service               | Port   | Status         | Notes                              |
-|-----------------------|--------|----------------|------------------------------------|
-| Discovery Server      | 8761   | [X] Operational | Eureka dashboard working           |
-| API Gateway           | 8080   | [X] Operational | JWT validation + routing           |
-| Auth Service          | 8081   | [X] Operational | Login + JWT generation             |
-| User Service          | 8082   | [X] Operational | Full CRUD + internal endpoints     |
-| Course Service        | 8083   | [X] Operational | Courses, groups, enrollment        |
-| Assignment Service    | 8084   | [X] Operational | Assignments, submissions, grading  |
-| Common Library        | —      | [X] Operational | Shared DTOs + exceptions           |
+**Platform.** Spring Boot 3.5.16 and Spring Cloud 2025.0.3, on the 3.x line deliberately: Mongock
+publishes no Boot 4 artifact and Spring Cloud 2025.1.x targets Boot 4. All versions are centralised
+in the parent POM so parallel branches never edit it.
 
----
+**Security.** Every service is an OAuth2 resource server validating RS256 against auth-service's
+JWKS. This is what closes S1: identity comes from a signed token, not a header the gateway sets,
+so reaching a service port directly gains nothing. Service ports are unpublished; only the gateway
+is reachable. RS256 rather than a shared secret because a symmetric key given to seven services is
+seven places that can mint an administrator token — and because Entra ID signs RS256 with a JWKS,
+making that migration a change of property value.
 
-## Features
+**Contract first.** `docs/api/*.openapi.yaml` are hand-written and served by Prism containers, so
+the mobile team works without waiting for the backend. CI lints them on every push.
 
-### Authentication
-- [x] Login with email and password
-- [x] JWT with roles (STUDENT, PROFESSOR, ADMIN)
-- [x] Centralized validation at the Gateway
-- [x] BCrypt password hashing
-- [ ] Refresh tokens
-- [ ] Logout / token invalidation
-- [ ] Role-based authorization enforcement (see `SECURITY-AUDIT.md`, finding S2)
+**Tests.** 635 integration tests on Testcontainers, from a repository that had none, plus 54 in
+the portal. Beyond the authorization matrices, they have already earned their keep by catching
+real defects:
 
-### Users
-- [x] Person CRUD
-- [x] Member CRUD
-- [x] Student CRUD
-- [x] Employee CRUD
-- [x] Internal endpoints (Feign)
-- [ ] Editable user profile
+- In `auth-service`, the role check ran before the `try` block, so an invitation code carrying a
+  rejected role consumed its slot permanently — the `release()` in the `catch` never ran. A student
+  would have burned an invitation on a registration that failed.
 
-### Courses
-- [x] Course and group CRUD
-- [x] Student enrollment
-- [x] Student course list
-- [x] Professor course list
-- [x] Students per group
-- [ ] Schedules
-- [ ] Detailed academic programs
+**And one class of defect they could not catch.** Reviewing the admin portal screen by screen in
+September turned up a bug that lived *between* two services: "Deactivate" wrote `active = false`
+on the profile in `user-service` while the credential in `auth-service` stayed `ACTIVE`, so the
+account kept signing in. Both services were individually correct and both suites were green —
+the failure only exists end to end, from the button. It is S13 in `SECURITY-AUDIT.md`. The lesson
+is recorded here rather than in a commit message: a test per service proves each service, and
+nothing yet proves the seam between them.
+- A shared static Testcontainers instance was being stopped by the first test class to finish, while
+  sibling classes still depended on it. That is the kind of failure that looks random.
+- Writing the bulk import surfaced that the **seeded Ingeniería de Sistemas plan does not add up**:
+  it declares 142 credits and 194 weekly hours where its 48 courses give 144 and 197. Nobody had
+  checked, because nothing had ever added them. The import now refuses a file whose declared totals
+  disagree with its own courses, so the next transcription cannot repeat it silently.
 
-### Assignments
-- [x] Create assignments (professor)
-- [x] Pending assignments (student)
-- [x] Submit assignments
-- [x] Grade submissions
-- [ ] File attachments
-- [ ] Notifications
-
-### Infrastructure
-- [x] Eureka service discovery
-- [x] API Gateway (Spring Cloud)
-- [x] Circuit breaker (Resilience4j)
-- [x] Docker Compose
-- [x] Per-service Dockerfiles
-- [ ] Config Server
-- [ ] Distributed tracing
-- [x] CI build pipeline (GitHub Actions)
-- [ ] Continuous deployment
-- [ ] Rate limiting
-
-### Frontend
-
-Web screens double as the design reference for the mobile clients.
-
-- [x] Login page
-- [x] Dashboard
-- [x] Courses view
-- [x] Assignments view
-- [x] Grades view
-- [x] Schedule view
-- [x] Demo mode with sample data for backend-less static deployments (`js/demo.js`)
-- [ ] Angular migration
-- [ ] Android app (Kotlin)
-- [ ] iOS app (Swift)
-
-### DevOps
-- [x] Docker Compose orchestration
-- [x] Bash startup scripts
-- [x] Technical documentation
-- [x] CI build pipeline (GitHub Actions, `mvn verify` on JDK 21)
-- [ ] CD / automated deployment
-- [ ] Kubernetes manifests
-- [ ] Monitoring (Prometheus/Grafana)
+**Two findings worth carrying forward.** MongoDB 7 reports `IXSCAN` for an unanchored,
+case-insensitive regex while walking the index over its full unbounded key range — the same cost as
+a collection scan under a reassuring name. Any assertion about query plans must check narrowed
+bounds and documents examined, not the stage name. And a security regression guard must not claim a
+path a service might legitimately want, or it collides with the real chain and stops the context
+from starting.
 
 ---
 
-## Next Steps (by priority)
+## Security findings
 
-1. [High] **Authorization** — Enforce roles at the gateway and close the header-trust gap (`SECURITY-AUDIT.md` S1, S2)
-2. [High] **Config Server** — Centralize configuration
-3. [High] **Angular web** — Migrate the web frontend to Angular
-4. [Med] **Refresh tokens** — Improve the authentication flow
-5. [Med] **Rate limiting** — Protect the Gateway
-6. [Low] **Kotlin app** — Build the Android client from the settled web design (low by sequence, not by value)
-7. [Low] **Swift app** — Build the iOS client
-8. [Low] **CD** — Extend the GitHub Actions pipeline to automated deployment
+Tracked in `docs/SECURITY-AUDIT.md`.
+
+| ID | Severity | Status |
+|---|---|---|
+| S1 | Critical | Resolved. Per-service token validation; service ports unpublished |
+| S2 | High | Resolved in the merged services. Every endpoint carries an explicit rule, asserted per role in tests |
+| S3 | Moderate | Resolved. CORS allow-list replaces the wildcard |
+| S4 | Moderate | Resolved. Eureka discovery locator off; `/internal/**` has no route |
+| S5 | Moderate | Resolved. Actuator exposes health and info only, without details |
+| S6 | Low | Resolved. Debug logging off by default |
+| S7 | Low | Open. Refresh tokens and revocation are deferred; tokens expire in one hour |
+| S8 | Informational | Open. HS512 key length — superseded in practice: signing is RS256 now |
+| S9 | Informational | Open. Sample data credentials |
+| S10 | High | Resolved. MongoDB ran without authentication, so the separation between service databases was a convention the code respected rather than a rule the engine imposed. Each service now holds its own account with `readWrite` on one database |
+| S11 | Moderate | Open. The four development accounts hold `ROLE_ADMIN` and the two seeded invitation codes ship in the repository. Both are correct while the stack runs on one laptop and **must be revoked before KApp is reachable from outside** |
+| H1 | High | Open. Two development credentials remain readable in git history |
 
 ---
 
-## Pending Work
+## Next
 
-Everything below is known and deliberately deferred: the project is a prototype in the thesis pre-proposal phase and
-nothing is deployed. Recorded so it reads as a decision rather than an oversight. Security details and evidence live
-in [SECURITY-AUDIT.md](SECURITY-AUDIT.md).
+**All seven phases of the September plan are closed.** What remains is not backend work.
 
-### Repository governance
+**The mobile clients.** They are the product and they have not been started. They are unblocked: the
+the contracts are served as Prism mocks, so Kotlin and Swift work does not wait on anything here.
 
-| Item | Current state | What to do |
-| ---- | ------------- | ---------- |
-| Branch protection ruleset | Active on `main` and `develop`, but soft: zero required approvals, code owner review enabled with no `CODEOWNERS` file, no required status check, and organization admins bypass it. | Require one approval and make the CI workflow a required status check, so a red build blocks the merge. |
-| Ruleset merge conflict | The ruleset requires linear history **and** allows merge commits only. Those are mutually exclusive: a pull request that is not fast-forward cannot be merged. | Switch the allowed merge method to squash, which also leaves one commit per pull request in `main`. |
-| `CODEOWNERS` | Missing. It is a per-repository file and is **not** inherited from `K-Forge/.github`, unlike `CONTRIBUTING.md`, `SECURITY.md` and `CODE_OF_CONDUCT.md`. | Add `* @K-Forge/kapp-team`. Ownership must be the team, not a single person: GitHub does not accept a code owner approving their own pull request, so a sole owner blocks their own work. |
-| Secret scanning | Disabled | Enable it: GitHub scans the tree and history for known credential formats and reports what it finds. Free on public repositories. |
-| Push protection | Disabled | Enable it: rejects a push carrying a recognizable secret before it reaches the history. This is the control that would have prevented both credentials recorded as H1. |
-| Dependabot | Alerts disabled, no `.github/dependabot.yml` | Enable the alerts, then add the configuration so Maven updates arrive as pull requests. Spring Boot 3.2.0 and Spring Cloud 2023.0.0 both have newer patch releases. |
+**The data.** The 24 pensums and roughly 40 floors are transcription, not programming — the CSV
+import and the grid editor exist so the team can do it in parallel without touching code.
 
-### Presentation
+### Blocked on somebody else
 
-| Item | Current state | What to do |
-| ---- | ------------- | ---------- |
-| Social preview image | Not set, so shared links render the generic GitHub card. | Upload `portfolio-cover.png` (already 1200 x 630, the exact size) under Settings, General, Social preview. There is no API for this; it has to be done from the interface. |
-| Placeholder screens | `notas`, `horario`, `chat`, `clubes`, `pqr` and `inscribir` are empty shells. They are unreachable from the dashboard — the corresponding tiles are disabled and point at `#` — so the demo never lands on one. | Build them, or keep them unreachable until they exist. Do not link them from the navigation while empty. |
+| Item | Who | Blocks |
+|---|---|---|
+| Atlas M0 cluster and its connection strings | Brian | Shared development database. `ATLAS-SETUP.md` has the steps |
+| SMTP relay | Dirección de TI | E-mail verification. Behind a flag, so nothing else waits |
+| Entra ID application registration | Dirección de TI | Institutional sign-in |
+| A sketch or photo of one floor | Brian | Modelling the first floor; the rest are captured with the editor |
+| The 24 pensums as CSV | The team | Bulk import exists and validates; the data does not |
+| Mobile clients | Iván, Alejandro, Santiago, Brian | Unblocked — the contracts and mocks are ready |
+| Telling Dirección de TI that KApp now stores identity documents | Brian | Nothing technical. The summary shared with Gabriel says KApp stores no institutional records, and that stopped being accurate with Phase 5 |
+
+---
+
+## Deferred work
+
+Everything below is known and deliberately postponed. Recorded so it reads as a decision rather
+than an oversight.
+
+### Product
+
+| Item | Note |
+|---|---|
+| `course-service`, `assignment-service` | Frozen. Still in the tree, out of the reactor, compose and CI. They target PostgreSQL/JPA |
+| Enrollment, assignments, grading | Out of MVP scope |
+| The 17 services in `MICROSERVICES-IDEAS.md` | Out of MVP scope |
+| Web client | Frozen. It was a prototype of the mobile layout, not a product surface |
 
 ### Engineering
 
-| Item | Current state | What to do |
-| ---- | ------------- | ---------- |
-| Test coverage | Zero across the six microservices. Deleting the monolith removed the only test file in the repository. | Cover the authorization path first: it is what the audit flags as critical (S1, S2) and what must not regress silently. |
-| Authorization (S1, S2) | The gateway can be bypassed and no role is enforced anywhere. | Keep service ports off the host, make the propagated identity verifiable, and map `/api/admin/**`, `/api/professor/**` and `/api/student/**` to their roles. Tests first. |
-| CI action versions | `actions/checkout@v4` and `actions/setup-java@v4` target Node 20, deprecated; the runner forces them onto Node 24 and annotates every run with a warning. | Bump both to `v5`. |
-| Drawer identity field | `dashboard.html` declares `drawerCodeDrawer` while the other eight pages use `drawerCode`, which is the id `app.js` hydrates. The drawer therefore never shows the user code. Same class of defect as the two already fixed in the header. | Rename the id to `drawerCode`. |
+| Item | Note |
+|---|---|
+| Refresh tokens, logout, revocation | Tokens simply expire (S7) |
+| Distributed rate limiting | The gateway limits credential endpoints in memory. Correct for one instance; **revisit before running a second** |
+| Spring Cloud Config Server | Configuration is per-service environment variables |
+| Distributed tracing | No Zipkin |
+| Database per service | One database **and one account** per service, on one MongoDB instance. Moving one service to its own cluster — or to a different engine — is a change to one connection string |
+| `app/database/init.sql` | Legacy PostgreSQL schema, reference only |
 
-### External and manual
+### Deployment
 
-| Item | Current state | What to do |
-| ---- | ------------- | ---------- |
-| Credential rotation (H1) | Two development credentials remain readable in the git history. | Confirm neither is reused anywhere and change them if they are. Rotation is the fix: the repository has been public since it was created, so any existing clone keeps the values regardless of what the history is rewritten to. |
+| Item | Note |
+|---|---|
+| University hardware | Needs 8 GB RAM minimum, 16 GB recommended, 4 vCPU |
+| TLS | Required, not optional: iOS blocks plaintext HTTP and Android has since API 28 |
+| Multi-architecture images | Built on Apple Silicon; a typical x86 server needs `docker buildx` |
+| Backups | Neon did this invisibly. On-premise needs `mongodump` on a schedule, copied off the host |
+| Entra ID | Needs an application registration from the university |
 
----
+### Repository governance
 
-## Project Structure
-
-```
-KApp/
-├── app/
-│   ├── backend/
-│   │   ├── microservices/          # Backend — the only application code
-│   │   │   ├── discovery-server/
-│   │   │   ├── api-gateway/
-│   │   │   ├── auth-service/
-│   │   │   ├── user-service/
-│   │   │   ├── course-service/
-│   │   │   ├── assignment-service/
-│   │   │   ├── common/
-│   │   │   ├── docker-compose.yml
-│   │   │   └── pom.xml
-│   │   └── postman/                # Testing collections
-│   ├── frontend/
-│   │   ├── web/                    # Web client (HTML/JS to Angular)
-│   │   └── mobile/
-│   │       ├── kotlin/             # Android (planned)
-│   │       └── swift/              # iOS (planned)
-│   └── database/
-│       ├── init.sql
-│       ├── test_data.sql
-│       └── delete_all_data.sql
-├── docs/
-│   ├── SRS.md
-│   ├── REQUIREMENTS.md
-│   ├── DESIGN.md
-│   ├── DOCKER-GUIDE.md
-│   ├── MICROSERVICES-IDEAS.md
-│   ├── SECURITY-AUDIT.md
-│   ├── K-COLORS.md
-│   ├── researches/                 # Academic article reviews (PDF)
-│   └── PROGRESS.md                 # This file
-├── scripts/
-│   ├── start-frontend.sh
-│   └── start-microservices.sh
-├── .github/
-│   └── workflows/ci.yml
-├── AGENTS.md
-├── CONTRIBUTORS.md
-├── LICENSE
-└── README.md
-```
-
----
-
-*Update this file after every completed milestone.*
+| Item | Note |
+|---|---|
+| Branch protection | Ruleset requires linear history and allows merge commits, which are mutually exclusive. Fix: squash |
+| `CODEOWNERS` | Missing. Ownership must be the team: GitHub does not accept a code owner approving their own pull request |
+| Secret scanning, push protection | Disabled |
+| Dependabot | Disabled, no `.github/dependabot.yml` |
+| Social preview | `portfolio-cover.png` is already 1200x630 but must be uploaded through the GitHub UI |
+| Credential rotation (H1) | Two development credentials readable in git history |

@@ -1,45 +1,60 @@
 package co.edu.konradlorenz.kapp.auth.service;
 
-import co.edu.konradlorenz.kapp.auth.security.JwtTokenProvider;
-import co.edu.konradlorenz.kapp.common.dto.JwtResponse;
-import co.edu.konradlorenz.kapp.common.dto.LoginRequest;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
+import co.edu.konradlorenz.kapp.auth.identity.AuthenticatedIdentity;
+import co.edu.konradlorenz.kapp.auth.identity.IdentityAssertion;
+import co.edu.konradlorenz.kapp.auth.identity.IdentityProviderPort;
+import co.edu.konradlorenz.kapp.auth.jwt.JwtIssuer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 /**
- * Servicio de autenticación.
- * Maneja la lógica de inicio de sesión y generación de tokens.
+ * Turns a verified identity into an access token.
+ *
+ * <p>Deliberately thin, and deliberately ignorant. It does not know that BCrypt exists,
+ * that credentials live in MongoDB, or that an account has a status: it hands an
+ * assertion to whichever {@link IdentityProviderPort} claims it and signs a token for
+ * whatever identity comes back. That is what makes the Entra ID migration a matter of
+ * adding a bean rather than rewriting sign-in.
  */
 @Service
-@RequiredArgsConstructor
 public class AuthService {
 
-        private final AuthenticationManager authenticationManager;
-        private final JwtTokenProvider tokenProvider;
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
-        /**
-         * Autentica al usuario y genera un token JWT.
-         */
-        public JwtResponse login(LoginRequest loginRequest) {
-                Authentication authentication = authenticationManager.authenticate(
-                                new UsernamePasswordAuthenticationToken(
-                                                loginRequest.getEmail(),
-                                                loginRequest.getPassword()));
+    private final List<IdentityProviderPort> providers;
+    private final JwtIssuer jwtIssuer;
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                String jwt = tokenProvider.generateToken(authentication);
+    public AuthService(List<IdentityProviderPort> providers, JwtIssuer jwtIssuer) {
+        this.providers = providers;
+        this.jwtIssuer = jwtIssuer;
+    }
 
-                UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-                String role = userDetails.getAuthorities().stream()
-                                .findFirst()
-                                .map(item -> item.getAuthority())
-                                .orElse("ROLE_USER");
+    public JwtIssuer.IssuedToken login(String email, String rawPassword) {
+        return authenticate(new IdentityAssertion.Password(email, rawPassword));
+    }
 
-                return new JwtResponse(jwt, userDetails.getUsername(), role);
-        }
+    public JwtIssuer.IssuedToken authenticate(IdentityAssertion assertion) {
+        IdentityProviderPort provider = providerFor(assertion);
+        AuthenticatedIdentity identity = provider.authenticate(assertion);
+
+        log.info("Issued token for user {} via provider {}", identity.subject(), provider.providerId());
+        return jwtIssuer.issue(identity.subject(), identity.email(), identity.roles());
+    }
+
+    /**
+     * @throws IllegalStateException when nothing can evaluate the assertion. That is a
+     *         wiring mistake rather than a client error - today it is what an
+     *         {@link IdentityAssertion.AuthorizationCode} gets, because the Entra adapter
+     *         does not exist yet.
+     */
+    private IdentityProviderPort providerFor(IdentityAssertion assertion) {
+        return providers.stream()
+                .filter(p -> p.supports(assertion))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "No identity provider supports " + assertion.getClass().getSimpleName()));
+    }
 }

@@ -2,33 +2,121 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # develop is the integration branch - the previous workflow watched main only, so
+    # everything merged into develop went unbuilt until release time.
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
+# Read-only by default. No job here publishes anything; a token that cannot write is
+# one less thing an untrusted pull request can abuse.
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   backend:
-    name: Build microservices (JDK 21)
+    name: Build and test microservices (JDK 21)
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
           cache: maven
 
-      - name: Build all modules
+      # The integration tests run MongoDB through Testcontainers, so the build needs a
+      # working Docker daemon. ubuntu-latest runners ship one and the runner user is in
+      # the docker group, so nothing has to be installed or started here. A container-
+      # based or self-hosted runner without Docker would fail at the first @Testcontainers
+      # class, not at compile time.
+      #
+      # ./mvnw, not mvn: the wrapper pins the Maven version, so CI and laptops run the
+      # same build. `verify` is what actually executes the tests - `package` does not.
+      - name: Build and test
         working-directory: app/backend/microservices
-        run: mvn -B -ntp verify
+        run: ./mvnw -B -ntp verify
+
+      # Only on failure: on a green build nobody reads these, and they are megabytes.
+      - name: Upload surefire reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: app/backend/microservices/**/target/surefire-reports/**
+          retention-days: 7
+          if-no-files-found: ignore
+
+  openapi:
+    name: Lint OpenAPI contracts
+    runs-on: ubuntu-latest
+
+    # Independent of the Java build on purpose: the specs are the contract the mobile
+    # team and the Prism mocks build against, so they must be checked even when the
+    # backend build is broken.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # @redocly/cli exposes more than one bin, so a bare `npx @redocly/cli@latest`
+      # cannot pick one and errors out. --package names the package, `redocly` the bin.
+      - name: Lint specs
+        run: npx --package=@redocly/cli@latest redocly lint docs/api/*.yaml
+
+  portal:
+    name: Build and test the admin portal
+    runs-on: ubuntu-latest
+
+    # The portal is how the mobile team signs in as a role, inspects a token and
+    # reproduces a failing call, so a broken build costs four people their tooling.
+    # Its tests cover the three pieces whose failure is confusing rather than obvious:
+    # JWT decoding, the auth interceptor and ApiError parsing.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # No `version:` here on purpose. The action refuses to run when it is told a version AND
+      # finds `packageManager` in package.json - "Multiple versions of pnpm specified" - and the
+      # root package.json pins pnpm@10.33.0. One source of truth, and it is the one the
+      # Dockerfile and everybody's laptop already use through Corepack.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: app/frontend/web-admin/pnpm-lock.yaml
+
+      # --frozen-lockfile so a lockfile that drifted from package.json fails here rather
+      # than silently resolving different versions than anyone tested against.
+      - name: Install
+        working-directory: app/frontend/web-admin
+        run: pnpm install --frozen-lockfile
+
+      # Vitest on jsdom, so no browser is needed. `pnpm test` regenerates the bundled
+      # OpenAPI JSON first: the API console imports those as modules, so a spec change
+      # that breaks the parser fails here instead of in someone's browser.
+      - name: Test
+        working-directory: app/frontend/web-admin
+        run: pnpm test
+
+      # Building is a real check, not a formality: the portal is served as static files
+      # from nginx, so a template or type error only surfaces at build time.
+      - name: Build
+        working-directory: app/frontend/web-admin
+        run: pnpm build

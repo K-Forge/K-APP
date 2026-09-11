@@ -1,0 +1,979 @@
+openapi: 3.1.0
+
+info:
+  title: KApp User API
+  version: 0.1.0
+  summary: Profile service for the KApp platform.
+  description: |
+    Profile service for KApp, the mobile application of Fundación Universitaria
+    Konrad Lorenz built by the K-Forge club.
+
+    ## Service boundary
+
+    This service owns **profiles only**: names, identity document, contact
+    details, avatar, activation state and the academic record. It never stores
+    passwords, password hashes or verification tokens, and it issues no tokens.
+    Credentials belong to the Auth API.
+
+    The two services are joined by the account id: the `id` of a profile here is
+    the `sub` claim of the tokens the Auth API signs.
+
+    ## Authentication
+
+    Every public-facing endpoint expects `Authorization: Bearer <accessToken>`,
+    validated at the gateway against the Auth API JWKS. `POST /internal/users`
+    is the single exception: it is service-to-service and uses the
+    `X-Internal-Token` header instead.
+
+    ## Roles
+
+    | Role | Reach |
+    |---|---|
+    | `ROLE_GUEST` | **Nothing here.** A guest is a visitor holding a day pass, with no account behind it — the campus map is all such a token opens. |
+    | `ROLE_STUDENT` | Own profile only. |
+    | `ROLE_PROFESSOR` | Own profile only. |
+    | `ROLE_ADMIN` | Own profile plus the whole directory and activation state. |
+
+    Every operation states the roles it accepts. Authorization is enforced
+    server side; the role a client reads from its token is only a hint for
+    hiding interface it cannot reach.
+
+    ## Guests have no academic record
+
+    `academic` is `null` for every `ROLE_GUEST` profile: a guest has no student
+    code, no program and no pensum. Clients must handle the null branch rather
+    than assuming the object is present. Both a student and a guest example are
+    attached to every operation that returns a profile.
+
+    ## Conventions
+
+    - Academic period strings across KApp match `^\d{4}[12]$`, where the
+      trailing digit is the semester: `"20262"` is 2026 semester 2. No field in
+      this service carries a period; the format applies to the course and
+      assignment services that read these profiles.
+    - Program code `506` is Ingeniería de Sistemas; pensum `1015` is its
+      current pensum version.
+    - Errors share the `ApiError` shape across every KApp service.
+
+    ## Mocking
+
+    This document is served by Prism. Operations that carry more than one named
+    example return the first by default; ask for a specific one with the
+    `Prefer: example=guest` request header.
+  contact:
+    name: K-Forge
+    url: https://github.com/K-Forge
+
+servers:
+  - url: http://localhost:8080
+    description: Local API gateway
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Profile
+    description: Self-service access to the authenticated user's own profile.
+  - name: Administration
+    description: Directory and activation management. Restricted to `ROLE_ADMIN`.
+  - name: Internal
+    description: Service-to-service endpoints, unreachable from outside the Docker network.
+
+paths:
+  /api/users/me:
+    get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
+      operationId: getMyProfile
+      summary: Get the authenticated user's profile
+      description: |
+        Returns the profile of the account the bearer token belongs to,
+        resolved from the token's `sub` claim. No user id is accepted in the
+        request, so one account can never read another through this path.
+
+        **Access: every authenticated role except `ROLE_GUEST`** — `ROLE_STUDENT`,
+        `ROLE_PROFESSOR` and `ROLE_ADMIN` reach their own profile here.
+
+        `ROLE_GUEST` is refused with `403`. It used to be allowed, when a guest was an account
+        whose `academic` block was null. A guest is now a visitor holding a day pass: there is
+        no account, the token's subject is `visitor:<pass id>`, and this endpoint could only
+        ever have answered `404`.
+      tags: [Profile]
+      responses:
+        '200':
+          description: The authenticated user's profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+              examples:
+                student:
+                  summary: Student, full academic record
+                  value:
+                    id: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+                    email: pepito.perez@konradlorenz.edu.co
+                    firstName: Pepito
+                    lastName: Perez Gomez
+                    identification:
+                      type: CC
+                      number: '1032456789'
+                    phone: '+573105551234'
+                    avatarUrl: https://cdn.kapp.konradlorenz.edu.co/avatars/3f8a1c2e.jpg
+                    role: ROLE_STUDENT
+                    active: true
+                    academic:
+                      studentCode: '506999999'
+                      programCode: '506'
+                      pensumCode: '1015'
+                      currentLevel: 6
+                guest:
+                  summary: Guest, no academic record
+                  value:
+                    id: c41d7b90-2e63-4a18-9f52-6b0d3ac71e84
+                    email: maria.rodriguez@gmail.com
+                    firstName: Pepita
+                    lastName: Rodríguez Peña
+                    identification: null
+                    phone: null
+                    avatarUrl: null
+                    role: ROLE_GUEST
+                    active: true
+                    academic: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    patch:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
+      operationId: updateMyProfile
+      summary: Update the authenticated user's profile
+      description: |
+        Partially updates the caller's own profile. Only the fields present in
+        the body are touched; omitting a field leaves it unchanged.
+
+        **Access: any authenticated role.** The target is always the token's
+        `sub`, so no one can edit another account here.
+
+        Editable: `firstName`, `lastName`, `phone`, `avatarUrl`,
+        `identification`, `academic`.
+
+        **Not editable here.** `email` is owned by the Auth API and changing it
+        would break the credential link. `role` and `active` are administrative
+        and are only changed through the endpoints under `/api/users`. Sending
+        `email`, `role`, `active` or `id` is rejected with `400` rather than
+        being silently dropped, so a client that round-trips a full profile
+        object gets a clear error instead of a surprise.
+
+        Rejected with `400`: an empty body, an `academic` object on a
+        `ROLE_GUEST` account, and any field that fails its own constraints.
+
+        **Access: every authenticated role except `ROLE_GUEST`**, for the reason above.
+        `identification` and `academic` may be set to `null` to clear them.
+      tags: [Profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfileUpdate'
+            examples:
+              contactDetails:
+                summary: Update contact details only
+                value:
+                  phone: '+573105551234'
+                  avatarUrl: https://cdn.kapp.konradlorenz.edu.co/avatars/3f8a1c2e.jpg
+              fullProfile:
+                summary: Complete a student profile
+                value:
+                  firstName: Pepito
+                  lastName: Perez Gomez
+                  phone: '+573105551234'
+                  avatarUrl: https://cdn.kapp.konradlorenz.edu.co/avatars/3f8a1c2e.jpg
+                  identification:
+                    type: CC
+                    number: '1032456789'
+                  academic:
+                    studentCode: '506999999'
+                    programCode: '506'
+                    pensumCode: '1015'
+                    currentLevel: 6
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+              examples:
+                student:
+                  summary: Student, full academic record
+                  value:
+                    id: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+                    email: pepito.perez@konradlorenz.edu.co
+                    firstName: Pepito
+                    lastName: Perez Gomez
+                    identification:
+                      type: CC
+                      number: '1032456789'
+                    phone: '+573105551234'
+                    avatarUrl: https://cdn.kapp.konradlorenz.edu.co/avatars/3f8a1c2e.jpg
+                    role: ROLE_STUDENT
+                    active: true
+                    academic:
+                      studentCode: '506999999'
+                      programCode: '506'
+                      pensumCode: '1015'
+                      currentLevel: 6
+                guest:
+                  summary: Guest, no academic record
+                  value:
+                    id: c41d7b90-2e63-4a18-9f52-6b0d3ac71e84
+                    email: maria.rodriguez@gmail.com
+                    firstName: Pepita
+                    lastName: Rodríguez Peña
+                    identification: null
+                    phone: '+573208889977'
+                    avatarUrl: null
+                    role: ROLE_GUEST
+                    active: true
+                    academic: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/users:
+    get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
+      operationId: listUsers
+      summary: List and search user profiles
+      description: |
+        Returns a page of profiles from the directory, newest account first.
+
+        **Access: `ROLE_ADMIN` only.** Any other authenticated role receives
+        `403`. This is the only endpoint that exposes accounts other than the
+        caller's own, which is why it is restricted.
+
+        Filters combine with AND: `role`, `active` and `q` narrow the same
+        result set. Omitting all three lists every account.
+      tags: [Administration]
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Zero-based page index.
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            default: 0
+            example: 0
+        - name: size
+          in: query
+          required: false
+          description: Profiles per page. Values above 100 are rejected with `400`.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+        - name: role
+          in: query
+          required: false
+          description: Return only accounts holding this role.
+          schema:
+            type: string
+            enum: [ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
+            example: ROLE_STUDENT
+        - name: active
+          in: query
+          required: false
+          description: |
+            Return only active (`true`) or only deactivated (`false`) accounts.
+            Omit to return both.
+          schema:
+            type: boolean
+            example: true
+        - name: q
+          in: query
+          required: false
+          description: |
+            Free-text search, case and accent insensitive, matched as a partial
+            against first name, last name and e-mail.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+            example: vargas
+      responses:
+        '200':
+          description: A page of profiles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse'
+              example:
+                content:
+                  - id: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+                    email: pepito.perez@konradlorenz.edu.co
+                    firstName: Pepito
+                    lastName: Perez Gomez
+                    identification:
+                      type: CC
+                      number: '1032456789'
+                    phone: '+573105551234'
+                    avatarUrl: https://cdn.kapp.konradlorenz.edu.co/avatars/3f8a1c2e.jpg
+                    role: ROLE_STUDENT
+                    active: true
+                    academic:
+                      studentCode: '506999999'
+                      programCode: '506'
+                      pensumCode: '1015'
+                      currentLevel: 6
+                  - id: c41d7b90-2e63-4a18-9f52-6b0d3ac71e84
+                    email: maria.rodriguez@gmail.com
+                    firstName: Pepita
+                    lastName: Rodríguez Peña
+                    identification: null
+                    phone: null
+                    avatarUrl: null
+                    role: ROLE_GUEST
+                    active: true
+                    academic: null
+                page: 0
+                size: 20
+                totalElements: 2
+                totalPages: 1
+                first: true
+                last: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/users/{userId}:
+    get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
+      operationId: getUserById
+      summary: Get a user profile by id
+      description: |
+        Returns a single profile by account id.
+
+        **Access: `ROLE_ADMIN` only.** Other roles receive `403` even when the
+        id is their own; they read their profile through `GET /api/users/me`.
+
+        Returns `404` when no account carries that id. A well-formed but unknown
+        UUID is a `404`, not a `400`.
+      tags: [Administration]
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200':
+          description: The requested profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+              examples:
+                student:
+                  summary: Student, full academic record
+                  value:
+                    id: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+                    email: pepito.perez@konradlorenz.edu.co
+                    firstName: Pepito
+                    lastName: Perez Gomez
+                    identification:
+                      type: CC
+                      number: '1032456789'
+                    phone: '+573105551234'
+                    avatarUrl: https://cdn.kapp.konradlorenz.edu.co/avatars/3f8a1c2e.jpg
+                    role: ROLE_STUDENT
+                    active: true
+                    academic:
+                      studentCode: '506999999'
+                      programCode: '506'
+                      pensumCode: '1015'
+                      currentLevel: 6
+                guest:
+                  summary: Guest, no academic record
+                  value:
+                    id: c41d7b90-2e63-4a18-9f52-6b0d3ac71e84
+                    email: maria.rodriguez@gmail.com
+                    firstName: Pepita
+                    lastName: Rodríguez Peña
+                    identification: null
+                    phone: null
+                    avatarUrl: null
+                    role: ROLE_GUEST
+                    active: true
+                    academic: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/{userId}/status:
+    patch:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
+      operationId: setUserStatus
+      summary: Activate or deactivate a user
+      description: |
+        Flips the activation flag of an account. Deactivation is a logical
+        delete: the profile is kept for audit and academic history, and the
+        account can no longer sign in.
+
+        **This writes to two services.** The profile here stops being listed as
+        active, and the User API calls
+        `PATCH /internal/credentials/{userId}/status` on the Auth API to suspend
+        the credential — because whether somebody may sign in is decided there,
+        not here. The credential is changed first, so a failure part-way leaves
+        the account locked out rather than listed as inactive while its owner
+        can still log in. If the Auth API cannot be reached, this call fails and
+        nothing changes.
+
+        **A token already issued stays valid until it expires.** Nothing revokes
+        one; deactivation stops the next one being issued. That is inherent to
+        stateless JWTs and it is why the access-token lifetime is an hour.
+
+        **Access: `ROLE_ADMIN` only.** Other roles receive `403`.
+
+        The call is idempotent: setting `active` to the value it already holds
+        succeeds and returns the unchanged profile, writing nothing on either
+        side. Returns `404` when no account carries that id.
+      tags: [Administration]
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserStatusUpdate'
+            example:
+              active: false
+      responses:
+        '200':
+          description: Profile after the status change
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+              example:
+                id: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+                email: pepito.perez@konradlorenz.edu.co
+                firstName: Pepito
+                lastName: Perez Gomez
+                identification:
+                  type: CC
+                  number: '1032456789'
+                phone: '+573105551234'
+                avatarUrl: https://cdn.kapp.konradlorenz.edu.co/avatars/3f8a1c2e.jpg
+                role: ROLE_STUDENT
+                active: false
+                academic:
+                  studentCode: '506999999'
+                  programCode: '506'
+                  pensumCode: '1015'
+                  currentLevel: 6
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /internal/users:
+    post:
+      # Not role-protected: reachable only from inside the compose network, with the
+      # shared internal token, and it has no gateway route at all.
+      x-roles: [SERVICE_ONLY]
+      operationId: upsertInternalUser
+      summary: Create or update a profile from another service
+      description: |
+        Service-to-service endpoint. The Auth API calls it during registration
+        to materialise the profile that matches a freshly created credential
+        record.
+
+        **Not reachable from outside.** The API gateway does not route
+        `/internal/**`; the path exists only on the user-service port inside the
+        Docker network. A request arriving at the gateway for this path gets a
+        `404` from the gateway itself and never reaches this service. Do not
+        build any client against it — no web, Kotlin or Swift client should ever
+        call it.
+
+        **Access: `X-Internal-Token` header only.** No bearer token is involved
+        and no user role applies. The token is a shared secret injected as an
+        environment variable in both services. A missing or wrong token gives
+        `401`.
+
+        **Idempotent upsert keyed by e-mail.** A first call creates the profile;
+        a repeated call with the same e-mail updates the existing one and
+        returns it. Both return `200`, never `201`, and there is no `409`, so a
+        retry after a network timeout is always safe and the registration flow
+        can be replayed without creating duplicates.
+
+        The `id` in the response is the profile identifier the Auth API stores
+        and puts in the `sub` claim of every token it signs for this account.
+
+        `academic` must be `null` for `ROLE_GUEST` and must be present for
+        `ROLE_STUDENT`; a mismatch is rejected with `400`.
+      tags: [Internal]
+      security:
+        - internalToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InternalUserUpsert'
+            examples:
+              student:
+                summary: Student created by institutional registration
+                value:
+                  email: pepito.perez@konradlorenz.edu.co
+                  firstName: Pepito
+                  lastName: Perez Gomez
+                  role: ROLE_STUDENT
+                  academic:
+                    studentCode: '506999999'
+                    programCode: '506'
+                    pensumCode: '1015'
+                    currentLevel: 1
+              guest:
+                summary: Guest profile, created by an administrator
+                value:
+                  email: maria.rodriguez@gmail.com
+                  firstName: Pepita
+                  lastName: Rodríguez Peña
+                  role: ROLE_GUEST
+                  academic: null
+      responses:
+        '200':
+          description: Profile created or updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+              examples:
+                student:
+                  summary: Student, full academic record
+                  value:
+                    id: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+                    email: pepito.perez@konradlorenz.edu.co
+                    firstName: Pepito
+                    lastName: Perez Gomez
+                    identification: null
+                    phone: null
+                    avatarUrl: null
+                    role: ROLE_STUDENT
+                    active: true
+                    academic:
+                      studentCode: '506999999'
+                      programCode: '506'
+                      pensumCode: '1015'
+                      currentLevel: 1
+                guest:
+                  summary: Guest, no academic record
+                  value:
+                    id: c41d7b90-2e63-4a18-9f52-6b0d3ac71e84
+                    email: maria.rodriguez@gmail.com
+                    firstName: Pepita
+                    lastName: Rodríguez Peña
+                    identification: null
+                    phone: null
+                    avatarUrl: null
+                    role: ROLE_GUEST
+                    active: true
+                    academic: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    internalToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Token
+      description: |
+        Shared secret for service-to-service calls inside the Docker network,
+        injected as an environment variable in both the Auth and User services.
+        It is not a JWT, it carries no user identity and it is never handed to a
+        client application.
+
+  parameters:
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      description: Account identifier, shared with the Auth API as the token `sub` claim.
+      schema:
+        type: string
+        format: uuid
+        example: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+
+  schemas:
+    ApiError:
+      type: object
+      required: [timestamp, status, error, message, path]
+      properties:
+        timestamp:
+          description: >-
+            When the service produced this error, in UTC. Not when the request was sent.
+          type: string
+          format: date-time
+        status:
+          description: >-
+            The HTTP status, repeated in the body so a logged response is self-contained.
+          type: integer
+          example: 400
+        error:
+          description: >-
+            The status's standard name - `Bad Request`, `Conflict`. For developers, not for users.
+          type: string
+          example: Bad Request
+        message:
+          description: >-
+            One sentence a person can act on. This is the line worth surfacing in a UI.
+          type: string
+        path:
+          description: >-
+            The path that produced the error, so a log line identifies itself.
+          type: string
+        details:
+          description: >-
+            Field-by-field reasons, when there are any. `field` names what was wrong and `issue` says what
+            about it - this is what a form binds its per-field errors to.
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              issue: { type: string }
+
+    Identification:
+      type: object
+      description: Colombian identity document. Null until the user fills it in.
+      required: [type, number]
+      properties:
+        type:
+          type: string
+          enum: [CC, TI, CE, PASAPORTE]
+          description: |
+            Document class: `CC` cédula de ciudadanía, `TI` tarjeta de
+            identidad, `CE` cédula de extranjería, `PASAPORTE` passport.
+          example: CC
+        number:
+          type: string
+          minLength: 5
+          maxLength: 20
+          description: |
+            Document number as printed, kept as a string so leading zeros and
+            passport letters survive.
+          example: '1032456789'
+
+    AcademicInfo:
+      type: object
+      description: |
+        Academic record of a member of the university. **Null for every
+        `ROLE_GUEST` account**: a guest has no student code, no program and no
+        pensum.
+      required: [studentCode, programCode, pensumCode, currentLevel]
+      properties:
+        studentCode:
+          type: string
+          pattern: '^\d{6,20}$'
+          description: University student code.
+          example: '506999999'
+        programCode:
+          type: string
+          pattern: '^\d{1,10}$'
+          description: Academic program code. `506` is Ingeniería de Sistemas.
+          example: '506'
+        pensumCode:
+          type: string
+          pattern: '^\d{1,10}$'
+          description: |
+            Pensum version the student is bound to. Students who enrolled
+            under an earlier pensum keep their original pensum, so this is
+            not derivable from the program alone.
+          example: '1015'
+        currentLevel:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 12
+          description: Semester the student is currently enrolled in.
+          example: 6
+
+    UserProfile:
+      type: object
+      description: |
+        A KApp user profile. Contains no credential data.
+
+        Two fields are nullable by design. `identification` is null until the
+        user completes their profile. `academic` is null for every guest and
+        populated for every member of the university, so clients must branch on
+        it rather than assume it is present.
+      required: [id, email, firstName, lastName, identification, phone, avatarUrl, role, active, academic]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: |
+            Account identifier, shared with the Auth API. It is the `sub` claim
+            of every token issued for this account.
+          example: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          description: |
+            Address the account authenticates with. Institutional accounts use
+            `@konradlorenz.edu.co`, guests may use any domain. Read-only here;
+            it is owned by the Auth API.
+          example: pepito.perez@konradlorenz.edu.co
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Pepito
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Perez Gomez
+        identification:
+          description: Identity document, or null while the user has not supplied one.
+          oneOf:
+            - $ref: '#/components/schemas/Identification'
+            - type: 'null'
+        phone:
+          type: [string, 'null']
+          maxLength: 16
+          pattern: '^\+[1-9]\d{1,14}$'
+          description: Contact number in E.164 form, or null.
+          example: '+573105551234'
+        avatarUrl:
+          type: [string, 'null']
+          format: uri
+          maxLength: 500
+          description: Profile picture URL, or null when the user has not uploaded one.
+          example: https://cdn.kapp.konradlorenz.edu.co/avatars/3f8a1c2e.jpg
+        role:
+          type: string
+          enum: [ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
+          description: |
+            Single role held by the account. Read-only here; it is assigned at
+            registration and changed only by the registrar.
+          example: ROLE_STUDENT
+        active:
+          type: boolean
+          description: |
+            False after an administrative deactivation. A deactivated account
+            keeps its profile for audit but cannot use the platform.
+          example: true
+        academic:
+          description: |
+            Academic record, or **null for guests**. Always null when `role` is
+            `ROLE_GUEST`.
+          oneOf:
+            - $ref: '#/components/schemas/AcademicInfo'
+            - type: 'null'
+      example:
+        id: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+        email: pepito.perez@konradlorenz.edu.co
+        firstName: Pepito
+        lastName: Perez Gomez
+        identification:
+          type: CC
+          number: '1032456789'
+        phone: '+573105551234'
+        avatarUrl: https://cdn.kapp.konradlorenz.edu.co/avatars/3f8a1c2e.jpg
+        role: ROLE_STUDENT
+        active: true
+        academic:
+          studentCode: '506999999'
+          programCode: '506'
+          pensumCode: '1015'
+          currentLevel: 6
+
+    UserProfileUpdate:
+      type: object
+      description: |
+        Partial profile update. Every field is optional; only what is sent is
+        changed. At least one field must be present.
+
+        `email`, `role`, `active` and `id` are not accepted: sending any of them
+        is rejected with `400`.
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Pepito
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Perez Gomez
+        phone:
+          type: [string, 'null']
+          maxLength: 16
+          pattern: '^\+[1-9]\d{1,14}$'
+          description: Contact number in E.164 form. Send null to clear it.
+          example: '+573105551234'
+        avatarUrl:
+          type: [string, 'null']
+          format: uri
+          maxLength: 500
+          description: Profile picture URL. Send null to clear it.
+          example: https://cdn.kapp.konradlorenz.edu.co/avatars/3f8a1c2e.jpg
+        identification:
+          description: Identity document. Send null to clear it.
+          oneOf:
+            - $ref: '#/components/schemas/Identification'
+            - type: 'null'
+        academic:
+          description: |
+            Academic record. Rejected with `400` on a `ROLE_GUEST` account,
+            which has no academic record by definition.
+          oneOf:
+            - $ref: '#/components/schemas/AcademicInfo'
+            - type: 'null'
+
+    UserStatusUpdate:
+      type: object
+      description: Activation flag change. Administrative use only.
+      required: [active]
+      properties:
+        active:
+          type: boolean
+          description: |
+            `true` restores platform access, `false` performs a logical delete
+            that keeps the profile but revokes access.
+          example: false
+
+    InternalUserUpsert:
+      type: object
+      description: |
+        Profile creation payload sent by the Auth API during registration.
+        Matched against an existing profile by `email`, so repeated calls
+        update rather than duplicate.
+      required: [email, firstName, lastName, role, academic]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          description: |
+            Natural key of the upsert. Must match the credential record in the
+            Auth API.
+          example: pepito.perez@konradlorenz.edu.co
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Pepito
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Perez Gomez
+        role:
+          type: string
+          enum: [ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
+          description: Role decided by the Auth API from the invitation code.
+          example: ROLE_STUDENT
+        academic:
+          description: |
+            Academic record for a member of the university. Must be `null` when
+            `role` is `ROLE_GUEST`.
+          oneOf:
+            - $ref: '#/components/schemas/AcademicInfo'
+            - type: 'null'
+
+    PageResponse:
+      type: object
+      description: |
+        One page of user profiles. Page indexes are zero-based, so `page: 0` is
+        the first page and `first` is true there.
+      required: [content, page, size, totalElements, totalPages, first, last]
+      properties:
+        content:
+          type: array
+          description: Profiles in this page. Empty when the filters match nothing.
+          items:
+            $ref: '#/components/schemas/UserProfile'
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Zero-based index of this page.
+          example: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+          description: Page size requested. The last page may hold fewer items.
+          example: 20
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Profiles matching the filters across every page.
+          example: 2
+        totalPages:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Number of pages available. Zero when nothing matches.
+          example: 1
+        first:
+          type: boolean
+          description: True when `page` is 0.
+          example: true
+        last:
+          type: boolean
+          description: True when this is the final page.
+          example: true
+
+  responses:
+    BadRequest:
+      description: Validation failed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Unauthorized:
+      description: Missing or invalid token
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Forbidden:
+      description: Authenticated but not allowed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    NotFound:
+      description: Resource not found
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Conflict:
+      description: Conflicts with current state
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }

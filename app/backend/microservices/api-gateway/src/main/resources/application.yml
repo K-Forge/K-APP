@@ -1,0 +1,95 @@
+server:
+  port: ${SERVER_PORT:8080}
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      # Routes are declared in GatewayConfig, not here.
+      #
+      # The Eureka discovery locator is intentionally NOT enabled. Turning it on
+      # auto-publishes every registered service at /{service-id}/**, which bypasses the
+      # explicit route table and would expose the /internal/** endpoints. That was
+      # finding S4 in docs/SECURITY-AUDIT.md. The default is off; keep it that way.
+      httpclient:
+        connect-timeout: 5000
+        response-timeout: 10s
+
+kapp:
+  cors:
+    # Explicit allow-list, replacing the previous wildcard (finding S3).
+    # 4300 is the admin portal's container (compose `dev` profile), 4200 is that same
+    # app under `pnpm start`, 5173 is Vite. Native mobile clients are not browsers and
+    # are not subject to CORS at all, so this list only ever grows for web surfaces.
+    #
+    # A missing entry here fails in a way that looks like the backend is down: the
+    # browser blocks the request before it is sent, so the client reports a network
+    # error rather than a status code.
+    allowed-origins: ${KAPP_CORS_ORIGINS:http://localhost:4300,http://localhost:4200,http://localhost:5173}
+  rate-limit:
+    # In-memory, single instance. See AuthRateLimitFilter before adding a second one.
+    auth-attempts-per-minute: ${KAPP_AUTH_RATE_LIMIT:10}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
+    enabled: ${EUREKA_ENABLED:true}
+  instance:
+    prefer-ip-address: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      default:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10000
+        permitted-number-of-calls-in-half-open-state: 3
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # `gateway` is deliberately omitted: it lists every route and filter, which is
+        # reconnaissance material. Re-enable it locally when debugging routing.
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      # Was `always`, which leaked component details to anonymous callers.
+      show-details: never
+
+springdoc:
+  api-docs:
+    # Left ENABLED even though the gateway exposes no API of its own. Turning it off also
+    # removes /v3/api-docs/swagger-config, which is where the Swagger UI reads the list of
+    # services below - the page then loads its shell and shows nothing, with no error.
+    # The gateway's own generated document is empty and harmless.
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    # One dropdown entry per service. Declared explicitly rather than using springdoc's
+    # gateway auto-discovery, which is fragile against the reactive gateway.
+    urls:
+      - name: auth-service
+        url: /auth/v3/api-docs
+      - name: user-service
+        url: /users/v3/api-docs
+      - name: semaphore-service
+        url: /semaphore/v3/api-docs
+      - name: schedule-service
+        url: /schedule/v3/api-docs
+      - name: map-service
+        url: /map/v3/api-docs
+
+logging:
+  level:
+    # Was DEBUG for both, which is finding S6: verbose request logging in a default
+    # profile writes headers and paths into logs nobody is rotating.
+    org.springframework.cloud.gateway: ${GATEWAY_LOG_LEVEL:INFO}
+    co.edu.konradlorenz.kapp: ${KAPP_LOG_LEVEL:INFO}

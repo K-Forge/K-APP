@@ -83,6 +83,9 @@ Severity reflects the impact if this configuration were deployed as-is on a reac
 | S7 | Low | JWT stored in `localStorage`, no refresh or revocation. |
 | S8 | Informational | HS512 key length requirement is undocumented outside this audit. |
 | S9 | Informational | Sample data ships a known password and its hash. |
+| S10 | High | MongoDB ran without authentication; database separation was a convention, not a rule. **Resolved.** |
+| S11 | Moderate | Development accounts hold `ROLE_ADMIN` and two invitation codes ship in the repository. **Partly closed** — the seeded codes are deactivated and the portal now requires `ROLE_ADMIN`. |
+| S12 | Moderate | The visitor day pass stores identity documents, which are personal data under Ley 1581. **Built, with a 30-day retention enforced by the database. Dirección de TI has not yet been told.** |
 
 ### H1 — Credentials readable in git history (High)
 
@@ -230,7 +233,7 @@ signs with `SignatureAlgorithm.HS512`.
 
 **Note.** JJWT requires at least a 64-byte key for HS512 and throws `WeakKeyException` at runtime otherwise. The
 gateway must be configured with the exact same secret. This requirement is documented in
-[`.env.example`](../.env.example).
+[`.env.example`](../app/backend/microservices/.env.example).
 
 ### S9 — Sample data credentials (Informational)
 
@@ -240,6 +243,168 @@ gateway must be configured with the exact same secret. This requirement is docum
 and the file is labeled as development-only in the README.
 
 ---
+
+### S10 — MongoDB ran without authentication (High) — RESOLVED
+
+**Evidence** — the `mongo` container started with no `--auth`, and all the services connected with
+`mongodb://mongo:27017/<database>` and no credentials. Any process that could reach port 27017
+inside the compose network could read and write every database.
+
+**Impact.** The anteproyecto claims *"servicios independientes, con base de datos propia"*. That was
+true of the code — there is no cross-database access anywhere in it — but it was not true of the
+system: nothing stopped a bug, or a future service, from reading another's data. A convention the
+code respects is not an isolation boundary.
+
+**Resolution** (commits `7f85cb8`, `b967597`). `mongod` runs with `--auth` and a keyFile generated
+on first start. Each service has its own account with `readWrite` on exactly one database, created
+inside that database so the database is also its `authSource` — a leaked connection string opens
+one database and names no others. `scripts/verify-db-isolation.sh` proves it: 25 checks, each of the
+five accounts reaching its own database and refused on the other four.
+
+**What this does not cover.** Atlas, once the development cluster exists, stores its users in
+`admin` rather than in the database they can reach. The privilege scoping is the same; the
+connection strings differ, and `docs/ATLAS-SETUP.md` says how.
+
+### S11 — Development accounts and seeded invitation codes (Moderate) — OPEN BY DECISION
+
+**Evidence** — `scripts/create-dev-accounts.sh` creates four accounts holding `ROLE_ADMIN`.
+`V002_InvitationCodes` seeds `KL-20262-STUDENT` and `KL-20262-STAFF`, both readable by anyone who
+can read this public repository.
+
+**Impact.** Anyone who can reach the API and read the repository can create a student or professor
+account. The four development accounts can do anything.
+
+**Why it stands.** The stack runs on one laptop behind Docker, with no route from outside and no
+real data. The team is six people building the thing, and a role split between them now would cost
+more than it protects.
+
+**Closed on 6 September 2026, when the databases moved to a shared cluster and the portal became
+reachable over Tailscale.** Two of the three were done then, and the reason is worth recording
+because the chain was not obvious:
+
+An invitation code creates an account **for the mobile app** — that is what it is for, and the
+role it grants is the point of it. But the admin portal's route guard asked only for a *valid*
+token, not for `ROLE_ADMIN`. So a public code plus an open `/auth/register` meant anyone who
+could reach the gateway could create a student account and land inside the administration
+console, seeing a navigation with Users, Invitation codes and Visitor passes on it.
+
+Demonstrated rather than reasoned about: an account was registered from the tailnet address and
+signed in successfully. The API held — every administrative call answered `403`, including the
+visitor register that holds identity documents — so nothing leaked. But a console full of
+screens that answer "forbidden" is not a boundary; it is a boundary that happens to hold.
+
+- **Both seeded codes are now `active: false`** in the shared cluster, so no account can be
+  created at all. Re-enable one, or mint a fresh code, from the portal when the mobile app needs
+  registration to work.
+- **The portal's guard requires `ROLE_ADMIN`**, and says so when it refuses rather than bouncing
+  silently to a sign-in page the user just used successfully. It is a client-side check and not
+  a security control — the control is the `@PreAuthorize` on each endpoint — but it stops the
+  console from being *shown* to somebody who is not an administrator.
+
+**What has to happen before it is reachable from outside** — all three, not one of them:
+
+1. Revoke both seeded codes in a new Mongock change unit (`active: false`) and mint real per-intake
+   codes through `POST /auth/admin/invitation-codes`.
+2. Re-run `scripts/create-dev-accounts.sh --recreate`, and give only the people who need it
+   `ROLE_ADMIN`.
+3. Rotate everything in `.env` — it was generated for a laptop.
+
+`ROLE_ADMIN` is already impossible to obtain through an invitation code, enforced in
+`InvitationCodeService` as well as in the contract's enum, precisely because the codes are public.
+
+### S12 — Identity documents in the visitor register (Moderate) — BUILT, ONE ACTION OUTSTANDING
+
+**What changed.** Reception issues a one-day pass; a visitor redeems it by presenting an
+identity document and receives a 24-hour token that opens the campus map and nothing else. The
+register of redemptions carries the visitor's name, document type and document number.
+
+**This changed the project's data profile.** Before this, KApp stored no institutional or
+government-issued data at all. An identity document is personal data under **Ley 1581 de 2012**
+(habeas data), which brings obligations the project did not previously have: a stated purpose, a
+retention period, and deletion when it ends.
+
+**How each is met:**
+
+- **Purpose.** Reception knowing who was in the building. Nothing else reads the register; it is
+  exposed only under `/auth/admin/visitor-passes` and only to `ROLE_ADMIN`.
+- **Retention: 30 days**, enforced by a MongoDB TTL index on `purgeAt`
+  (`V003_VisitorPassIndexes`). The database deletes the document itself. A scheduled task in
+  the service could do the same and would be worse: it stops when the service is down, when
+  somebody disables it, or when it throws — and personal data quietly outstaying its retention
+  is precisely the failure nobody notices until they are asked to prove it did not happen.
+- **Minimisation.** The document number is deliberately absent from log lines. The register has
+  a retention period; a log line has none. No account is created, so nothing outlives the visit.
+
+**Replaced.** Open guest registration (`POST /auth/register/guest`) is gone. It accepted any
+e-mail address, created a real account for somebody who was on campus for an afternoon, and left
+it behind forever. Its authorization-matrix entry was kept and inverted — the endpoint must now
+be *refused* for every role — because a path that used to be public and is now gone is exactly
+what a later change re-opens by accident.
+
+**Still outstanding — this one is not a code change.** The technical summary shared with Gabriel
+Cruz Parra (Dirección de TI) says KApp stores no institutional records. That stopped being
+accurate the day this shipped. They should hear it from us, with the retention period, rather
+than find it.
+
+### S13 — "Deactivate" did not remove access (High) — RESOLVED
+
+**Found by using the portal, not by reading it.** The Users screen offers Deactivate, and its
+own copy calls it "the reversible way to take access away". It was not. It flipped `active` on
+the profile in user-service, which decides how a row is drawn in a listing and nothing else.
+
+Sign-in is decided by the credential in auth-service, and `Credential.canSignIn()` refuses only
+`Status.SUSPENDED`. Nothing in the product ever set `SUSPENDED` — the value appeared in exactly
+one place in the whole repository, a test fixture. A deactivated person kept signing in, kept
+receiving tokens with their roles intact, and kept full access to every endpoint. The contract
+said so too: `PATCH /api/users/{userId}/status` claimed the account's "tokens stop being
+honoured".
+
+**Why it survived review.** Both halves were individually correct. user-service owns profiles
+and flipped its flag; auth-service owns sign-in and refuses suspended credentials. Nothing
+joined them, and no test could catch it, because a test of either service in isolation passes.
+It is visible only end to end, from the button.
+
+**The fix.** `UserProfileService.setActive` now calls
+`PATCH /internal/credentials/{userId}/status` on auth-service, over the same `X-Internal-Token`
+channel that registration already uses in the other direction, and the credential goes **first**:
+if the profile write then fails, the account is already locked out, and a retry finishes the job.
+The reverse order would leave a profile marked inactive whose owner could still sign in, which is
+the state this replaced. These are separate databases, so there is no transaction — the order is
+the only safety there is. If auth-service cannot be reached the whole call fails and nothing
+changes.
+
+**What it does not do.** It does not revoke a token already issued. That is inherent to stateless
+JWTs: a suspended account keeps whatever it is holding until it expires, which is at most an
+hour. Shortening that window further, or adding a revocation list, is a trade against every
+request paying for a lookup. An hour is the decision, and it is now stated in both contracts
+rather than implied.
+
+**One thing deliberately left.** Reactivation restores `ACTIVE` rather than the status the
+account held before it was suspended. Storing the previous one needs a field and a migration,
+and the only case it protects — an account suspended while its e-mail was unverified coming back
+verified — is an administrator's own decision either way. It starts to matter the day
+`KAPP_REQUIRE_EMAIL_VERIFICATION` is turned on. Note it there.
+
+### S14 — An administrator may deactivate another administrator, but not themselves (Moderate) — DECIDED
+
+Deactivating an account genuinely removes access now (S13), and there is no create-user path in
+the portal by design: accounts are born from registration. That made the question real, and the
+answer is deliberately asymmetric.
+
+**Another administrator: allowed.** Four people are building this and any of them may need to
+shut an account down without waiting for whoever owns it to be awake. A portal where nobody can
+revoke anybody is not safer, it just moves the emergency into MongoDB.
+
+**Yourself: refused.** Not a policy question — an accident. Your own row sits in the same table
+as everybody else's, one tap away on a phone, and the consequence is being locked out of the
+only tool that could let you back in. The button is disabled on your own row and says why;
+`UsersPage.isSelf` and its tests pin it.
+
+**What this deliberately does not do** is stop the last administrator being switched off by
+somebody else. Guarding that means counting active administrators on every status change, in a
+service that does not own the credential and cannot see the roles without asking auth-service —
+a query on a hot path to prevent a case that four people who sit together will not hit. The way
+back, if it ever happens, is `scripts/create-dev-accounts.sh --recreate`.
 
 ## 4. Architectural notes
 

@@ -1,131 +1,503 @@
-version: "3.8"
+# KApp backend - local orchestration.
+#
+# Nothing here is a production deployment: it is the seven-container stack that has to
+# fit on a 16 GB laptop next to Xcode and Android Studio, plus the Prism mocks that let
+# the mobile team work before any JVM exists.
+#
+# Profiles (never run all seven unless you mean to):
+#
+#   docker compose --profile mock      up -d   # Prism mocks only. No Mongo, no JVM.
+#   docker compose --profile core      up -d   # mongo, discovery, gateway, auth, user
+#   docker compose --profile academic  up -d   # core + semaphore + schedule
+#   docker compose --profile map       up -d   # core + map
+#   docker compose --profile full      up -d   # everything, mocks included
+#
+# The shared services (mongo, discovery-server, api-gateway, auth-service, user-service)
+# list every non-mock profile, so any of `core`/`academic`/`map`/`full` brings them up.
+# That is deliberate: it keeps `depends_on` inside the set of services the activated
+# profile actually starts, which is the case Compose refuses to resolve otherwise.
+#
+# Published host ports:
+#
+#   8080         api-gateway   the only JVM port on the host - see the note below
+#   27017        mongo         local debugging only
+#   4010-4014    Prism mocks   auth, user, semaphore, schedule, map (in that order)
+#
+# `version:` is intentionally absent - the Compose Specification dropped it and v2 warns.
 
-# Database is hosted on Neon (cloud PostgreSQL)
-# Environment variables PGHOST, PGDATABASE, PGUSER, PGPASSWORD, PGSSLMODE must be set
+name: kapp
 
 services:
-  # Discovery Server (Eureka)
+  # ---------------------------------------------------------------------------------
+  # MongoDB - SINGLE-NODE REPLICA SET, not standalone.
+  #
+  # A standalone mongod cannot start a session with a transaction number, so every
+  # @Transactional service method fails at RUNTIME with
+  #   "Transaction numbers are only allowed on a replica set member or mongos"
+  # There is no startup warning; the stack looks healthy until the first write.
+  #
+  # 7.0 is the floor: mongo 4.x and 5.x publish no linux/arm64 image, so on an Apple
+  # Silicon Mac they run under qemu emulation - slow, and prone to hanging on startup.
+  # ---------------------------------------------------------------------------------
+  mongo:
+    image: mongo:7.0
+    container_name: kapp-mongo
+    profiles: ["core", "academic", "map", "full"]
+    # Auth on a replica set requires a keyFile for internal member authentication - even
+    # with a single member, where there is no member-to-member traffic. The file must be
+    # mode 400 and owned by mongod's user, which a host bind mount cannot guarantee, so it
+    # is generated inside the container on the config volume: same lifecycle as the data,
+    # so `down -v` clears both and they never disagree.
+    #
+    # Without MONGO_ROOT_PASSWORD the container starts unauthenticated, exactly as before.
+    # Refusing to boot would strand anyone who has not pulled the new .env.
+    entrypoint:
+      - bash
+      - -c
+      - |
+        set -e
+        KEYFILE=/data/configdb/kapp-keyfile
+        BASE="--replSet rs0 --bind_ip_all --wiredTigerCacheSizeGB 1"
+        if [ -n "$${MONGO_ROOT_PASSWORD:-}" ]; then
+          if [ ! -s "$$KEYFILE" ]; then
+            openssl rand -base64 756 > "$$KEYFILE"
+          fi
+          chmod 400 "$$KEYFILE"
+          chown mongodb:mongodb "$$KEYFILE"
+          exec docker-entrypoint.sh mongod $$BASE --auth --keyFile "$$KEYFILE"
+        fi
+        echo "MONGO_ROOT_PASSWORD is unset - starting WITHOUT authentication"
+        exec docker-entrypoint.sh mongod $$BASE
+    environment:
+      # Read by mongo-init/rs-init.js, which provisions one user per service database.
+      MONGO_ROOT_USER: ${MONGO_ROOT_USER:-kapp_root}
+      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-}
+      MONGO_AUTH_PASSWORD: ${MONGO_AUTH_PASSWORD:-}
+      MONGO_USER_PASSWORD: ${MONGO_USER_PASSWORD:-}
+      MONGO_SEMAPHORE_PASSWORD: ${MONGO_SEMAPHORE_PASSWORD:-}
+      MONGO_SCHEDULE_PASSWORD: ${MONGO_SCHEDULE_PASSWORD:-}
+      MONGO_MAP_PASSWORD: ${MONGO_MAP_PASSWORD:-}
+    ports:
+      # Host-side debugging with Compass/mongosh only; nothing in the stack uses it.
+      # The replica set member is registered as `mongo:27017`, a name that does not
+      # resolve on the host, so host clients must pin the connection:
+      #   mongodb://localhost:27017/?directConnection=true
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+      - ./mongo-init:/scripts:ro
+    # 1 GB cache + overhead. Raising this without raising wiredTigerCacheSizeGB is
+    # pointless; lowering it below the cache gets the container OOM-killed.
+    mem_limit: 1500m
+    healthcheck:
+      # This does double duty: it initiates the replica set on first boot and only
+      # reports healthy once the node is actually PRIMARY. A plain `ping` would pass
+      # while the set was still uninitialised, and every service would start, connect,
+      # and then fail on its first transaction.
+      test: ["CMD", "mongosh", "--quiet", "--file", "/scripts/rs-init.js"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 20s
+    networks: [kapp]
+
+  # ---------------------------------------------------------------------------------
+  # Eureka. No host port: the registry is an internal concern, and exposing it hands
+  # anyone on the LAN a map of the internal topology.
+  # ---------------------------------------------------------------------------------
   discovery-server:
     build:
-      context: ./discovery-server
-      dockerfile: Dockerfile
+      # Context is the REACTOR ROOT for every service - the parent pom and the Maven
+      # wrapper live here, not in the service directory. See user-service/Dockerfile.
+      context: .
+      dockerfile: discovery-server/Dockerfile
+    image: kapp/discovery-server:local
     container_name: kapp-discovery
-    ports:
-      - "8761:8761"
-    networks:
-      - kapp-network
+    profiles: ["core", "academic", "map", "full", "cloud"]
+    mem_limit: 512m
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      # The images are Alpine JRE - there is no curl, only BusyBox wget.
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8761/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      # Spring Boot on a laptop with seven containers competing for CPU needs 30-60s.
+      # A short start_period marks the container unhealthy before it has finished boot
+      # and takes the whole dependency chain down with it.
+      start_period: 60s
+    networks: [kapp]
 
-  # API Gateway
+  # ---------------------------------------------------------------------------------
+  # The ONLY service published to the host. Everything else talks over the `kapp`
+  # network by service name.
+  #
+  # Security finding S1: the previous compose published 8081-8085, so any client could
+  # address a service directly and skip the gateway's authentication and rate limiting
+  # entirely. Unpublishing those ports is half the fix; the other half is the services
+  # validating the JWT themselves.
+  # ---------------------------------------------------------------------------------
   api-gateway:
     build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    image: kapp/api-gateway:local
     container_name: kapp-gateway
+    profiles: ["core", "academic", "map", "full", "cloud"]
     ports:
       - "8080:8080"
     environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      SERVER_PORT: 8080
+      EUREKA_URI: http://discovery-server:8761/eureka/
+      EUREKA_ENABLED: "true"
+      KAPP_CORS_ORIGINS: ${KAPP_CORS_ORIGINS:-http://localhost:4300,http://localhost:4200,http://localhost:5173}
+      KAPP_LOG_LEVEL: ${KAPP_LOG_LEVEL:-INFO}
     depends_on:
       discovery-server:
         condition: service_healthy
-    networks:
-      - kapp-network
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks: [kapp]
 
-  # Auth Service
+  # ---------------------------------------------------------------------------------
+  # auth-service - signs RS256 access tokens and publishes the public half at
+  # /.well-known/jwks.json, which every other service reads. It has no host port: it is
+  # reached through the gateway.
+  # ---------------------------------------------------------------------------------
   auth-service:
     build:
-      context: ./auth-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: auth-service/Dockerfile
+    image: kapp/auth-service:local
     container_name: kapp-auth
-    ports:
-      - "8081:8081"
+    profiles: ["core", "academic", "map", "full", "cloud"]
     environment:
-      - PGHOST=${PGHOST}
-      - PGDATABASE=${PGDATABASE}
-      - PGUSER=${PGUSER}
-      - PGPASSWORD=${PGPASSWORD}
-      - PGSSLMODE=${PGSSLMODE:-require}
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      SERVER_PORT: 8081
+      # Whole connection string in one variable so the same compose file serves an
+      # unauthenticated local Mongo, an authenticated one, and Atlas. The default is the
+      # unauthenticated local case; .env overrides it with credentials or a cloud host.
+      MONGODB_URI: ${MONGO_AUTH_URI:-mongodb://mongo:27017/kapp_auth?replicaSet=rs0}
+      # Points at itself - auth-service validates the tokens it issues.
+      KAPP_JWKS_URI: http://auth-service:8081/.well-known/jwks.json
+      EUREKA_URI: http://discovery-server:8761/eureka/
+      EUREKA_ENABLED: "true"
+      KAPP_LOG_LEVEL: ${KAPP_LOG_LEVEL:-INFO}
+      # Blank is allowed: auth-service then generates an ephemeral RS256 pair and warns.
+      # That is fine for a laptop and wrong everywhere else - a restart invalidates every
+      # token already issued, including the ones in the mobile clients' keychains.
+      KAPP_JWT_PRIVATE_KEY: ${KAPP_JWT_PRIVATE_KEY:-}
+      KAPP_JWT_PUBLIC_KEY: ${KAPP_JWT_PUBLIC_KEY:-}
+      # The default is deliberately not secret-shaped. `${VAR:?}` would be stricter, but
+      # Compose interpolates the whole file before it filters by profile, so a required
+      # variable here would also stop `--profile mock` - the one path that is supposed to
+      # need no setup at all. An obviously-invalid placeholder is the compromise: it is
+      # unmistakable in a log or a deployed config. Set the real value in .env.
+      KAPP_INTERNAL_TOKEN: ${KAPP_INTERNAL_TOKEN:-CHANGE_ME_UNSET_INTERNAL_TOKEN}
+
+      # Registration gating. Only this domain may use /auth/register; guests are
+      # unrestricted and land on ROLE_GUEST.
+      KAPP_ALLOWED_EMAIL_DOMAINS: ${KAPP_ALLOWED_EMAIL_DOMAINS:-konradlorenz.edu.co,kforge.dev}
+
+      # Off by default because there is no SMTP relay yet, and registration is the front
+      # door of the product: requiring an e-mail nobody can send would block the four
+      # mobile developers and every tester. Accounts are created ACTIVE, while
+      # emailVerified stays false because nothing was actually verified.
+      # Turn this on the moment mail works.
+      KAPP_REQUIRE_EMAIL_VERIFICATION: ${KAPP_REQUIRE_EMAIL_VERIFICATION:-false}
+      KAPP_VERIFICATION_LINK_BASE: ${KAPP_VERIFICATION_LINK_BASE:-http://localhost:8080/auth/verify}
+
+      # Leave SPRING_MAIL_HOST blank and verification e-mails are written to the log
+      # instead of sent, which is what makes the flag above safe to turn on locally.
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
     depends_on:
+      mongo:
+        # Not service_started: Spring Data opens a connection during context refresh,
+        # and a mongod that is up but not yet PRIMARY fails writes.
+        condition: service_healthy
+        # required:false so --profile cloud, which starts no local Mongo, does not fail the
+        # whole project on a dependency that is deliberately absent.
+        required: false
       discovery-server:
         condition: service_healthy
-    networks:
-      - kapp-network
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8081/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks: [kapp]
 
-  # User Service
   user-service:
     build:
-      context: ./user-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: user-service/Dockerfile
+    image: kapp/user-service:local
     container_name: kapp-user
-    ports:
-      - "8082:8082"
+    profiles: ["core", "academic", "map", "full", "cloud"]
     environment:
-      - PGHOST=${PGHOST}
-      - PGDATABASE=${PGDATABASE}
-      - PGUSER=${PGUSER}
-      - PGPASSWORD=${PGPASSWORD}
-      - PGSSLMODE=${PGSSLMODE:-require}
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      SERVER_PORT: 8082
+      MONGODB_URI: ${MONGO_USER_URI:-mongodb://mongo:27017/kapp_user?replicaSet=rs0}
+      KAPP_JWKS_URI: http://auth-service:8081/.well-known/jwks.json
+      EUREKA_URI: http://discovery-server:8761/eureka/
+      EUREKA_ENABLED: "true"
+      KAPP_LOG_LEVEL: ${KAPP_LOG_LEVEL:-INFO}
+      # Shared secret guarding POST /internal/users, which auth-service calls during
+      # registration. Both sides must hold the same value.
+      KAPP_INTERNAL_TOKEN: ${KAPP_INTERNAL_TOKEN:-CHANGE_ME_UNSET_INTERNAL_TOKEN}
     depends_on:
+      mongo:
+        condition: service_healthy
+        # required:false so --profile cloud, which starts no local Mongo, does not fail the
+        # whole project on a dependency that is deliberately absent.
+        required: false
       discovery-server:
         condition: service_healthy
-    networks:
-      - kapp-network
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8082/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks: [kapp]
 
-  # Course Service
-  course-service:
+  # ---------------------------------------------------------------------------------
+  # Academic profile. Someone working on the semaphore does not need the map running.
+  # ---------------------------------------------------------------------------------
+  semaphore-service:
     build:
-      context: ./course-service
-      dockerfile: Dockerfile
-    container_name: kapp-course
-    ports:
-      - "8083:8083"
+      context: .
+      dockerfile: semaphore-service/Dockerfile
+    image: kapp/semaphore-service:local
+    container_name: kapp-semaphore
+    profiles: ["academic", "full", "cloud"]
     environment:
-      - PGHOST=${PGHOST}
-      - PGDATABASE=${PGDATABASE}
-      - PGUSER=${PGUSER}
-      - PGPASSWORD=${PGPASSWORD}
-      - PGSSLMODE=${PGSSLMODE:-require}
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      SERVER_PORT: 8083
+      MONGODB_URI: ${MONGO_SEMAPHORE_URI:-mongodb://mongo:27017/kapp_semaphore?replicaSet=rs0}
+      KAPP_JWKS_URI: http://auth-service:8081/.well-known/jwks.json
+      EUREKA_URI: http://discovery-server:8761/eureka/
+      EUREKA_ENABLED: "true"
+      KAPP_LOG_LEVEL: ${KAPP_LOG_LEVEL:-INFO}
     depends_on:
+      mongo:
+        condition: service_healthy
+        # required:false so --profile cloud, which starts no local Mongo, does not fail the
+        # whole project on a dependency that is deliberately absent.
+        required: false
       discovery-server:
         condition: service_healthy
-      user-service:
-        condition: service_started
-    networks:
-      - kapp-network
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8083/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks: [kapp]
 
-  # Assignment Service
-  assignment-service:
+  schedule-service:
     build:
-      context: ./assignment-service
-      dockerfile: Dockerfile
-    container_name: kapp-assignment
-    ports:
-      - "8084:8084"
+      context: .
+      dockerfile: schedule-service/Dockerfile
+    image: kapp/schedule-service:local
+    container_name: kapp-schedule
+    profiles: ["academic", "full", "cloud"]
     environment:
-      - PGHOST=${PGHOST}
-      - PGDATABASE=${PGDATABASE}
-      - PGUSER=${PGUSER}
-      - PGPASSWORD=${PGPASSWORD}
-      - PGSSLMODE=${PGSSLMODE:-require}
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      SERVER_PORT: 8084
+      MONGODB_URI: ${MONGO_SCHEDULE_URI:-mongodb://mongo:27017/kapp_schedule?replicaSet=rs0}
+      KAPP_JWKS_URI: http://auth-service:8081/.well-known/jwks.json
+      EUREKA_URI: http://discovery-server:8761/eureka/
+      EUREKA_ENABLED: "true"
+      KAPP_LOG_LEVEL: ${KAPP_LOG_LEVEL:-INFO}
     depends_on:
+      mongo:
+        condition: service_healthy
+        # required:false so --profile cloud, which starts no local Mongo, does not fail the
+        # whole project on a dependency that is deliberately absent.
+        required: false
       discovery-server:
         condition: service_healthy
-      user-service:
-        condition: service_started
-      course-service:
-        condition: service_started
-    networks:
-      - kapp-network
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8084/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks: [kapp]
+
+  map-service:
+    build:
+      context: .
+      dockerfile: map-service/Dockerfile
+    image: kapp/map-service:local
+    container_name: kapp-map
+    profiles: ["map", "full", "cloud"]
+    environment:
+      SERVER_PORT: 8085
+      MONGODB_URI: ${MONGO_MAP_URI:-mongodb://mongo:27017/kapp_map?replicaSet=rs0}
+      KAPP_JWKS_URI: http://auth-service:8081/.well-known/jwks.json
+      EUREKA_URI: http://discovery-server:8761/eureka/
+      EUREKA_ENABLED: "true"
+      KAPP_LOG_LEVEL: ${KAPP_LOG_LEVEL:-INFO}
+    depends_on:
+      mongo:
+        condition: service_healthy
+        # required:false so --profile cloud, which starts no local Mongo, does not fail the
+        # whole project on a dependency that is deliberately absent.
+        required: false
+      discovery-server:
+        condition: service_healthy
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8085/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks: [kapp]
+
+  # ---------------------------------------------------------------------------------
+  # Prism mock servers, one per published OpenAPI contract.
+  #
+  # This is the whole point of the `mock` profile: four mobile developers can build
+  # against the real contracts on day one with no JVM, no Mongo and no build. Prism
+  # serves the examples in the spec, so the shapes are the ones the services will
+  # return. Keep them out of every other profile so `--profile mock` stays JVM-free.
+  #
+  # The specs live at the REPO ROOT (docs/api), three levels above this file, and are
+  # mounted read-only - the contracts are owned elsewhere and must not be edited here.
+  # Prism listens on 4010 inside each container; the host ports differ per service:
+  #
+  #   4010 auth   4011 user   4012 semaphore   4013 schedule   4014 map
+  # ---------------------------------------------------------------------------------
+  mock-auth:
+    image: stoplight/prism:4
+    # stoplight/prism publishes linux/amd64 only, so this runs under Rosetta on Apple
+    # Silicon. Stating the platform keeps Docker from warning on every `up`; a Node
+    # process serving canned examples is not something emulation makes slow enough to
+    # notice. Declared per service because Compose has no file-level default.
+    platform: linux/amd64
+    container_name: kapp-mock-auth
+    profiles: ["mock", "full"]
+    command: mock -h 0.0.0.0 /specs/auth.openapi.yaml
+    ports:
+      - "4010:4010"
+    volumes:
+      - ../../../docs/api:/specs:ro
+    mem_limit: 256m
+    networks: [kapp]
+
+  mock-user:
+    image: stoplight/prism:4
+    # linux/amd64 only - see the note on mock-auth.
+    platform: linux/amd64
+    container_name: kapp-mock-user
+    profiles: ["mock", "full"]
+    command: mock -h 0.0.0.0 /specs/user.openapi.yaml
+    ports:
+      - "4011:4010"
+    volumes:
+      - ../../../docs/api:/specs:ro
+    mem_limit: 256m
+    networks: [kapp]
+
+  mock-semaphore:
+    image: stoplight/prism:4
+    # linux/amd64 only - see the note on mock-auth.
+    platform: linux/amd64
+    container_name: kapp-mock-semaphore
+    profiles: ["mock", "full"]
+    command: mock -h 0.0.0.0 /specs/semaphore.openapi.yaml
+    ports:
+      - "4012:4010"
+    volumes:
+      - ../../../docs/api:/specs:ro
+    mem_limit: 256m
+    networks: [kapp]
+
+  mock-schedule:
+    image: stoplight/prism:4
+    # linux/amd64 only - see the note on mock-auth.
+    platform: linux/amd64
+    container_name: kapp-mock-schedule
+    profiles: ["mock", "full"]
+    command: mock -h 0.0.0.0 /specs/schedule.openapi.yaml
+    ports:
+      - "4013:4010"
+    volumes:
+      - ../../../docs/api:/specs:ro
+    mem_limit: 256m
+    networks: [kapp]
+
+  mock-map:
+    image: stoplight/prism:4
+    # linux/amd64 only - see the note on mock-auth.
+    platform: linux/amd64
+    container_name: kapp-mock-map
+    profiles: ["mock", "full"]
+    command: mock -h 0.0.0.0 /specs/map.openapi.yaml
+    ports:
+      - "4014:4010"
+    volumes:
+      - ../../../docs/api:/specs:ro
+    mem_limit: 256m
+    networks: [kapp]
+
+  # ---------------------------------------------------------------------------------
+  # web-admin - the internal admin/dev portal (Angular), containerised so nobody has to run
+  # `pnpm install` to use it. Its own profile, not part of `core`/`academic`/`map`/`full`: it is
+  # a frontend tool a developer opts into, not a backend dependency anything else here needs.
+  #
+  #   docker compose --profile dev up -d
+  #
+  # Host port 4300: 8080, 8761, 27017 and 4010-4014 are already taken in this file, and 4200 is
+  # what `pnpm start` binds for local development of the portal itself - a distinct port lets the
+  # containerised portal and a local `pnpm start` run side by side instead of one having to be
+  # stopped to try the other.
+  # ---------------------------------------------------------------------------------
+  web-admin:
+    build:
+      # Context is the REPO ROOT, not app/frontend/web-admin - see the note atop its Dockerfile.
+      # The build needs docs/api (bundled as JSON at build time for the API console and role
+      # inspector), the same specs the Prism mocks above read.
+      context: ../../..
+      dockerfile: app/frontend/web-admin/Dockerfile
+    image: kapp/web-admin:local
+    container_name: kapp-web-admin
+    profiles: ["dev"]
+    ports:
+      - "4300:80"
+    healthcheck:
+      # 127.0.0.1, not localhost: this custom server block only listens on IPv4, and Alpine's
+      # resolver tries the ::1 (IPv6) loopback first, so `localhost` reliably fails here even
+      # though nginx is up and answering fine - a real gotcha the backend services don't hit
+      # because their JRE images resolve `localhost` differently.
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks: [kapp]
+
+volumes:
+  # Named, so `docker compose down` keeps the data. Only `down -v` discards it - which
+  # is also the way to recover from a replica set that was initiated with a stale
+  # member hostname.
+  mongo-data:
+  # Holds the generated keyFile. Same lifecycle as mongo-data on purpose: a keyFile that
+  # outlived its data, or the reverse, would leave the node unable to start.
+  mongo-config:
 
 networks:
-  kapp-network:
+  kapp:
     driver: bridge

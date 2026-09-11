@@ -1,0 +1,1249 @@
+openapi: 3.1.0
+
+info:
+  title: KApp Auth API
+  version: 0.1.0
+  summary: Credential and token service for the KApp platform.
+  description: |
+    Authentication service for KApp, the mobile application of Fundación
+    Universitaria Konrad Lorenz built by the K-Forge club.
+
+    ## Service boundary
+
+    This service owns **credentials only**: e-mail, password hash, e-mail
+    verification state and role assignment. It never stores or returns profile
+    data (identification document, phone, avatar, academic record). Profile data
+    belongs to the User API and is created there through the internal upsert
+    endpoint that this service calls during registration.
+
+    ## Tokens
+
+    Access tokens are JWTs signed with **RS256**. The public half of the signing
+    key is published at `/.well-known/jwks.json`; every other KApp service
+    validates incoming tokens against that document instead of sharing a secret.
+    Send the token as `Authorization: Bearer <accessToken>`.
+
+    Token claims: `sub` (user id), `email`, `roles`, `iss`, `iat`, `exp`.
+
+    ## Roles
+
+    | Role | Granted by |
+    |---|---|
+    | `ROLE_GUEST` | Guest registration. May only read the campus map. |
+    | `ROLE_STUDENT` | Institutional registration with a student intake code. |
+    | `ROLE_PROFESSOR` | Institutional registration with a staff invitation code. |
+    | `ROLE_ADMIN` | Assigned manually by the registrar, never through signup. |
+
+    ## Deliberately deferred past the MVP
+
+    **Refresh tokens and logout are out of scope for this contract.** Access
+    tokens are short lived (one hour) and there is no refresh endpoint, no token
+    revocation list and no `POST /auth/logout`. Clients must treat a `401` as
+    "send the user back to the login screen" and must clear the token locally on
+    sign-out. Both flows are on the roadmap and will be added as a minor version
+    of this specification; do not design client state around their absence being
+    permanent.
+
+    ## Conventions
+
+    - Institutional accounts must use the `@konradlorenz.edu.co` domain.
+    - Academic period strings across KApp match `^\d{4}[12]$`, where the trailing
+      digit is the semester: `"20262"` is 2026 semester 2. No field in this
+      service carries a period, but invitation codes are minted per period.
+    - Errors share the `ApiError` shape across every KApp service.
+  contact:
+    name: K-Forge
+    url: https://github.com/K-Forge
+
+servers:
+  - url: http://localhost:8080
+    description: Local API gateway
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Registration
+    description: Account creation for institutional members.
+  - name: Authentication
+    description: Credential exchange for access tokens.
+  - name: Verification
+    description: E-mail ownership confirmation.
+  - name: Discovery
+    description: Public key material consumed by the other KApp services.
+  - name: Visitor passes
+    description: |
+      One-day passes reception issues to visitors. A pass is a token, not an account: no
+      e-mail, no password, nothing that outlives the visit.
+  - name: Health
+    description: Liveness probe.
+
+paths:
+  /auth/register:
+    post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
+      operationId: registerInstitutionalUser
+      summary: Register an institutional account
+      description: |
+        Creates a credential record for a member of the university and asks the
+        User API to create the matching profile.
+
+        Public endpoint: no token required.
+
+        Rules enforced:
+
+        - `email` must end in one of the configured domains — `@konradlorenz.edu.co`
+          for institutional accounts, `@kforge.dev` for the team's own development
+          ones. Any other domain is rejected with `400`. **There is no guest
+          registration**: a visitor redeems a day pass instead, which creates no
+          account at all.
+        - `invitationCode` is mandatory and is what decides the role. A student
+          intake code yields `ROLE_STUDENT`, a staff code yields
+          `ROLE_PROFESSOR`. An unknown, spent or expired code is rejected with
+          `400`. `ROLE_ADMIN` is never granted through this endpoint.
+        - The account is created with `emailVerified: false` and a verification
+          e-mail is sent. Login is refused until the address is confirmed.
+      tags: [Registration]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+            example:
+              email: pepito.perez@konradlorenz.edu.co
+              password: ExamplePassword123
+              firstName: Pepito
+              lastName: Perez Gomez
+              invitationCode: KL-7K2M-QX9P
+              studentCode: '506999999'
+              programCode: '506'
+      responses:
+        '201':
+          description: Account created, verification e-mail sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationResponse'
+              example:
+                userId: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+                email: pepito.perez@konradlorenz.edu.co
+                emailVerified: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/login:
+    post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
+      operationId: login
+      summary: Exchange credentials for an access token
+      description: |
+        Verifies the e-mail and password pair and returns a signed RS256 access
+        token together with the roles the client should use to shape its
+        navigation.
+
+        Public endpoint: no token required.
+
+        Outcomes:
+
+        - `200` credentials valid and the address is verified.
+        - `401` unknown e-mail or wrong password. The message is intentionally
+          identical for both so the response does not reveal which accounts
+          exist.
+        - `403` credentials are valid but the address has not been confirmed
+          yet. Clients should route the user to the "resend verification"
+          screen.
+
+        There is no refresh token. When `expiresIn` elapses the client must
+        prompt for credentials again.
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: pepito.perez@konradlorenz.edu.co
+              password: ExamplePassword123
+      responses:
+        '200':
+          description: Authentication succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                accessToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImthcHAtYXV0aC0yMDI2LTA4In0.eyJzdWIiOiIzZjhhMWMyZS03YjRkLTRlNWEtOWM2Zi0yZDFiOGUwYTRjNzMiLCJlbWFpbCI6ImJyaWFuLnZhcmdhc2NAa29ucmFkbG9yZW56LmVkdS5jbyIsInJvbGVzIjpbIlJPTEVfU1RVREVOVCJdLCJpc3MiOiJodHRwczovL2F1dGgua2FwcC5rb25yYWRsb3JlbnouZWR1LmNvIiwiaWF0IjoxNzg3NjU0NDAwLCJleHAiOjE3ODc2NTgwMDB9.Yx3nQK1pV9sM0bZrT8uLf2Hc7EjWd5AoXgN4iRySlPvCmUt6BqDkJhZ0wF3xO9aInGe1rMcT7yUvKpL5dQsRb2WjXhA8fZoNmE4gCtIuYlBvPkSxDqMrH6JaWnTcOe0
+                tokenType: Bearer
+                expiresIn: 3600
+                userId: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+                roles: [ROLE_STUDENT]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /auth/verify:
+    post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
+      operationId: verifyEmail
+      summary: Confirm an e-mail address
+      description: |
+        Consumes the single-use token delivered in the verification e-mail and
+        marks the address as confirmed. After a successful call the account can
+        log in.
+
+        Public endpoint: no token required. The `token` in the body is the
+        verification token from the e-mail link, not a JWT access token.
+
+        The token is single use: replaying it returns `400`, same as an expired
+        or malformed one. Clients should treat `400` as "ask the user to request
+        a new link" and call `POST /auth/verify/resend`.
+      tags: [Verification]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationRequest'
+            example:
+              token: 8f14e45fceea167a5a36dedd4bea2543c1e9b1f0a7d24c5e
+      responses:
+        '204':
+          description: Address confirmed, no content returned
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /auth/verify/resend:
+    post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
+      operationId: resendVerificationEmail
+      summary: Request a new verification e-mail
+      description: |
+        Issues a fresh verification token and sends it to the address supplied.
+
+        Public endpoint: no token required.
+
+        This endpoint **always answers `202`**, whether or not an account with
+        that address exists and whether or not it was already verified. That is
+        deliberate: a per-address distinction would turn this into an account
+        enumeration oracle. Clients must show the same neutral confirmation in
+        every case and must never infer account existence from the response.
+
+        Any previously issued verification token for the account is invalidated.
+      tags: [Verification]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+            example:
+              email: pepito.perez@konradlorenz.edu.co
+      responses:
+        '202':
+          description: Request accepted, delivery is not confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedResponse'
+              example:
+                message: If an account exists for that address, a verification e-mail has been sent.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /.well-known/jwks.json:
+    get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
+      operationId: getJwks
+      summary: Fetch the JSON Web Key Set
+      description: |
+        Publishes the public half of the RS256 signing keys as a JWKS document.
+
+        Public endpoint: no token required, and it is exposed unauthenticated on
+        purpose. Every other KApp service (gateway, user, course, assignment)
+        fetches this document, caches it by `kid`, and uses it to validate the
+        signature of incoming access tokens. No service holds the private key
+        and no shared secret is distributed.
+
+        More than one key may be present during a rotation: the retiring key
+        stays published until the last token signed with it has expired. Consumers
+        must select the key whose `kid` matches the token header rather than
+        assuming a single entry.
+      tags: [Discovery]
+      security: []
+      responses:
+        '200':
+          description: Current key set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Jwks'
+              example:
+                keys:
+                  - kty: RSA
+                    use: sig
+                    kid: kapp-auth-2026-08
+                    alg: RS256
+                    n: mHp-KSSSE9O4r6gDSwaRoc8JtkAbCpAKTYyMttr-LD2ZEwr87Dd87N7VuW-Jg5upl7m_ikT3DW00G5-Gly7MF9sDOl8aZxDzB9tGTwMiR32jAVQEFLJR4ibqeqNxLHv77kDdaVDbp_mtjJno8UBp7DThJouSyUE2DEaQAdXDMUyXG5DHqpd4aUJYesZpNU91bkQBakdHEhFhKvU2_GLH5jiF-C-jGQxRo0Ev130SDQGDQGMlFTuzfZ7iFrkBiXD91cUxyPxM54Ww5-lNkkt_mIwuf0uwcNbmMUm0Vv_99S_lDMwDEvlCz4gno2ywvLIVaKvXKfoFy6rbO5rqQlSDhw
+                    e: AQAB
+
+  /auth/health:
+    get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
+      operationId: getAuthHealth
+      summary: Report service liveness
+      description: |
+        Liveness probe used by Docker Compose, the Eureka registry and the
+        gateway circuit breaker.
+
+        Public endpoint: no token required. It reports only whether the service
+        process is answering; it deliberately exposes no build, dependency or
+        database detail.
+      tags: [Health]
+      security: []
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              example:
+                status: UP
+
+  /auth/admin/invitation-codes:
+    get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
+      operationId: listInvitationCodes
+      summary: List invitation codes
+      description: |
+        Requires `ROLE_ADMIN`. Invitation codes are what gate institutional registration, so
+        being able to see which exist, how many uses each has left and which are still active
+        is the difference between managing access and guessing at it.
+      tags: [Invitation codes]
+      parameters:
+        - name: active
+          in: query
+          required: false
+          schema: { type: boolean }
+          description: >-
+            Filter by whether the code can still be redeemed **right now**, which is
+            narrower than its `active` flag: `true` returns codes that are active, not
+            expired and not spent, and `false` returns every code failing any one of
+            those. Omit it to list all codes. A code with `active: true` that has used
+            all of `maxUses` is therefore returned by `active=false`.
+      responses:
+        '200':
+          description: The codes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvitationCode'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
+      operationId: createInvitationCode
+      summary: Create an invitation code
+      description: |
+        Requires `ROLE_ADMIN`. The role a code grants is fixed at creation. `ROLE_ADMIN` is
+        never grantable this way: an administrator must be promoted deliberately, or anyone
+        holding a code could escalate.
+      tags: [Invitation codes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationCodeRequest'
+      responses:
+        '201':
+          description: The created code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationCode'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/admin/invitation-codes/{code}:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        schema: { type: string, maxLength: 40 }
+        example: KL-7K2M-QX9P
+    patch:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
+      operationId: updateInvitationCode
+      summary: Activate or deactivate an invitation code
+      description: |
+        Requires `ROLE_ADMIN`. Deactivating is the reversible way to stop a code being
+        redeemed, and it keeps the record of who used it.
+      tags: [Invitation codes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active]
+              properties:
+                active: { type: boolean }
+              additionalProperties: false
+      responses:
+        '200':
+          description: The updated code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationCode'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
+      operationId: deleteInvitationCode
+      summary: Delete an invitation code
+      description: |
+        Requires `ROLE_ADMIN`. Prefer deactivating: deleting a code that has already been
+        redeemed discards the only record of how those accounts were created.
+      tags: [Invitation codes]
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
+  /auth/visitor-passes/{code}/redeem:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        description: The code reception read out to the visitor.
+        schema:
+          type: string
+          maxLength: 20
+        example: KL-V-7K2M-QX9P
+    post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: []          # public - no token required
+      operationId: redeemVisitorPass
+      summary: Redeem a visitor day pass
+      description: |
+        Exchanges a pass for a token valid for **24 hours** that opens the campus map and
+        nothing else.
+
+        Public, necessarily: a visitor has no account and nothing to authenticate with. The
+        code *is* the credential, which is why it is single-use, stops being redeemable 12
+        hours after it was issued, and is rate-limited at the gateway alongside `/auth/login`.
+
+        The returned token carries `ROLE_GUEST` and no other role. That is not a special
+        visitor permission — it is the role every other service already refuses everywhere
+        but the map, so "map only" is the authorization matrix the services enforce rather
+        than a second mechanism that could drift away from it. The `sub` claim is
+        `visitor:<pass id>`, not a user id, and there is no `email` claim: there is no
+        account behind it.
+
+        **The identity document is required.** The pass exists so reception has a record of
+        who was in the building; redeemed anonymously it would be an account with extra
+        steps. That record is personal data under Ley 1581 de 2012 and is **deleted
+        automatically 30 days** after redemption.
+      tags: [Visitor passes]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisitorPassRedemptionRequest'
+            example:
+              documentType: CC
+              documentNumber: "1032456789"
+              visitorName: Pepita Perez
+      responses:
+        '200':
+          description: A 24-hour, map-only access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                accessToken: eyJhbGciOiJSUzI1NiIsImtpZCI6ImthcHAtMjAyNjA5In0...
+                tokenType: Bearer
+                expiresIn: 86400
+                userId: visitor:9c1f0a72-4b3e-4d51-8a20-77e1b2c9d640
+                roles: [ROLE_GUEST]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: No such code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: |
+            The pass cannot be redeemed. `details[0].issue` distinguishes the two cases —
+            `already-redeemed` or `expired` — so the app can say "ese pase ya se usó" rather
+            than a generic failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '429':
+          description: Rate limited, as on the other credential endpoints.
+
+  /auth/admin/visitor-passes:
+    get:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
+      operationId: listVisitorPasses
+      summary: Read the visitor register
+      description: |
+        Requires `ROLE_ADMIN`. Newest first.
+
+        **This returns personal data**: visitors' names and identity documents. That is the
+        point of a register, and the reason it exists nowhere else in the API. Records are
+        deleted automatically 30 days after redemption.
+      tags: [Visitor passes]
+      parameters:
+        - name: redeemed
+          in: query
+          required: false
+          description: Filter to passes that have, or have not, been used.
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: The register
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VisitorPass'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
+      operationId: createVisitorPass
+      summary: Issue a visitor day pass
+      description: |
+        Requires `ROLE_ADMIN`. Returns a code to read out to the visitor.
+
+        The code avoids `I`, `O`, `0` and `1`: it is read aloud across a counter and typed by
+        somebody who has never seen it written down.
+
+        Redeemable for 12 hours. Once redeemed the visitor has 24 hours of map-only access.
+      tags: [Visitor passes]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisitorPassRequest'
+            example:
+              notes: Feria de programas, auditorio
+      responses:
+        '201':
+          description: The pass, with the code to hand over
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisitorPass'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /auth/admin/visitor-passes/{code}:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 20
+        example: KL-V-7K2M-QX9P
+    delete:
+      # Authorization as the code enforces it, not as prose describes it.
+      x-roles: [ROLE_ADMIN]
+      operationId: deleteVisitorPass
+      summary: Revoke an unredeemed pass
+      description: |
+        Requires `ROLE_ADMIN`.
+
+        `409` for a pass that has already been redeemed. That row is no longer a pass, it is
+        the record of a visit, and a register reception could quietly edit is not a register.
+        It leaves on its own after 30 days.
+      tags: [Visitor passes]
+      responses:
+        '204':
+          description: Revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No such code.
+        '409':
+          description: Already redeemed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /internal/credentials/{userId}/status:
+    # POST rather than PATCH, though a partial update is what it is: Feign's default client is
+    # java.net.HttpURLConnection, which refuses PATCH outright. One caller, no public contract,
+    # so the verb gives way rather than the dependency list.
+    post:
+      # Not role-protected: reachable only from inside the compose network, with the
+      # shared internal token, and it has no gateway route at all.
+      x-roles: [SERVICE_ONLY]
+      operationId: setCredentialStatus
+      summary: Allow or refuse sign-in for an account
+      description: |
+        Service-to-service endpoint. The User API calls it when an administrator
+        deactivates or reactivates an account, because whether somebody may sign
+        in is decided here while the profile flag lives there.
+
+        Before this endpoint existed, "deactivate" wrote `active = false` on the
+        profile and nothing else. Sign-in only ever refuses a `SUSPENDED`
+        credential, and nothing in the product ever set `SUSPENDED` — so the
+        button claimed to remove access and the account kept working.
+
+        **Not reachable from outside.** The API gateway does not route
+        `/internal/**`; the path exists only on the auth-service port inside the
+        Docker network. Do not build any client against it — no web, Kotlin or
+        Swift client should ever call it.
+
+        **Access: `X-Internal-Token` header only.** No bearer token is involved
+        and no user role applies. A missing or wrong token gives `401`.
+
+        **A token already issued stays valid until it expires.** This stops the
+        next one being issued; it does not revoke one in flight. That is
+        inherent to stateless JWTs and it is why the access-token lifetime is an
+        hour.
+
+        Idempotent: setting the state the credential already holds answers `204`
+        and writes nothing. Restoring an account lands on `ACTIVE`, including one
+        that was suspended while its e-mail was unverified — verification is off
+        in the MVP, so every credential carries `emailVerified: false` and
+        treating that as "send it back to PENDING_VERIFICATION" would make
+        deactivation a one-way door.
+      tags: [Internal]
+      security:
+        - internalToken: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: >-
+            Account identifier, the same one the User API keys its profile on and
+            the `sub` claim of every token signed for this account.
+          schema:
+            type: string
+            format: uuid
+            example: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active]
+              properties:
+                active:
+                  type: boolean
+                  description: >-
+                    True to allow sign-in, false to suspend. Required: an absent
+                    field is a 400 rather than a silent false, because the
+                    difference between "reactivate" and "omitted" must not be a
+                    locked-out account.
+            example:
+              active: false
+      responses:
+        '204':
+          description: The credential now holds that state.
+        '400':
+          description: The `active` field was absent or not a boolean.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Missing or wrong `X-Internal-Token`.
+        '404':
+          description: >-
+            No credential carries that user id — which means the two services
+            disagree about who exists, and is surfaced rather than swallowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    internalToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Token
+      description: |
+        Shared secret for service-to-service calls inside the Docker network,
+        injected as an environment variable in both the Auth and User services.
+        It is not a JWT, it carries no user identity and it is never handed to a
+        client application.
+  schemas:
+    InvitationCode:
+      type: object
+      description: A code that permits one institutional registration, for a fixed role.
+      required: [code, role, maxUses, timesUsed, active]
+      properties:
+        code:
+          type: string
+          maxLength: 40
+          description: >-
+            Generated by the server: `KL-` then two groups of four, from an alphabet with no
+            O/0 or I/1 — the pairs people misread when a code is read out at a counter.
+          pattern: '^KL-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$'
+          example: KL-7K2M-QX9P
+        role:
+          type: string
+          enum: [ROLE_STUDENT, ROLE_PROFESSOR]
+          description: >-
+            The role a registration through this code receives. ROLE_ADMIN is deliberately
+            absent: it is granted by promotion, never by redeeming a code.
+          example: ROLE_STUDENT
+        maxUses:
+          description: >-
+            How many accounts this code may create in total, across everybody who uses it.
+          type: integer
+          minimum: 1
+          example: 200
+        timesUsed:
+          type: integer
+          minimum: 0
+          description: Incremented atomically on redemption, so it cannot exceed maxUses.
+          example: 6
+        active:
+          description: >-
+            Whether it is currently accepted. Deactivating stops redemptions while keeping the record of
+            who already used it.
+          type: boolean
+          example: true
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+          description: Null means it does not expire on its own.
+        notes:
+          description: >-
+            Free text for whoever issued it - which intake, who asked. Never shown to the person redeeming
+            it.
+          type: [string, 'null']
+          maxLength: 200
+          example: Intake for 2026-2
+
+    InvitationCodeRequest:
+      type: object
+      description: |
+        What an administrator supplies to mint a code. **The code itself is not in here** — the
+        server generates it and returns it, and a `code` sent anyway is ignored rather than
+        honoured.
+
+        A code somebody chooses is either guessable, which is the whole problem —
+        `KL-20262-STUDENT` is one guess away from `KL-20262-STAFF` — or it is unreadable, and
+        the only feedback for getting the format wrong was a `400` quoting a regular expression.
+      required: [role, maxUses]
+      properties:
+        role:
+          description: >-
+            The role a registration through this code receives. `ROLE_ADMIN` is refused.
+          type: string
+          enum: [ROLE_STUDENT, ROLE_PROFESSOR]
+          example: ROLE_STUDENT
+        maxUses:
+          description: >-
+            Total registrations this code may create. Capped at 10000: a code with no practical ceiling is
+            an open door with extra steps.
+          type: integer
+          minimum: 1
+          maximum: 10000
+          example: 200
+        expiresAt:
+          description: >-
+            When it stops being accepted. Null means it never expires on its own and has to be deactivated
+            by hand.
+          type: [string, 'null']
+          format: date-time
+        notes:
+          description: >-
+            Free text for whoever issued it. Never shown to the person redeeming it.
+          type: [string, 'null']
+          maxLength: 200
+      additionalProperties: false
+
+    ApiError:
+      type: object
+      required: [timestamp, status, error, message, path]
+      properties:
+        timestamp:
+          description: >-
+            When the service produced this error, in UTC. Not when the request was sent.
+          type: string
+          format: date-time
+        status:
+          description: >-
+            The HTTP status, repeated in the body so a logged response is self-contained.
+          type: integer
+          example: 400
+        error:
+          description: >-
+            The status's standard name - `Bad Request`, `Conflict`. For developers, not for users.
+          type: string
+          example: Bad Request
+        message:
+          description: >-
+            One sentence a person can act on. This is the line worth surfacing in a UI.
+          type: string
+        path:
+          description: >-
+            The path that produced the error, so a log line identifies itself.
+          type: string
+        details:
+          description: >-
+            Field-by-field reasons, when there are any. `field` names what was wrong and `issue` says what
+            about it - this is what a form binds its per-field errors to.
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              issue: { type: string }
+
+    RegistrationRequest:
+      type: object
+      description: |
+        Institutional signup payload. `studentCode` and `programCode` are
+        supplied for student intakes and omitted for staff invitations, so they
+        are optional; `invitationCode` is always required and determines which
+        role the account receives.
+      required: [email, password, firstName, lastName, invitationCode]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          pattern: '^[A-Za-z0-9._%+-]+@konradlorenz\.edu\.co$'
+          description: Institutional address. Must use the `@konradlorenz.edu.co` domain.
+          example: pepito.perez@konradlorenz.edu.co
+        password:
+          type: string
+          format: password
+          minLength: 10
+          maxLength: 72
+          description: |
+            Plain-text password, at least 10 characters. Stored as a BCrypt hash
+            and never returned by any endpoint. The 72 character ceiling is the
+            BCrypt input limit.
+          example: ExamplePassword123
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Given names as printed on the identity document.
+          example: Pepito
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Family names as printed on the identity document.
+          example: Perez Gomez
+        invitationCode:
+          type: string
+          minLength: 6
+          maxLength: 32
+          description: |
+            Single-use code issued by the registrar for an intake. It carries the
+            role the account will receive. Rejected with `400` when unknown,
+            already spent or expired.
+          example: KL-7K2M-QX9P
+        studentCode:
+          type: string
+          pattern: '^\d{6,20}$'
+          description: |
+            University student code. Required for student intakes, absent for
+            staff invitations.
+          example: '506999999'
+        programCode:
+          type: string
+          pattern: '^\d{1,10}$'
+          description: |
+            Academic program code the student is enrolled in. `506` is
+            Ingeniería de Sistemas.
+          example: '506'
+
+    VisitorPassRequest:
+      type: object
+      description: |
+        Everything is optional: issuing a pass at the counter should take one click.
+      properties:
+        notes:
+          type: string
+          maxLength: 200
+          description: Free text for whoever issued it — which event, which office.
+          example: Feria de programas, auditorio
+      additionalProperties: false
+
+    DocumentType:
+      type: string
+      description: |
+        The kinds of identity document a visitor may present, as used in Colombia. Stored
+        rather than inferred from the number's shape: a `TI` and a `CC` can carry the same
+        digits for the same person at different ages, and telling reception which document
+        they were shown is the point of keeping the record.
+      enum: [CC, CE, TI, PASAPORTE, PPT]
+      example: CC
+
+    VisitorPassRedemptionRequest:
+      type: object
+      description: |
+        What the visitor presents at the counter. The document is required, not optional:
+        a pass redeemed anonymously would be an account with extra steps.
+      required: [documentType, documentNumber, visitorName]
+      properties:
+        documentType:
+          $ref: '#/components/schemas/DocumentType'
+        documentNumber:
+          type: string
+          pattern: '^[A-Za-z0-9]+$'
+          minLength: 4
+          maxLength: 20
+          description: |
+            Letters and digits only — no dots or dashes, so the same document is not recorded
+            three different ways. Personal data under Ley 1581; deleted after 30 days.
+          example: "1032456789"
+        visitorName:
+          type: string
+          minLength: 1
+          maxLength: 120
+          example: Pepita Perez
+      additionalProperties: false
+
+    VisitorPass:
+      type: object
+      description: |
+        A pass as reception sees it, including who redeemed it. Returned only to
+        `ROLE_ADMIN`, and only from `/auth/admin/**`.
+      required: [code, issuedBy, createdAt, redeemableUntil, redeemed]
+      properties:
+        code:
+          description: >-
+            What reception reads out to the visitor. Grouped in fours because it is read aloud.
+          type: string
+          maxLength: 20
+          example: KL-V-7K2M-QX9P
+        issuedBy:
+          type: string
+          description: The administrator who minted it, so a pass traces back to a person.
+          example: 8f2c1d40-9a77-4e15-b3c8-2d6e05f1a9b3
+        notes:
+          description: >-
+            Free text for reception - who the visitor came to see, which event.
+          type: string
+          maxLength: 200
+          example: Feria de programas, auditorio
+        createdAt:
+          description: >-
+            When reception issued the pass - not when it was used.
+          type: string
+          format: date-time
+        redeemableUntil:
+          type: string
+          format: date-time
+          description: After this the code is dead whether or not it was used. A pass is for today.
+        redeemed:
+          type: boolean
+          description: Once true this row is the record of a visit, not an unused pass.
+        redeemedAt:
+          description: >-
+            When the visitor presented it and received their token. Null while the pass is still unused.
+          type: string
+          format: date-time
+        documentType:
+          $ref: '#/components/schemas/DocumentType'
+        documentNumber:
+          type: string
+          description: Present only once redeemed. Personal data; deleted after 30 days.
+          example: "1032456789"
+        visitorName:
+          description: >-
+            Taken from the identity document at the counter, for the register.
+          type: string
+          example: Pepita Perez
+        accessExpiresAt:
+          type: string
+          format: date-time
+          description: When the issued token stops working, 24 hours after redemption.
+        purgeAt:
+          type: string
+          format: date-time
+          description: |
+            When this whole record disappears. Enforced by a MongoDB TTL index rather than by
+            a scheduled job — a job that stops running leaves personal data sitting there,
+            and nobody notices until somebody asks.
+
+    RegistrationResponse:
+      type: object
+      description: |
+        Identity of the freshly created account. `emailVerified` is always
+        `false` here: the address is only confirmed through `POST /auth/verify`.
+      required: [userId, email, emailVerified]
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: |
+            Stable identifier shared with the User API. It is the `sub` claim of
+            every token issued for this account.
+          example: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+        email:
+          type: string
+          format: email
+          example: pepito.perez@konradlorenz.edu.co
+        emailVerified:
+          type: boolean
+          description: Always `false` immediately after registration.
+          example: false
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          description: Institutional or personal address used at registration.
+          example: pepito.perez@konradlorenz.edu.co
+        password:
+          description: >-
+            Sent as typed. The service compares it against a bcrypt hash and never stores it.
+          type: string
+          format: password
+          minLength: 10
+          maxLength: 72
+          example: ExamplePassword123
+
+    TokenResponse:
+      type: object
+      description: |
+        Signed access token and the minimum context a client needs to render the
+        right navigation without an extra profile call. No refresh token is
+        issued.
+      required: [accessToken, tokenType, expiresIn, userId, roles]
+      properties:
+        accessToken:
+          type: string
+          description: |
+            RS256 JWT. Send it as `Authorization: Bearer <accessToken>`. Validate
+            it against `/.well-known/jwks.json` using the `kid` in its header.
+          example: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImthcHAtYXV0aC0yMDI2LTA4In0.eyJzdWIiOiIzZjhhMWMyZS03YjRkLTRlNWEtOWM2Zi0yZDFiOGUwYTRjNzMiLCJlbWFpbCI6ImJyaWFuLnZhcmdhc2NAa29ucmFkbG9yZW56LmVkdS5jbyIsInJvbGVzIjpbIlJPTEVfU1RVREVOVCJdLCJpc3MiOiJodHRwczovL2F1dGgua2FwcC5rb25yYWRsb3JlbnouZWR1LmNvIiwiaWF0IjoxNzg3NjU0NDAwLCJleHAiOjE3ODc2NTgwMDB9.Yx3nQK1pV9sM0bZrT8uLf2Hc7EjWd5AoXgN4iRySlPvCmUt6BqDkJhZ0wF3xO9aInGe1rMcT7yUvKpL5dQsRb2WjXhA8fZoNmE4gCtIuYlBvPkSxDqMrH6JaWnTcOe0
+        tokenType:
+          type: string
+          enum: [Bearer]
+          description: Always the literal `Bearer`.
+          example: Bearer
+        expiresIn:
+          type: integer
+          format: int32
+          minimum: 1
+          description: |
+            Token lifetime in seconds from issuance. One hour for an account; 24 hours for a
+            redeemed visitor pass.
+          example: 3600
+        userId:
+          type: string
+          maxLength: 64
+          description: |
+            Whatever the token's `sub` claim says. For an account this is its id, a UUID. For
+            a redeemed visitor pass it is `visitor:<pass id>` — there is no account behind it,
+            and a subject that looked like a user id would eventually be treated as one.
+
+            **Not declared as `format: uuid`** for exactly that reason: it was, and a client
+            generated from that would have parsed a visitor's subject into a UUID and failed.
+          example: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+        roles:
+          type: array
+          minItems: 1
+          description: |
+            Roles granted to the account, mirroring the `roles` claim. Clients
+            use these to hide interface they cannot reach, but authorization is
+            always re-checked server side.
+          items:
+            type: string
+            enum: [ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN]
+          example: [ROLE_STUDENT]
+
+    VerificationRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          minLength: 16
+          maxLength: 256
+          description: |
+            Single-use verification token taken from the e-mail link. This is
+            not a JWT access token.
+          example: 8f14e45fceea167a5a36dedd4bea2543c1e9b1f0a7d24c5e
+
+    ResendVerificationRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          description: Address the new verification e-mail should be sent to.
+          example: pepito.perez@konradlorenz.edu.co
+
+    AcceptedResponse:
+      type: object
+      description: |
+        Neutral acknowledgement. The wording is identical for existing,
+        unknown and already-verified addresses.
+      required: [message]
+      properties:
+        message:
+          description: >-
+            What was accepted, in a sentence. The work itself may not have finished - this is a 202.
+          type: string
+          example: If an account exists for that address, a verification e-mail has been sent.
+
+    JsonWebKey:
+      type: object
+      description: RSA public key in JWK form, as defined by RFC 7517.
+      required: [kty, use, kid, alg, n, e]
+      properties:
+        kty:
+          type: string
+          enum: [RSA]
+          description: Key type. Always `RSA` for KApp signing keys.
+          example: RSA
+        use:
+          type: string
+          enum: [sig]
+          description: Intended use. Always `sig`, these keys never encrypt.
+          example: sig
+        kid:
+          type: string
+          description: |
+            Key identifier. Matches the `kid` header of tokens signed with this
+            key and is the value consumers must select on.
+          example: kapp-auth-2026-08
+        alg:
+          type: string
+          enum: [RS256]
+          description: Signing algorithm. Always `RS256`.
+          example: RS256
+        n:
+          type: string
+          description: RSA modulus, base64url encoded without padding.
+          example: mHp-KSSSE9O4r6gDSwaRoc8JtkAbCpAKTYyMttr-LD2ZEwr87Dd87N7VuW-Jg5upl7m_ikT3DW00G5-Gly7MF9sDOl8aZxDzB9tGTwMiR32jAVQEFLJR4ibqeqNxLHv77kDdaVDbp_mtjJno8UBp7DThJouSyUE2DEaQAdXDMUyXG5DHqpd4aUJYesZpNU91bkQBakdHEhFhKvU2_GLH5jiF-C-jGQxRo0Ev130SDQGDQGMlFTuzfZ7iFrkBiXD91cUxyPxM54Ww5-lNkkt_mIwuf0uwcNbmMUm0Vv_99S_lDMwDEvlCz4gno2ywvLIVaKvXKfoFy6rbO5rqQlSDhw
+        e:
+          type: string
+          description: RSA public exponent, base64url encoded. `AQAB` is 65537.
+          example: AQAB
+
+    Jwks:
+      type: object
+      description: |
+        JSON Web Key Set. Holds every key currently accepted for signature
+        validation, which is more than one while a rotation is in flight.
+      required: [keys]
+      properties:
+        keys:
+          description: >-
+            Every key currently accepted for signature validation. More than one while a rotation is in
+            flight, which is why this is a set rather than a key.
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/JsonWebKey'
+
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN]
+          description: Service state. `UP` when the process is answering.
+          example: UP
+
+  responses:
+    BadRequest:
+      description: Validation failed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Unauthorized:
+      description: Missing or invalid token
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Forbidden:
+      description: Authenticated but not allowed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    NotFound:
+      description: Resource not found
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }
+    Conflict:
+      description: Conflicts with current state
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } }

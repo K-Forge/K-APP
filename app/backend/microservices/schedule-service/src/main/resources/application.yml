@@ -1,0 +1,77 @@
+server:
+  port: ${SERVER_PORT:8084}
+  # Makes springdoc emit gateway-relative server URLs instead of this container's own
+  # host, so "Try it out" in the aggregated Swagger UI goes through the gateway.
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: schedule-service
+
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/kapp_schedule}
+      auto-index-creation: false   # indexes are declared in Mongock change units
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # MUST be jwk-set-uri, never issuer-uri. issuer-uri performs OIDC discovery
+          # while the bean is created, so this service would refuse to start unless
+          # auth-service were already up - a boot-order deadlock under docker compose.
+          jwk-set-uri: ${KAPP_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+
+  # The catalogue is near-static reference data - a pensum does not change mid-semester -
+  # so an hour-old answer is as good as a fresh one, and it means a briefly-down
+  # semaphore-service never blocks a student from entering their own timetable by hand.
+  cache:
+    cache-names: pensumCourses
+    caffeine:
+      spec: expireAfterWrite=1h,maximumSize=1000
+
+# Feign timeouts for the semaphore-service catalogue lookup: fail fast rather than let a
+# slow dependency stall an enrollment write, matching auth-service's client to user-service.
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 3000
+        read-timeout: 5000
+
+mongock:
+  migration-scan-package: co.edu.konradlorenz.kapp.schedule.migration
+  # Left off deliberately: the change units only create indexes, which are idempotent,
+  # and enabling transactions requires a MongoTransactionManager bean.
+  # Property is `transactional`; `transaction-enabled` is deprecated in Mongock 5.5.
+  transactional: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
+    # Registering with Eureka is pointless in tests and slows them down.
+    enabled: ${EUREKA_ENABLED:true}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    co.edu.konradlorenz.kapp: ${KAPP_LOG_LEVEL:INFO}

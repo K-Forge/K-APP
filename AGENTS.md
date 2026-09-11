@@ -21,7 +21,7 @@ K-Forge is a software development club at Fundación Universitaria Konrad Lorenz
 
 **KApp** is the **mobile application** for the Fundación Universitaria Konrad Lorenz community, developed by the K-Forge club. The product vision is mobile-first: native Android (Kotlin) and iOS (Swift) clients that give students and staff access to academic management — courses, assignments, users, and authentication — from their phones.
 
-The mobile clients are powered by a **Spring Boot microservices backend** that exposes a unified API behind a Gateway. Delivery is sequenced backend first, web second, mobile third: the web frontend exercises the API while the backend is built and settles the interface design that the Kotlin and Swift clients will inherit.
+The mobile clients are powered by a **Spring Boot microservices backend** behind a single gateway. Delivery is backend first, then mobile directly: the clients build against the hand-written OpenAPI contracts in `docs/api/`, served as Prism mocks, so client and server progress in parallel rather than in sequence. The old HTML/JS client was a prototype of the mobile layout and is frozen.
 
 ---
 
@@ -29,17 +29,20 @@ The mobile clients are powered by a **Spring Boot microservices backend** that e
 
 | Layer | Technology |
 |-------|-----------|
-| Mobile (Android) | Kotlin — final product, not started |
-| Mobile (iOS) | Swift — final product, not started |
-| Web (API test surface, design reference) | HTML/JS/CSS → migrating to Angular |
-| Backend | Java 21, Spring Boot 3.2, Spring Cloud 2023.0.0 |
+| Mobile (Android) | Kotlin + Jetpack Compose — the product, in progress |
+| Mobile (iOS) | Swift + SwiftUI — the product, in progress |
+| Admin portal | Angular — `app/frontend/web-admin/`, compose `dev` profile |
+| Backend | Java 21, Spring Boot 3.5.16, Spring Cloud 2025.0.3 |
 | Service discovery | Netflix Eureka (`:8761`) |
 | API Gateway | Spring Cloud Gateway (`:8080`) |
-| Security | Spring Security + JWT (JJWT 0.11.5, BCrypt) |
+| Security | Spring Security, RS256 JWT with a published JWKS, BCrypt |
 | IPC | OpenFeign (service-to-service REST) |
 | Resilience | Resilience4j Circuit Breaker |
-| ORM | Spring Data JPA + Hibernate |
-| Database | PostgreSQL 15+ (Neon cloud) |
+| Persistence | Spring Data MongoDB |
+| Database | MongoDB 7+ (single-node replica set locally) |
+| Migrations | Mongock (versioned change units, distributed lock) |
+| API contract | Hand-written OpenAPI 3.1 in `docs/api/`, served as Prism mocks |
+| Testing | JUnit 5 + Testcontainers |
 | Build | Maven multi-module |
 | Containers | Docker + Docker Compose |
 | Package manager | pnpm (install) + Bun (scripts) |
@@ -48,15 +51,22 @@ The mobile clients are powered by a **Spring Boot microservices backend** that e
 
 ## Microservices
 
-| Service | Port | Directory |
-|---------|------|-----------|
-| Discovery Server | 8761 | `app/backend/microservices/discovery-server/` |
-| API Gateway | 8080 | `app/backend/microservices/api-gateway/` |
-| Auth Service | 8081 | `app/backend/microservices/auth-service/` |
-| User Service | 8082 | `app/backend/microservices/user-service/` |
-| Course Service | 8083 | `app/backend/microservices/course-service/` |
-| Assignment Service | 8084 | `app/backend/microservices/assignment-service/` |
-| Common Library | — | `app/backend/microservices/common/` |
+| Service | Port | Owns |
+|---------|------|------|
+| Discovery Server | 8761 | Eureka registry |
+| API Gateway | 8080 | Routing, CORS, rate limiting. **No authentication logic** |
+| Auth Service | 8081 | Credentials, RS256 signing, JWKS |
+| User Service | 8082 | Profiles |
+| Semaphore Service | 8083 | Academic catalogue, curricula, student progress |
+| Schedule Service | 8084 | Student timetables |
+| Map Service | 8085 | Buildings, floors, spaces |
+| Common Library | — | Security and error auto-configuration |
+
+All under `app/backend/microservices/`.
+
+**Frozen, not deleted:** `course-service` and `assignment-service` remain in the tree but are
+out of the reactor, the compose file and CI. They target PostgreSQL/JPA and are outside the MVP.
+Do not build on them and do not re-add them to `<modules>`.
 
 ---
 
@@ -69,31 +79,28 @@ KApp/
 │   │   ├── microservices/           # Backend — the only application code
 │   │   │   ├── pom.xml              # Parent POM (multi-module)
 │   │   │   ├── docker-compose.yml
-│   │   │   ├── discovery-server/
-│   │   │   ├── api-gateway/
-│   │   │   ├── auth-service/
-│   │   │   ├── user-service/
-│   │   │   ├── course-service/
-│   │   │   ├── assignment-service/
-│   │   │   └── common/              # Shared DTOs and exceptions
+│   │   │   ├── discovery-server/    api-gateway/    common/
+│   │   │   ├── auth-service/  user-service/  semaphore-service/
+│   │   │   ├── schedule-service/  map-service/
+│   │   │   ├── course-service/      # FROZEN, not in the reactor
+│   │   │   └── assignment-service/  # FROZEN, not in the reactor
 │   │   └── postman/                 # Postman collections
 │   ├── frontend/
-│   │   ├── web/                     # Web client (HTML/JS/CSS → migrating to Angular)
+│   │   ├── web-admin/               # Admin and developer portal (Angular)
+│   │   ├── web/                     # FROZEN prototype of the mobile layout
 │   │   └── mobile/
-│   │       ├── kotlin/              # Android (future)
-│   │       └── swift/               # iOS (future)
+│   │       ├── kotlin/              # Android
+│   │       └── swift/               # iOS
 │   └── database/
-│       ├── init.sql                 # Full schema (enums, tables, triggers)
-│       ├── test_data.sql            # Mock data
-│       └── delete_all_data.sql      # Cleanup
+│       └── init.sql                 # LEGACY PostgreSQL schema, reference only
 ├── docs/
-│   ├── SRS.md                       # Software Requirements Specification
-│   ├── REQUIREMENTS.md
-│   ├── DESIGN.md
-│   ├── DOCKER-GUIDE.md
-│   ├── K-COLORS.md
+│   ├── api/                         # OpenAPI contracts — the source of truth
+│   ├── adr/                         # Architecture decisions and their reasons
+│   ├── RUNBOOK.md                   # How to run everything — start here
 │   ├── PROGRESS.md                  # Implementation status — read before large changes
-│   └── diagrams/
+│   ├── INTEGRATION-NOTES.md         # Cross-cutting findings worth carrying forward
+│   ├── SECURITY-AUDIT.md  SRS.md  REQUIREMENTS.md  DESIGN.md  K-COLORS.md
+│   └── DOCKER-GUIDE.md              # Superseded by RUNBOOK.md
 ├── scripts/
 │   ├── start-frontend.sh
 │   └── start-microservices.sh
@@ -104,25 +111,44 @@ KApp/
 
 ## Dev Commands
 
+Full guide, including profiles, local accounts and troubleshooting:
+**[docs/RUNBOOK.md](docs/RUNBOOK.md)**.
+
+Requires JDK 21 and Docker. The repository pins the JDK with `.java-version` (jenv) and ships a
+Maven wrapper, so use `./mvnw` rather than a system Maven.
+
 ```bash
-# One-time tooling setup
-corepack enable && corepack prepare pnpm@latest --activate
-curl -fsSL https://bun.sh/install | bash
+cd app/backend/microservices
 
-# Start all microservices
-./scripts/start-microservices.sh
+# Build and run every test. Tests use Testcontainers, so Docker must be running.
+./mvnw -B verify
 
-# Start frontend
-./scripts/start-frontend.sh
+# One service only
+./mvnw -B -pl map-service -am verify
+```
 
-# Build (skip tests)
-cd app/backend/microservices && mvn clean package -DskipTests
+Compose profiles exist so nobody has to run seven JVMs to work on one service:
 
-# Test (per service)
-cd app/backend/microservices/<service> && mvn test
+```bash
+cd app/backend/microservices
 
-# Docker
-cd app/backend/microservices && docker compose up -d --build
+# Mobile / frontend work: the the Prism mocks alone. No JVM, no Mongo, ~200 MB.
+docker compose --profile mock up -d      # ports 4010-4014
+
+# Backend work: only what you need
+docker compose --profile core up -d      # mongo, discovery, gateway, auth, user
+docker compose --profile map up -d       # core + map-service
+docker compose --profile academic up -d  # core + semaphore + schedule
+docker compose --profile full up -d      # everything
+
+docker compose --profile full down
+```
+
+Only the gateway (8080) is published. Reaching a service directly is meant to fail.
+
+```bash
+# Validate the API contracts the mobile clients build against
+npx --package=@redocly/cli@latest redocly lint docs/api/*.yaml
 ```
 
 ---
@@ -132,29 +158,62 @@ cd app/backend/microservices && docker compose up -d --build
 ### Java
 
 - Use Lombok to reduce boilerplate.
-- DTOs and global exceptions live in the `common` module — not in individual services.
-- Roles: `ROLE_STUDENT`, `ROLE_PROFESSOR`, `ROLE_ADMIN`.
+- **Each service owns its own DTOs.** `common` holds only cross-cutting concerns: security
+  auto-configuration, the `ApiError` envelope, domain exception types and `AcademicPeriod`.
+  Shared DTOs were removed deliberately — they couple the services into a distributed monolith
+  and make `common` a merge-conflict hotspot across parallel worktrees.
+- Roles: `ROLE_GUEST`, `ROLE_STUDENT`, `ROLE_PROFESSOR`, `ROLE_ADMIN`. A guest is someone with no
+  university account; they may read the campus map and nothing else.
 
 ### Security
 
-- JWT validated at the API Gateway. Internal microservices are trusted.
-- Gateway appends `X-User-Email` header to routed requests. Services read from this header.
-- Never expose JWT secrets or DB credentials. Use environment variables.
+- **Every service validates the token itself.** Each is an OAuth2 resource server checking RS256
+  against `auth-service`'s JWKS. Bypassing the gateway therefore gains nothing — this is what
+  closed finding S1. Never reintroduce identity headers such as `X-User-Email`.
+- Configure with `jwk-set-uri`, **never** `issuer-uri`: the latter performs OIDC discovery at bean
+  creation, so a service refuses to start unless auth-service is already up — a boot-order
+  deadlock under `docker compose up`.
+- Read identity through `CurrentUser` from `common`, never from a request header.
+- The `roles` claim carries prefixed names (`ROLE_STUDENT`), so the authority prefix is empty.
+  Adding `ROLE_` again yields `ROLE_ROLE_STUDENT` and every `hasRole` check fails silently.
+- `POST /internal/**` is authenticated with a shared `X-Internal-Token` and has no gateway route.
+- Never expose signing keys or DB credentials. Use environment variables.
 
 ### Database
 
-- Schema defined in `app/database/init.sql`. Update it when adding tables/columns.
-- Core tables: `person`, `member`, `student`, `employee`, `course`, `course_group`, `student_course`, `assignment`, `submission`, `audit_log`.
-- Enums: `id_type`, `employee_type`, `contract_type`, `student_status`, `course_status`.
-- Auditing via PostgreSQL triggers into `audit_log`.
+- MongoDB, one database per service on one instance. Run it as a **single-node replica set**:
+  a standalone `mongod` cannot do multi-document transactions and fails at runtime, not startup.
+- **Schema changes go in Mongock change units**, never applied by hand. They are append-only:
+  never edit one that has run, add a new one.
+- Every service that touches MongoDB must carry `@EnableMongock`. Mongock 5.5.1 ships no
+  auto-configuration, so without it migrations are skipped in silence.
+- Academic periods use the university's own format, `YYYYS` (e.g. `20262`). Validate with
+  `@ValidAcademicPeriod` from `common`.
+- `app/database/init.sql` is the legacy PostgreSQL schema, kept for reference only.
 
 ### Inter-Service Communication
 
+Three Feign edges. Keep the number small: every extra one is a new failure mode and a new
+reason for a service to be unable to answer on its own.
+
 ```
-Assignment Service → (Feign) → Course Service → (Feign) → User Service
+Auth Service      → (Feign) → User Service       # create a profile at registration
+Semaphore Service → (Feign) → User Service       # resolve the student's programme
+Schedule Service  → (Feign) → Semaphore Service  # course catalogue, cached 1h
 ```
 
-Services discovered by name via Eureka.
+**None of them sits on a hot path**, which is the property that makes three acceptable. The first
+two fire once per account; the third reads near-static reference data through a cache, so
+`schedule-service` keeps working while `semaphore-service` is briefly down.
+
+Services are discovered by name via Eureka. The caller's token is propagated automatically by
+`common`; registration is the exception, since no user token exists yet — that call carries a
+shared internal secret and has no gateway route.
+
+> **Open decision.** `semaphore → user` exists only to read `programCode` when a student's progress
+> document is first created; afterwards the value is stored. Carrying `programCode` as a JWT claim
+> would remove the edge entirely, at the cost of requiring a fresh sign-in after a programme change.
+> Recorded rather than resolved: it was added without a decision, and it should have one.
 
 ### Git
 
@@ -176,28 +235,34 @@ SemVer `MAJOR.MINOR.PATCH`. Release cycle: alpha → beta → stable.
 
 Read `docs/PROGRESS.md` for up-to-date implementation status before proposing large changes.
 
-- **Backend (current focus):** 6 microservices operational (discovery, gateway, auth, user, course, assignment). JWT validated at the gateway; role-based authorization still missing (see `docs/SECURITY-AUDIT.md`, S1 and S2).
-- **Web (current test surface):** HTML/JS/CSS client that exercises the API end to end and settles the interface design. Angular migration pending.
-- **Mobile (final product, not started):** Kotlin and Swift clients. They come after the web design is stable, and they inherit that design.
+- **Backend:** seven services on MongoDB. The Phase 0 skeleton is complete and verified — the full
+  reactor builds with integration tests on Testcontainers. Domain logic for registration, the
+  catalogue, progress, timetables and the map is the work in progress.
+- **API contract:** five hand-written OpenAPI specs in `docs/api/`, served as Prism mocks. This is
+  the source of truth. Write the spec first; springdoc output is a drift check against it, not the
+  other way round.
+- **Mobile (the product, in progress):** Kotlin and Swift clients, built against the mocks.
+- **Web:** the old HTML/JS client was a prototype of the mobile design and is frozen. There is no
+  Angular app; the planned one is an admin UI for preloaded data, not a student-facing client.
 
 ---
 
 ## Roadmap
 
-Ordered by the delivery sequence: harden the backend, settle the design on web, then port to mobile. Keep this list
-in sync with `docs/PROGRESS.md` and `docs/DESIGN.md`.
+MVP scope is users, campus map, customisable preloaded schedule and customisable preloaded career
+semaforo. Everything else is deferred. Keep this list in sync with `docs/PROGRESS.md`.
 
-1. Enforce role-based authorization and close the gateway header-trust gap (`docs/SECURITY-AUDIT.md`, S1 and S2).
-2. Centralize backend configuration via Spring Cloud Config Server.
-3. Complete the web frontend migration to Angular — this is the reference design for the mobile clients.
-4. Implement refresh tokens and logout flows.
-5. Add rate limiting at the Gateway.
-6. Build the Kotlin (Android) client from the settled web design.
-7. Build the Swift (iOS) client.
-8. Extend the CI pipeline into continuous deployment.
-9. Implement distributed tracing (Zipkin).
-10. Migrate to the database-per-service pattern.
-11. Kubernetes deployment manifests.
+1. Registration: institutional e-mail, verification, invitation codes, and guest sign-up.
+2. Academic catalogue and curricula, seeded from the published Ingenieria de Sistemas pensum.
+3. Student progress with prerequisite-aware eligibility.
+4. Timetables built from the student's curriculum, with manual day, time, room and group.
+5. Campus map: buildings, floor plans and space search.
+6. Kotlin (Android) and Swift (iOS) clients — the product.
+7. Angular admin UI for managing preloaded data.
+8. Entra ID adapter behind `IdentityProviderPort`, once the university grants a registration.
+9. Deployment on university hardware: multi-architecture images, TLS, backups.
+10. Deferred: refresh tokens and logout, Config Server, distributed tracing, Redis-backed rate
+    limiting, database-per-service, Kubernetes.
 
 ---
 
@@ -209,7 +274,12 @@ in sync with `docs/PROGRESS.md` and `docs/DESIGN.md`.
 - **Before large changes:** Read `docs/PROGRESS.md` and the contribution guidelines published by the K-Forge organization first.
 - **Product identity:** KApp is a **mobile app** for Konrad Lorenz. The microservices are the backend that powers the mobile clients. Do not describe KApp as a "web platform" — it is a mobile-first product.
 - **Demo mode:** `app/frontend/web/js/demo.js` intercepts API calls with sample data and activates only when the client is served from a host other than `localhost` (or forced with `?demo=1`). It exists so the interface can be deployed statically while no backend is hosted. Never point it at real data, and never let it change behaviour during local development.
-- **Delivery sequence:** backend first, web second, mobile third. Web (`app/frontend/web/`) is the surface used to test the API and to settle the interface design; that design is later ported to Kotlin (`app/frontend/mobile/kotlin/`) and Swift (`app/frontend/mobile/swift/`), which are the final product. The mobile clients sitting at low priority in `docs/PROGRESS.md` is intentional sequencing, not a change of target.
+- **Delivery sequence:** backend first, then **mobile directly**. The web client was a prototype of
+  the mobile layout and is frozen; it is not a step on the path any more. The clients are built
+  against the OpenAPI mocks rather than against a finished backend, which is what lets client and
+  server work proceed at the same time.
+- **Contract first.** Changing a request or response shape means editing `docs/api/*.openapi.yaml`
+  first — four people are building against those mocks. CI lints them on every push.
 - **No emojis** in technical markdown documents.
 - **No automatic commits.** Present changes for review first.
 - **Documentation language:** English for repository documentation.
