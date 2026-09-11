@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #D51A65; text-decoration: none; } a:hover { color: #B0154F; }
+  </style>
+</helmet>
+
+<div style="width: 1780px; height: 640px; box-sizing: border-box; padding: 40px 48px; background: #F7F4F8; display: flex; gap: 36px;">
+
+  <!-- 1 · Cargando -->
+  <div style="width: 390px; display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <span style="font-size: 15px; font-weight: 700; color: #1C1420;">Enviando</span>
+      <span style="font-size: 12px; color: #6B6472;">Campos bloqueados, botón sin texto de acción</span>
+    </div>
+    <div style="border-radius: 20px; background: #FFFFFF; overflow: hidden; box-shadow: 0 4px 18px rgba(82,37,103,0.10);">
+      <div style="display: flex; height: 4px;"><div style="flex-grow: 1; background: #D51A65;"></div><div style="flex-grow: 1; background: #C9D329;"></div><div style="flex-grow: 1; background: #539392;"></div></div>
+      <div style="padding: 22px; display: flex; flex-direction: column; gap: 16px; opacity: 0.55;">
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <span style="font-size: 13px; font-weight: 600; color: #6B6472;">Correo institucional</span>
+          <div style="height: 52px; border-radius: 12px; background: #F7F4F8; border: 1px solid #E7E2EA; display: flex; align-items: center; padding: 0 16px;"><span style="font-size: 16px; color: #1C1420;">pepito.perez</span><span style="font-size: 16px; color: #A29BA9;">@konradlorenz.edu.co</span></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <span style="font-size: 13px; font-weight: 600; color: #6B6472;">Contraseña</span>
+          <div style="height: 52px; border-radius: 12px; background: #F7F4F8; border: 1px solid #E7E2EA; display: flex; align-items: center; padding: 0 16px;"><span style="font-size: 18px; letter-spacing: 3px; color: #1C1420;">••••••••</span></div>
+        </div>
+      </div>
+      <div style="padding: 0 22px 22px 22px;">
+        <div style="height: 52px; border-radius: 14px; background: rgba(213,26,101,0.55); display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.4)"></circle><path d="M12 3a9 9 0 0 1 9 9"></path></svg>
+          <span style="font-size: 17px; font-weight: 600; color: #FFFFFF;">Ingresando…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 · 401 -->
+  <div style="width: 390px; display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <span style="font-size: 15px; font-weight: 700; color: #1C1420;">401 · credenciales inválidas</span>
+      <span style="font-size: 12px; color: #6B6472;">Un solo mensaje: no decimos si el correo existe</span>
+    </div>
+    <div style="border-radius: 20px; background: #FFFFFF; overflow: hidden; box-shadow: 0 4px 18px rgba(82,37,103,0.10);">
+      <div style="display: flex; height: 4px;"><div style="flex-grow: 1; background: #D51A65;"></div><div style="flex-grow: 1; background: #C9D329;"></div><div style="flex-grow: 1; background: #539392;"></div></div>
+      <div style="padding: 22px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <span style="font-size: 13px; font-weight: 600; color: #6B6472;">Correo institucional</span>
+          <div style="height: 52px; border-radius: 12px; background: #FFFFFF; border: 1.5px solid #B62325; display: flex; align-items: center; padding: 0 16px;"><span style="font-size: 16px; color: #1C1420;">pepito.perez</span><span style="font-size: 16px; color: #A29BA9;">@konradlorenz.edu.co</span></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <span style="font-size: 13px; font-weight: 600; color: #6B6472;">Contraseña</span>
+          <div style="height: 52px; border-radius: 12px; background: #FFFFFF; border: 1.5px solid #B62325; display: flex; align-items: center; padding: 0 16px;"><span style="font-size: 18px; letter-spacing: 3px; color: #1C1420;">••••••••</span></div>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B62325" stroke-width="2" stroke-linecap="round" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16.5v.5"></path></svg>
+          <span style="font-size: 14px; line-height: 19px; color: #B62325;">Revisa tu código o tu contraseña e inténtalo de nuevo.</span>
+        </div>
+        <div style="height: 52px; border-radius: 14px; background: #D51A65; display: flex; align-items: center; justify-content: center;"><span style="font-size: 17px; font-weight: 600; color: #FFFFFF;">Ingresar</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 · 403 -->
+  <div style="width: 390px; display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <span style="font-size: 15px; font-weight: 700; color: #1C1420;">403 · correo sin verificar</span>
+      <span style="font-size: 12px; color: #6B6472;">La contraseña era correcta: lleva a reenviar, no a reintentar</span>
+    </div>
+    <div style="border-radius: 20px; background: #FFFFFF; overflow: hidden; box-shadow: 0 4px 18px rgba(82,37,103,0.10);">
+      <div style="display: flex; height: 4px;"><div style="flex-grow: 1; background: #D51A65;"></div><div style="flex-grow: 1; background: #C9D329;"></div><div style="flex-grow: 1; background: #539392;"></div></div>
+      <div style="padding: 22px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="border-radius: 14px; background: rgba(82,37,103,0.07); padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 9px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#522567" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M3.5 7l8.5 6 8.5-6"></path></svg>
+            <span style="font-size: 16px; font-weight: 600; color: #522567;">Confirma tu correo</span>
+          </div>
+          <span style="font-size: 14px; line-height: 19px; color: #4A4152;">Te enviamos un enlace a <span style="font-weight: 600;">pepito.perez@konradlorenz.edu.co</span>. Ábrelo y vuelve a entrar.</span>
+        </div>
+        <div style="height: 52px; border-radius: 14px; background: #D51A65; display: flex; align-items: center; justify-content: center;"><span style="font-size: 17px; font-weight: 600; color: #FFFFFF;">Reenviar correo</span></div>
+        <div style="display: flex; justify-content: center;"><a href="#" style="font-size: 15px; font-weight: 500;">Usar otra cuenta</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 · Sin conexión -->
+  <div style="width: 390px; display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <span style="font-size: 15px; font-weight: 700; color: #1C1420;">Sin respuesta del servidor</span>
+      <span style="font-size: 12px; color: #6B6472;">Timeout o red caída: nada que corregir en el formulario</span>
+    </div>
+    <div style="border-radius: 20px; background: #FFFFFF; overflow: hidden; box-shadow: 0 4px 18px rgba(82,37,103,0.10);">
+      <div style="display: flex; height: 4px;"><div style="flex-grow: 1; background: #D51A65;"></div><div style="flex-grow: 1; background: #C9D329;"></div><div style="flex-grow: 1; background: #539392;"></div></div>
+      <div style="padding: 22px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="border-radius: 14px; background: rgba(182,35,37,0.08); padding: 16px; display: flex; align-items: flex-start; gap: 10px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B62325" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><path d="M2 8.5a15 15 0 0 1 20 0"></path><path d="M5.5 12.5a10 10 0 0 1 13 0"></path><path d="M9 16.5a5 5 0 0 1 6 0"></path><path d="M12 20v.5"></path></svg>
+          <span style="font-size: 14px; line-height: 19px; color: #8C1B1D;">No pudimos conectar con el servidor. Revisa tu conexión e inténtalo otra vez.</span>
+        </div>
+        <div style="height: 52px; border-radius: 14px; background: #FFFFFF; border: 1.5px solid #D51A65; display: flex; align-items: center; justify-content: center;"><span style="font-size: 17px; font-weight: 600; color: #D51A65;">Reintentar</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

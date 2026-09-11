@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: Roboto, "Helvetica Neue", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #D51A65; text-decoration: none; } a:hover { color: #B0154F; }
+  </style>
+</helmet>
+
+<div style="width: 360px; height: 800px; position: relative; overflow: hidden; background: #FFFFFF;">
+
+  <div style="position: absolute; top: 0; left: 0; right: 0; height: 356px; background: #522567;"></div>
+
+  <!-- El espacio superior queda libre para la status bar real del sistema. -->
+  <div style="position: absolute; top: 80px; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+    <div style="width: 84px; height: 84px; border-radius: 24px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,0.18);">
+      <img src="konrad-logo.png" alt="Konrad Lorenz" style="width: 60px; height: 60px; display: block;">
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+      <div style="font-size: 34px; line-height: 42px; font-weight: 700; letter-spacing: 0px; color: #FFFFFF;">KApp</div>
+      <div style="font-size: 15px; line-height: 20px; font-weight: 400; color: rgba(255,255,255,0.74);">Fundación Universitaria Konrad Lorenz</div>
+    </div>
+  </div>
+
+  <div style="position: absolute; top: 328px; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-radius: 28px 28px 0 0; overflow: hidden; box-shadow: 0 -8px 32px rgba(82,37,103,0.22);">
+
+    <div style="display: flex; height: 4px;">
+      <div style="flex-grow: 1; background: #D51A65;"></div>
+      <div style="flex-grow: 1; background: #C9D329;"></div>
+      <div style="flex-grow: 1; background: #539392;"></div>
+    </div>
+
+    <div style="padding: 32px 24px 0 24px; display: flex; flex-direction: column; gap: 20px;">
+
+      <!-- Correo institucional · el dominio va fijo dentro del campo -->
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 13px; line-height: 16px; font-weight: 600; color: #6B6472;">Correo institucional</div>
+        <div style="height: 52px; border-radius: 12px; background: #F7F4F8; border: 1px solid #E7E2EA; display: flex; align-items: center; padding: 0 16px;">
+          <span style="font-size: 16px; color: #A29BA9;">pepito.perez</span>
+          <span style="font-size: 16px; color: #C4BDCA;">@konradlorenz.edu.co</span>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 13px; line-height: 16px; font-weight: 600; color: #6B6472;">Contraseña</div>
+        <div style="height: 52px; border-radius: 12px; background: #F7F4F8; border: 1px solid #E7E2EA; display: flex; align-items: center; justify-content: space-between; padding: 0 16px;">
+          <span style="font-size: 18px; letter-spacing: 3px; color: #1C1420;">••••••••</span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B6472" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; height: 44px;">
+        <span style="font-size: 16px; color: #1C1420;">Mantener la sesión iniciada</span>
+        <div style="width: 51px; height: 31px; border-radius: 16px; background: #D51A65; display: flex; align-items: center; justify-content: flex-end; padding: 2px;">
+          <div style="width: 27px; height: 27px; border-radius: 14px; background: #FFFFFF; box-shadow: 0 2px 4px rgba(0,0,0,0.22);"></div>
+        </div>
+      </div>
+
+      <div style="height: 52px; border-radius: 14px; background: #D51A65; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(213,26,101,0.32);">
+        <span style="font-size: 17px; font-weight: 600; color: #FFFFFF;">Ingresar</span>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+        <span style="font-size: 15px; color: #6B6472;">¿Primera vez?</span>
+        <a href="#" style="font-size: 15px; font-weight: 600;">Usa tu código de invitación</a>
+      </div>
+
+    </div>
+
+    <div style="position: absolute; left: 0; right: 0; bottom: 28px; display: flex; justify-content: center;">
+      <span style="font-size: 11px; color: #A29BA9;">© 2026 Fundación Universitaria Konrad Lorenz</span>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,56 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",          "title": "Login · iOS",        "x": 0,    "y": 0,    "w": 390,  "h": 844 },
+    { "file": "LoginAndroid.dc.html",  "title": "Login · Android",    "x": 510,  "y": 0,    "w": 360,  "h": 800 },
+    { "file": "HomeIOS.dc.html",       "title": "Inicio · iOS",       "x": 990,  "y": 0,    "w": 390,  "h": 844 },
+    { "file": "HomeAndroid.dc.html",   "title": "Inicio · Android",   "x": 1500, "y": 0,    "w": 360,  "h": 800 },
+    { "file": "EstadosLogin.dc.html",  "title": "Estados del login",  "x": 0,    "y": 1020, "w": 1780, "h": 640 },
+    { "file": "EstadosHome.dc.html",   "title": "Estados del inicio", "x": 0,    "y": 1780, "w": 1340, "h": 700 },
+    { "file": "Tokens.dc.html",        "title": "Tokens y handoff",   "x": 0,    "y": 2620, "w": 1200, "h": 1080 }
+  ],
+  "annotations": [
+    {
+      "id": "alcance",
+      "x": -460,
+      "y": 0,
+      "w": 380,
+      "text": "Hoy solo Login e Inicio.\n\nSemáforo, Horario, Mapa y Perfil siguen en los wireframes viejos — cuando los pulamos van en otra página de este mismo canvas.\n\nLos datos son de ejemplo pero con la forma real de los contratos de docs/api: el 79% sale de ProgressSummary, la clase sale de ClassOccurrence."
+    },
+    {
+      "id": "teclado",
+      "x": -460,
+      "y": 330,
+      "w": 380,
+      "text": "Arriba no hay status bar dibujada a propósito: la pinta el sistema encima.\n\nCon el teclado abierto la hoja blanca sube y hace scroll; el botón Ingresar nunca queda tapado. Eso se resuelve en código, no está en la maqueta."
+    },
+    {
+      "id": "una-sola-app",
+      "x": -460,
+      "y": 620,
+      "w": 380,
+      "text": "Una sola app, dos compilaciones\n\nLas dos pantallas comparten campo, botón, radios, pesos y capitalización. Antes divergían por seguir cada guía al pie de la letra; gana la marca.\n\nLo único distinto: la familia tipográfica (SF Pro / Roboto), los márgenes de área segura y la barra de navegación — flotante en iOS, anclada en Android."
+    },
+    {
+      "id": "color-materia",
+      "x": 1960,
+      "y": 0,
+      "w": 380,
+      "text": "De dónde sale el color\n\nEl riel de cada materia usa el color que manda la API en ClassOccurrence.color. El cliente no lo elige ni lo calcula: lo pinta.\n\nEl rosa #D51A65 queda reservado para acciones. Si schedule-service puede devolver rosa como color de materia, el rosa deja de significar 'tocable': vale la pena acotar la paleta de materias a los seis colores no-rosa del lado del servidor."
+    },
+    {
+      "id": "sesion",
+      "x": 1960,
+      "y": 340,
+      "w": 380,
+      "text": "Sesión que no expira — falta backend\n\nLa maqueta deja la sesión del estudiante guardada en el teléfono, sin aviso de expiración.\n\nHoy auth.openapi.yaml no lo permite: dice que no hay refresh token y que al vencer expiresIn (3600 s) el cliente debe volver a pedir credenciales. Para que esto funcione, auth-service necesita refresh token o un token largo para ROLE_STUDENT, dejando la expiración corta para ROLE_ADMIN."
+    },
+    {
+      "id": "correo",
+      "x": 1960,
+      "y": 700,
+      "w": 380,
+      "text": "Solo correo institucional\n\nSe quitó el código de estudiante. El campo muestra el dominio fijo en gris: el estudiante escribe 'pepito.perez' y la app envía pepito.perez@konradlorenz.edu.co.\n\nSi pega el correo completo, no se duplica el dominio — misma regla que ya tenía el login viejo en JS."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

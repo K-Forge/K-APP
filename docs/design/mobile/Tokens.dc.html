@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #D51A65; text-decoration: none; } a:hover { color: #B0154F; }
+    .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  </style>
+</helmet>
+
+<div style="width: 1200px; height: 1080px; box-sizing: border-box; padding: 44px 48px; background: #FFFFFF; display: flex; flex-direction: column; gap: 26px;">
+
+  <div style="display: flex; flex-direction: column; gap: 5px;">
+    <span style="font-size: 26px; font-weight: 700; letter-spacing: -0.4px; color: #1C1420;">Tokens · KApp móvil</span>
+    <span style="font-size: 14px; color: #6B6472;">Los siete colores salen de <span class="mono" style="color: #522567;">docs/K-COLORS.md</span>, que son los de la K. Los grises y los tintes se derivan de ellos; no hay colores inventados fuera de esta hoja.</span>
+  </div>
+
+  <!-- Paleta -->
+  <div style="display: flex; gap: 12px;">
+    <div style="flex-grow: 1; border-radius: 12px; overflow: hidden; border: 1px solid #E7E2EA;"><div style="height: 68px; background: #D51A65;"></div><div style="padding: 9px 11px; display: flex; flex-direction: column; gap: 2px;"><span class="mono" style="font-size: 12px; color: #1C1420;">#D51A65</span><span style="font-size: 11px; color: #6B6472;">Rosa · acción</span></div></div>
+    <div style="flex-grow: 1; border-radius: 12px; overflow: hidden; border: 1px solid #E7E2EA;"><div style="height: 68px; background: #C9D329;"></div><div style="padding: 9px 11px; display: flex; flex-direction: column; gap: 2px;"><span class="mono" style="font-size: 12px; color: #1C1420;">#C9D329</span><span style="font-size: 11px; color: #6B6472;">Verde · en curso</span></div></div>
+    <div style="flex-grow: 1; border-radius: 12px; overflow: hidden; border: 1px solid #E7E2EA;"><div style="height: 68px; background: #539392;"></div><div style="padding: 9px 11px; display: flex; flex-direction: column; gap: 2px;"><span class="mono" style="font-size: 12px; color: #1C1420;">#539392</span><span style="font-size: 11px; color: #6B6472;">Azul · materia</span></div></div>
+    <div style="flex-grow: 1; border-radius: 12px; overflow: hidden; border: 1px solid #E7E2EA;"><div style="height: 68px; background: #522567;"></div><div style="padding: 9px 11px; display: flex; flex-direction: column; gap: 2px;"><span class="mono" style="font-size: 12px; color: #1C1420;">#522567</span><span style="font-size: 11px; color: #6B6472;">Rosa+azul · marca</span></div></div>
+    <div style="flex-grow: 1; border-radius: 12px; overflow: hidden; border: 1px solid #E7E2EA;"><div style="height: 68px; background: #B62325;"></div><div style="padding: 9px 11px; display: flex; flex-direction: column; gap: 2px;"><span class="mono" style="font-size: 12px; color: #1C1420;">#B62325</span><span style="font-size: 11px; color: #6B6472;">Rosa+verde · error</span></div></div>
+    <div style="flex-grow: 1; border-radius: 12px; overflow: hidden; border: 1px solid #E7E2EA;"><div style="height: 68px; background: #3E823E;"></div><div style="padding: 9px 11px; display: flex; flex-direction: column; gap: 2px;"><span class="mono" style="font-size: 12px; color: #1C1420;">#3E823E</span><span style="font-size: 11px; color: #6B6472;">Verde+azul · aprobado</span></div></div>
+    <div style="flex-grow: 1; border-radius: 12px; overflow: hidden; border: 1px solid #E7E2EA;"><div style="height: 68px; background: #592E2A;"></div><div style="padding: 9px 11px; display: flex; flex-direction: column; gap: 2px;"><span class="mono" style="font-size: 12px; color: #1C1420;">#592E2A</span><span style="font-size: 11px; color: #6B6472;">Los tres · materia</span></div></div>
+  </div>
+
+  <div style="display: flex; gap: 24px;">
+
+    <!-- Semántica -->
+    <div style="width: 636px; display: flex; flex-direction: column; gap: 10px;">
+      <span style="font-size: 16px; font-weight: 700; color: #1C1420;">Semántica — el nombre que usa el código</span>
+      <div style="border: 1px solid #E7E2EA; border-radius: 12px; overflow: hidden;">
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: #F7F4F8; padding: 8px 14px; gap: 8px;">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: #6B6472;">ROL</span>
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: #6B6472;">HEX</span>
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: #6B6472;">SWIFT</span>
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: #6B6472;">COMPOSE</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 14px; gap: 8px; border-top: 1px solid #F1EDF3;"><span style="font-size: 12px; color: #1C1420;">Marca</span><span class="mono" style="font-size: 12px; color: #522567;">#522567</span><span class="mono" style="font-size: 12px; color: #6B6472;">.kBrand</span><span class="mono" style="font-size: 12px; color: #6B6472;">Brand</span></div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 14px; gap: 8px; border-top: 1px solid #F1EDF3;"><span style="font-size: 12px; color: #1C1420;">Acción</span><span class="mono" style="font-size: 12px; color: #D51A65;">#D51A65</span><span class="mono" style="font-size: 12px; color: #6B6472;">.kAction</span><span class="mono" style="font-size: 12px; color: #6B6472;">primary</span></div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 14px; gap: 8px; border-top: 1px solid #F1EDF3;"><span style="font-size: 12px; color: #1C1420;">Aprobado</span><span class="mono" style="font-size: 12px; color: #3E823E;">#3E823E</span><span class="mono" style="font-size: 12px; color: #6B6472;">.kPassed</span><span class="mono" style="font-size: 12px; color: #6B6472;">Passed</span></div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 14px; gap: 8px; border-top: 1px solid #F1EDF3;"><span style="font-size: 12px; color: #1C1420;">En curso</span><span class="mono" style="font-size: 12px; color: #6B6472;">#C9D329</span><span class="mono" style="font-size: 12px; color: #6B6472;">.kInProgress</span><span class="mono" style="font-size: 12px; color: #6B6472;">InProgress</span></div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 14px; gap: 8px; border-top: 1px solid #F1EDF3;"><span style="font-size: 12px; color: #1C1420;">Pendiente</span><span class="mono" style="font-size: 12px; color: #6B6472;">#E7E2EA</span><span class="mono" style="font-size: 12px; color: #6B6472;">.kPending</span><span class="mono" style="font-size: 12px; color: #6B6472;">Pending</span></div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 14px; gap: 8px; border-top: 1px solid #F1EDF3;"><span style="font-size: 12px; color: #1C1420;">Error</span><span class="mono" style="font-size: 12px; color: #B62325;">#B62325</span><span class="mono" style="font-size: 12px; color: #6B6472;">.kError</span><span class="mono" style="font-size: 12px; color: #6B6472;">error</span></div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 14px; gap: 8px; border-top: 1px solid #F1EDF3;"><span style="font-size: 12px; color: #1C1420;">Fondo</span><span class="mono" style="font-size: 12px; color: #6B6472;">#F7F4F8</span><span class="mono" style="font-size: 12px; color: #6B6472;">.kBackground</span><span class="mono" style="font-size: 12px; color: #6B6472;">background</span></div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 14px; gap: 8px; border-top: 1px solid #F1EDF3;"><span style="font-size: 12px; color: #1C1420;">Superficie</span><span class="mono" style="font-size: 12px; color: #6B6472;">#FFFFFF</span><span class="mono" style="font-size: 12px; color: #6B6472;">.kSurface</span><span class="mono" style="font-size: 12px; color: #6B6472;">surface</span></div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 14px; gap: 8px; border-top: 1px solid #F1EDF3;"><span style="font-size: 12px; color: #1C1420;">Texto</span><span class="mono" style="font-size: 12px; color: #6B6472;">#1C1420</span><span class="mono" style="font-size: 12px; color: #6B6472;">.kText</span><span class="mono" style="font-size: 12px; color: #6B6472;">onSurface</span></div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 14px; gap: 8px; border-top: 1px solid #F1EDF3;"><span style="font-size: 12px; color: #1C1420;">Texto suave</span><span class="mono" style="font-size: 12px; color: #6B6472;">#6B6472</span><span class="mono" style="font-size: 12px; color: #6B6472;">.kTextSoft</span><span class="mono" style="font-size: 12px; color: #6B6472;">onSurfaceVariant</span></div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 14px; gap: 8px; border-top: 1px solid #F1EDF3;"><span style="font-size: 12px; color: #1C1420;">Borde</span><span class="mono" style="font-size: 12px; color: #6B6472;">#E7E2EA</span><span class="mono" style="font-size: 12px; color: #6B6472;">.kBorder</span><span class="mono" style="font-size: 12px; color: #6B6472;">outlineVariant</span></div>
+      </div>
+      <span style="font-size: 12px; line-height: 17px; color: #6B6472;">El color de cada materia <span style="font-weight: 600; color: #1C1420;">no se elige en el cliente</span>: viene en <span class="mono" style="color: #522567;">ClassOccurrence.color</span>. La app lo pinta tal cual en el riel de la tarjeta.</span>
+
+      <div style="margin-top: 4px; border: 1px solid #E7E2EA; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 9px;">
+        <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: #6B6472;">LO MISMO EN LAS DOS PLATAFORMAS</span>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px;">
+          <span style="font-size: 12px; color: #1C1420;">Campo de texto</span><span class="mono" style="font-size: 12px; color: #6B6472;">relleno, radio 12, alto 52</span>
+          <span style="font-size: 12px; color: #1C1420;">Botón primario</span><span class="mono" style="font-size: 12px; color: #6B6472;">radio 14, alto 44+</span>
+          <span style="font-size: 12px; color: #1C1420;">Tarjeta / fila</span><span class="mono" style="font-size: 12px; color: #6B6472;">radio 18 / 14</span>
+          <span style="font-size: 12px; color: #1C1420;">Mantener sesión</span><span class="mono" style="font-size: 12px; color: #6B6472;">toggle, encendido</span>
+          <span style="font-size: 12px; color: #1C1420;">Etiquetas</span><span class="mono" style="font-size: 12px; color: #6B6472;">capitalización normal</span>
+          <span style="font-size: 12px; color: #1C1420;">Versalitas</span><span class="mono" style="font-size: 12px; color: #6B6472;">solo PRÓXIMA CLASE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tipografía y lo que sí cambia -->
+    <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 10px;">
+      <span style="font-size: 16px; font-weight: 700; color: #1C1420;">Tipografía — misma escala, distinta familia</span>
+      <div style="border: 1px solid #E7E2EA; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 9px;">
+        <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: #6B6472;">IOS: SF PRO · ANDROID: ROBOTO</span>
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-size: 15px; font-weight: 700; color: #1C1420;">Saludo</span><span class="mono" style="font-size: 12px; color: #6B6472;">26 / 700</span></div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-size: 15px; font-weight: 600; color: #1C1420;">Materia</span><span class="mono" style="font-size: 12px; color: #6B6472;">20 / 600</span></div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-size: 14px; font-weight: 600; color: #1C1420;">Sección</span><span class="mono" style="font-size: 12px; color: #6B6472;">17 / 600</span></div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-size: 14px; font-weight: 600; color: #1C1420;">Fila / campo</span><span class="mono" style="font-size: 12px; color: #6B6472;">15 / 600</span></div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-size: 14px; color: #1C1420;">Cuerpo</span><span class="mono" style="font-size: 12px; color: #6B6472;">15 / 400</span></div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-size: 13px; color: #6B6472;">Meta</span><span class="mono" style="font-size: 12px; color: #6B6472;">13 / 400</span></div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-size: 12px; color: #6B6472;">Etiqueta</span><span class="mono" style="font-size: 12px; color: #6B6472;">12 / 400</span></div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-size: 12px; font-weight: 600; color: #6B6472;">Pestaña</span><span class="mono" style="font-size: 12px; color: #6B6472;">10-12 / 600</span></div>
+        </div>
+      </div>
+
+      <span style="margin-top: 6px; font-size: 16px; font-weight: 700; color: #1C1420;">Lo único que cambia</span>
+      <div style="border: 1px solid #E7E2EA; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 9px;">
+        <div style="display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 9px;">
+          <span style="font-size: 11px; font-weight: 700; color: #6B6472;">&nbsp;</span><span style="font-size: 11px; font-weight: 700; color: #6B6472;">IOS</span><span style="font-size: 11px; font-weight: 700; color: #6B6472;">ANDROID</span>
+          <span style="font-size: 12px; color: #1C1420;">Familia</span><span class="mono" style="font-size: 12px; color: #6B6472;">SF Pro</span><span class="mono" style="font-size: 12px; color: #6B6472;">Roboto</span>
+          <span style="font-size: 12px; color: #1C1420;">Navegación</span><span class="mono" style="font-size: 12px; color: #6B6472;">flotante 62</span><span class="mono" style="font-size: 12px; color: #6B6472;">anclada 80</span>
+          <span style="font-size: 12px; color: #1C1420;">Activo</span><span class="mono" style="font-size: 12px; color: #6B6472;">icono teñido</span><span class="mono" style="font-size: 12px; color: #6B6472;">pastilla 64×32</span>
+          <span style="font-size: 12px; color: #1C1420;">Margen arriba</span><span class="mono" style="font-size: 12px; color: #6B6472;">54 pt</span><span class="mono" style="font-size: 12px; color: #6B6472;">40 dp</span>
+          <span style="font-size: 12px; color: #1C1420;">Área táctil</span><span class="mono" style="font-size: 12px; color: #6B6472;">44 pt</span><span class="mono" style="font-size: 12px; color: #6B6472;">48 dp</span>
+        </div>
+        <span style="font-size: 12px; line-height: 17px; color: #6B6472;">El orden de la barra es el mismo en las dos: <span style="font-weight: 600; color: #1C1420;">Perfil · Semáforo · Inicio · Mapa · Horario</span>, con Inicio al centro.</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Contraste -->
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <span style="font-size: 16px; font-weight: 700; color: #1C1420;">Contraste — el verde de la K es el que muerde</span>
+    <div style="display: flex; gap: 12px;">
+      <div style="flex-grow: 1; border-radius: 12px; overflow: hidden; border: 1.5px solid #B62325;">
+        <div style="height: 54px; background: #C9D329; display: flex; align-items: center; justify-content: center;"><span style="font-size: 16px; font-weight: 600; color: #FFFFFF;">Blanco sobre verde</span></div>
+        <div style="padding: 8px 12px; background: #FFFFFF;"><span style="font-size: 12px; color: #B62325;">Nunca. 1.5:1 — se borra bajo el sol.</span></div>
+      </div>
+      <div style="flex-grow: 1; border-radius: 12px; overflow: hidden; border: 1px solid #E7E2EA;">
+        <div style="height: 54px; background: #C9D329; display: flex; align-items: center; justify-content: center;"><span style="font-size: 16px; font-weight: 600; color: #522567;">Morado sobre verde</span></div>
+        <div style="padding: 8px 12px; background: #FFFFFF;"><span style="font-size: 12px; color: #3E823E;">Sí. Es el cruce que ya existe en la K.</span></div>
+      </div>
+      <div style="flex-grow: 1; border-radius: 12px; overflow: hidden; border: 1px solid #E7E2EA;">
+        <div style="height: 54px; background: #539392; display: flex; align-items: center; justify-content: center;"><span style="font-size: 16px; font-weight: 600; color: #FFFFFF;">Blanco sobre azul</span></div>
+        <div style="padding: 8px 12px; background: #FFFFFF;"><span style="font-size: 12px; color: #6B6472;">Solo texto grande (18 pt+) o iconos.</span></div>
+      </div>
+      <div style="flex-grow: 1; border-radius: 12px; overflow: hidden; border: 1px solid #E7E2EA;">
+        <div style="height: 54px; background: #D51A65; display: flex; align-items: center; justify-content: center;"><span style="font-size: 16px; font-weight: 600; color: #FFFFFF;">Blanco sobre rosa</span></div>
+        <div style="padding: 8px 12px; background: #FFFFFF;"><span style="font-size: 12px; color: #3E823E;">Sí, en botones. Es el que llevan todos.</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
