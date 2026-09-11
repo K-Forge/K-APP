@@ -1,3 +1,4 @@
+import { PageIntroComponent } from '../../../shared/ui/page-intro/page-intro.component';
 import { ChangeDetectionStrategy, Component, ViewChild, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -22,14 +23,18 @@ import { ProgramsService } from './programs.service';
  */
 @Component({
   selector: 'app-programs-page',
-  imports: [DataTableComponent, ApiErrorBannerComponent, ModalComponent, ReactiveFormsModule, RouterLink],
+  imports: [DataTableComponent, ApiErrorBannerComponent, ModalComponent, ReactiveFormsModule, RouterLink, PageIntroComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack">
-      <div class="row-between">
-        <h1>Programs</h1>
-        <button type="button" class="btn btn-primary" (click)="openCreate()">New program</button>
-      </div>
+      <app-page-intro
+        title="Programs"
+        what="The degree programmes the university offers. A programme is the container; the courses live in its pensum."
+        [can]="['Create a programme', 'Edit its name, faculty and level', 'Delete one that has no pensum yet', 'Jump to its active pensum']"
+        note="A programme&#39;s code cannot be changed once it exists: every pensum and every student profile points at it. Deleting never cascades either — a programme that still has a pensum is refused with a 409 naming which one."
+      >
+        <button actions type="button" class="btn btn-primary" (click)="openCreate()">New program</button>
+      </app-page-intro>
 
       <div class="card">
         <app-api-error-banner [error]="error()" />
@@ -59,9 +64,7 @@ import { ProgramsService } from './programs.service';
                 <td class="mono">{{ program.activePensumCode ?? '—' }}</td>
                 <td class="row">
                   @if (program.activePensumCode) {
-                    <a class="btn btn-sm" [routerLink]="['/data/curricula']" [queryParams]="{ pensum: program.activePensumCode }">
-                      Curriculum
-                    </a>
+                    <a class="btn btn-sm" [routerLink]="['/data/pensums']" [queryParams]="{ pensum: program.activePensumCode }">Pensum</a>
                   }
                   <button type="button" class="btn btn-sm" (click)="openEdit(program)">Edit</button>
                   <button

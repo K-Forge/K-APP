@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { PageIntroComponent } from '../../../shared/ui/page-intro/page-intro.component';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { AppHttpError } from '../../../core/http/api-http-error';
 import type { ApiError } from '../../../core/http/api-error.model';
@@ -19,22 +20,20 @@ import { VisitorPassesService } from './visitor-passes.service';
  */
 @Component({
   selector: 'app-visitor-passes-page',
-  imports: [DataTableComponent, ApiErrorBannerComponent, DatePipe],
+  imports: [DataTableComponent, ApiErrorBannerComponent, DatePipe, PageIntroComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack">
-      <div class="row-between">
-        <h1>Visitor passes</h1>
-        <button type="button" class="btn btn-primary" [disabled]="issuing()" (click)="issue()">
-          {{ issuing() ? 'Issuing…' : 'Issue a pass' }}
-        </button>
-      </div>
-
-      <p class="text-muted">
-        A pass is a token, not an account: no e-mail, no password, nothing left behind. Redeemed,
-        it opens the campus map for 24 hours and nothing else. <strong>The register below holds
-        identity documents</strong> and deletes itself 30 days after each visit.
-      </p>
+      <app-page-intro
+        title="Visitor passes"
+        what="A one-day pass reception hands to somebody visiting campus. They redeem it, get 24 hours of map access, and no account is ever created."
+        [can]="['Issue a pass and read the code out', 'See who redeemed each one', 'Revoke a pass nobody has used yet']"
+        note="Not the same thing as an invitation code. A code creates a permanent account for a student or a professor; this creates nothing — it is a token that expires. The register below holds visitors&#39; identity documents, which is the point of keeping it, and it deletes itself 30 days after each visit."
+      >
+          <button actions type="button" class="btn btn-primary" [disabled]="issuing()" (click)="issue()">
+            {{ issuing() ? 'Issuing…' : 'Issue a pass' }}
+          </button>
+      </app-page-intro>
 
       @if (justIssued(); as pass) {
         <div class="card issued" role="status">

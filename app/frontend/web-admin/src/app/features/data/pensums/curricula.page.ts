@@ -1,8 +1,10 @@
+import { PageIntroComponent } from '../../../shared/ui/page-intro/page-intro.component';
 import { ChangeDetectionStrategy, Component, ViewChild, effect, inject, input, signal } from '@angular/core';
 import { AppHttpError } from '../../../core/http/api-http-error';
 import type { ApiError } from '../../../core/http/api-error.model';
 import { ApiErrorBannerComponent } from '../../../shared/ui/api-error-banner/api-error-banner.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
+import { ImportPanelComponent } from '../import/import-panel.component';
 import { CurriculaService } from './curricula.service';
 import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
 
@@ -15,14 +17,18 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
  */
 @Component({
   selector: 'app-curricula-page',
-  imports: [ApiErrorBannerComponent, ModalComponent],
+  imports: [ApiErrorBannerComponent, ModalComponent, ImportPanelComponent, PageIntroComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack">
-      <div class="row-between">
-        <h1>Curricula</h1>
-        <button type="button" class="btn btn-primary" (click)="openCreate()">New curriculum</button>
-      </div>
+      <app-page-intro
+        title="Pensums"
+        what="A pensum is one version of a programme&#39;s plan of study: its courses, their levels, their credits and which ones unlock which."
+        [can]="['Load one by its code', 'Edit the whole document', 'Delete one no student is following', 'Import many at once from a CSV']"
+        note="The pensum is immutable as far as students are concerned — a student&#39;s own rearrangement is a separate plan layered over it, so correcting a pensum here reaches every student without rewriting anybody&#39;s plan. Deleting never cascades: one that students are following is refused with a 409 saying how many."
+      >
+        <button actions type="button" class="btn btn-primary" (click)="openCreate()">New pensum</button>
+      </app-page-intro>
 
       <div class="card stack">
         <div class="row" style="align-items: end">
@@ -39,7 +45,7 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
 
         @if (!loading() && !error() && !curriculum()) {
           <div class="empty-state">
-            <p>Enter a pensum code to load a curriculum - for example 1015 (Ingeniería de Sistemas).</p>
+            <p>Enter a pensum code — for example 1015, Ingeniería de Sistemas.</p>
           </div>
         }
 
@@ -48,7 +54,7 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
             <div class="row-between">
               <h2 style="margin:0">{{ c.programName }} · {{ c.pensumCode }}</h2>
               <div class="row">
-                <button type="button" class="btn btn-sm" (click)="openEdit(c)">Edit this curriculum</button>
+                <button type="button" class="btn btn-sm" (click)="openEdit(c)">Edit this pensum</button>
                 <button type="button" class="btn btn-sm btn-danger" [disabled]="deleting()" (click)="remove(c)">
                   {{ deleting() ? 'Deleting…' : 'Delete' }}
                 </button>
@@ -122,22 +128,35 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
           </div>
         }
       </div>
+
+      <!-- Bulk creation. It lives here rather than in its own navigation entry because
+           importing a CSV IS the create half of this screen's CRUD - twenty-four pensums is
+           not something anybody types in one at a time. -->
+      <details class="card import-panel">
+        <summary>
+          <strong>Import many from a CSV</strong>
+          <span class="text-muted"> — twenty-four pensums, not one at a time</span>
+        </summary>
+        <div style="margin-top:1rem">
+          <app-import-panel />
+        </div>
+      </details>
     </div>
 
-    <app-modal #formModal [title]="formMode() === 'create' ? 'New curriculum' : 'Edit curriculum'" (closed)="formError.set(null)">
+    <app-modal #formModal [title]="formMode() === 'create' ? 'New pensum' : 'Edit pensum'" (closed)="formError.set(null)">
       <div class="stack">
         <app-api-error-banner [error]="formError()" />
         <p class="text-muted">
-          Full curriculum document as JSON, matching the <code>Curriculum</code> schema in
-          docs/api/semaphore.openapi.yaml.
+          The whole pensum as JSON, matching the <code>Curriculum</code> schema in
+          <code>docs/api/semaphore.openapi.yaml</code> — which is still what the contract calls it.
         </p>
         <div class="field">
-          <label for="curriculum-json">Curriculum document</label>
+          <label for="curriculum-json">Pensum document</label>
           <textarea id="curriculum-json" rows="16" [value]="formText()" (input)="onFormTextInput($event)"></textarea>
         </div>
         <div class="row">
           <button type="button" class="btn btn-primary" [disabled]="formSubmitting()" (click)="submit()">
-            {{ formSubmitting() ? 'Saving…' : formMode() === 'create' ? 'Create curriculum' : 'Save changes' }}
+            {{ formSubmitting() ? 'Saving…' : formMode() === 'create' ? 'Create pensum' : 'Save changes' }}
           </button>
           <button type="button" class="btn" (click)="formModal.close()">Cancel</button>
         </div>
@@ -145,6 +164,22 @@ import { CURRICULUM_SKELETON, type Curriculum } from './curriculum.model';
     </app-modal>
   `,
   styles: `
+    .import-panel > summary {
+      cursor: pointer;
+      list-style: none;
+      font-size: 0.9375rem;
+    }
+    .import-panel > summary::-webkit-details-marker {
+      display: none;
+    }
+    .import-panel > summary::before {
+      content: '▸ ';
+      color: var(--text-muted);
+    }
+    .import-panel[open] > summary::before {
+      content: '▾ ';
+    }
+
     .curriculum-summary {
       display: grid;
       grid-template-columns: 8rem 1fr;
@@ -299,7 +334,7 @@ export class CurriculaPage {
   remove(curriculum: Curriculum): void {
     if (
       !window.confirm(
-        `Delete curriculum ${curriculum.pensumCode} (${curriculum.programName})? ` +
+        `Delete pensum ${curriculum.pensumCode} (${curriculum.programName})? ` +
           `It has ${curriculum.courses.length} courses. If any student is following it, the ` +
           `server refuses and says how many.`,
       )

@@ -6,29 +6,19 @@ import type { CurriculumImportReport } from './import.model';
 import { CurriculumImportService } from './import.service';
 
 /**
- * Bulk load of pensums from a spreadsheet export.
+ * Bulk loading of pensums from a spreadsheet export, as a panel rather than a page.
  *
- * <p>24 programs and roughly 1200 rows is data-entry work, not programming, and the point of this
- * screen is that somebody can do it without touching code.
- *
- * <p>The dry run is the default, and deliberately so. The import writes nothing unless the whole
- * file validates, so a failed attempt costs nothing — but seeing the report before committing is
- * how a transcription error gets caught by the person who can still fix it.
+ * <p>It sits inside the Pensums screen because importing a CSV IS the create half of that
+ * screen's CRUD: twenty-four programmes and roughly 1200 rows is not something anybody enters
+ * one at a time, and a separate "Import" entry in the navigation made it look like a different
+ * feature rather than the same one at scale.
  */
 @Component({
-  selector: 'app-import-page',
+  selector: 'app-import-panel',
   imports: [ApiErrorBannerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack">
-      <h1>Import pensums</h1>
-
-      <p class="text-muted">
-        One row per pensum item; the columns before <code>pensumItemCode</code> describe the pensum
-        and repeat on every one of its rows. One file may carry several pensums. The template and
-        its column reference are in <code>docs/templates/</code>.
-      </p>
-
       <div class="card stack">
         <div class="field">
           <label for="csv">CSV file</label>
@@ -114,7 +104,7 @@ import { CurriculumImportService } from './import.service';
     </div>
   `,
 })
-export class ImportPage {
+export class ImportPanelComponent {
   private readonly service = inject(CurriculumImportService);
 
   readonly file = signal<File | null>(null);

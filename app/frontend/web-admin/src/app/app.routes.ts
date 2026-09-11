@@ -39,9 +39,12 @@ export const routes: Routes = [
         loadComponent: () => import('./features/data/programs/programs.page').then((m) => m.ProgramsPage),
       },
       {
-        path: 'data/curricula',
-        loadComponent: () => import('./features/data/curricula/curricula.page').then((m) => m.CurriculaPage),
+        path: 'data/pensums',
+        loadComponent: () => import('./features/data/pensums/curricula.page').then((m) => m.CurriculaPage),
       },
+      // The screen was called Curricula until somebody pointed out that nobody in the building
+      // says that - it is a pensum. Kept as a redirect because Programs links here by path.
+      { path: 'data/curricula', redirectTo: 'data/pensums' },
       {
         path: 'data/invitation-codes',
         loadComponent: () =>
@@ -52,10 +55,8 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/data/visitor-passes/visitor-passes.page').then((m) => m.VisitorPassesPage),
       },
-      {
-        path: 'data/import',
-        loadComponent: () => import('./features/data/import/import.page').then((m) => m.ImportPage),
-      },
+      // Importing is not its own screen any more; it is the create half of Pensums.
+      { path: 'data/import', redirectTo: 'data/pensums' },
       {
         path: 'roles',
         loadComponent: () => import('./features/roles/role-inspector.page').then((m) => m.RoleInspectorPage),

@@ -1,3 +1,4 @@
+import { PageIntroComponent } from '../../shared/ui/page-intro/page-intro.component';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { TokenStore } from '../../core/auth/token.store';
 import { ClockService } from '../../core/clock/clock.service';
@@ -12,11 +13,16 @@ import { TokenCountdownComponent } from '../../shared/ui/token-countdown/token-c
  */
 @Component({
   selector: 'app-identity-page',
-  imports: [JsonViewComponent, TokenCountdownComponent, RoleBadgeComponent],
+  imports: [JsonViewComponent, TokenCountdownComponent, RoleBadgeComponent, PageIntroComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack">
-      <h1>Identity</h1>
+      <app-page-intro
+        title="My token"
+        what="What the access token in this browser actually says: who you are to the API, what it grants you, and how long it has left."
+        [can]="['Read every claim, decoded', 'See the roles the API will act on', 'Watch the countdown to expiry', 'Copy the raw claims']"
+        note="Decoded here in the browser, not verified. The signature is what the services check, and only they can — so this shows what the token CLAIMS. If a call is refused while this says you have the role, that gap is worth reporting."
+      />
 
       @if (decoded(); as decoded) {
         <div class="card stack">

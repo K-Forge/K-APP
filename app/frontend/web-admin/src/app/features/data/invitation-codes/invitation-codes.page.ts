@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { PageIntroComponent } from '../../../shared/ui/page-intro/page-intro.component';
 import { ChangeDetectionStrategy, Component, ViewChild, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AppHttpError } from '../../../core/http/api-http-error';
@@ -21,21 +22,18 @@ import { InvitationCodesService } from './invitation-codes.service';
  */
 @Component({
   selector: 'app-invitation-codes-page',
-  imports: [DataTableComponent, ApiErrorBannerComponent, ModalComponent, ReactiveFormsModule, DatePipe],
+  imports: [DataTableComponent, ApiErrorBannerComponent, ModalComponent, ReactiveFormsModule, DatePipe, PageIntroComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack">
-      <div class="row-between">
-        <h1>Invitation codes</h1>
-        <button type="button" class="btn btn-primary" (click)="openCreate()">New code</button>
-      </div>
-
-      <p class="text-muted">
-        A code decides the role an account receives at sign-up. <strong>ROLE_ADMIN is never
-        grantable this way</strong> — codes are read out to whole intakes and the seeded ones live
-        in the repository, so a code that could mint an administrator would mean anyone who can
-        read the repository can escalate.
-      </p>
+      <app-page-intro
+        title="Invitation codes"
+        what="How a student or a professor creates their own KApp account in the mobile app. The code they type decides which role they get."
+        [can]="['Create a code for an intake', 'Set how many accounts it may create, and when it expires', 'Deactivate one without losing its history', 'Delete one entirely']"
+        note="Not the same thing as a visitor pass. A code creates a permanent account for somebody who belongs to the university; a visitor pass is a 24-hour token for somebody who does not, and creates no account at all. ROLE_ADMIN is never grantable by a code — the seeded ones ship in a public repository, so a code that could mint an administrator would let anyone who can read it escalate."
+      >
+        <button actions type="button" class="btn btn-primary" (click)="openCreate()">New code</button>
+      </app-page-intro>
 
       <div class="card stack">
         <div class="field" style="margin-bottom:0; max-width: 14rem">

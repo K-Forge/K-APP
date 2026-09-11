@@ -1,3 +1,4 @@
+import { PageIntroComponent } from '../../../shared/ui/page-intro/page-intro.component';
 import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, effect, inject, signal } from '@angular/core';
 import { ALL_ROLES, type Role } from '../../../core/auth/auth.model';
 import { AppHttpError } from '../../../core/http/api-http-error';
@@ -20,11 +21,16 @@ const PAGE_SIZE = 20;
  */
 @Component({
   selector: 'app-users-page',
-  imports: [DataTableComponent, RoleBadgeComponent, ApiErrorBannerComponent, ModalComponent, JsonViewComponent],
+  imports: [DataTableComponent, RoleBadgeComponent, ApiErrorBannerComponent, ModalComponent, JsonViewComponent, PageIntroComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack">
-      <h1>Users</h1>
+      <app-page-intro
+        title="Users"
+        what="Everyone with a KApp account, and the only place to see who they are and switch them on or off."
+        [can]="['Search by name or e-mail, accent-insensitively', 'Filter by role and by status', 'Open a profile', 'Deactivate or reactivate an account']"
+        note="There is deliberately no create or delete here. Accounts are born from registration — a person signs up with an invitation code, which is what decides their role — so creating one here would invent a user that never agreed to anything. Deactivating is the reversible way to take access away."
+      />
 
       <div class="card stack">
         <div class="row spread">

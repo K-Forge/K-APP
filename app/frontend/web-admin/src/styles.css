@@ -41,6 +41,20 @@
 
   --focus-ring: #539392;
 
+  /* The three institutional hues, unmodified. Used as identity - the header's
+     hairline, the active section's edge, a badge - never as text, because the
+     green in particular cannot carry contrast at body size. The --text and
+     --primary variants above are darkened versions of the same hues for that. */
+  --brand-teal: #539392;
+  --brand-pink: #D51A65;
+  --brand-green: #C9D329;
+
+  /* The header and sidebar are tinted rather than white. Three stacked white
+     planes read as flat; a faint wash of the institutional teal separates the
+     chrome from the content without drawing attention to itself. */
+  --header-bg: #eaf1f0;
+  --nav-bg: #f0f4f3;
+
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
@@ -88,6 +102,13 @@
     --warning-bg: #3a2c0d;
 
     --focus-ring: #7fc2c0;
+
+    --brand-teal: #6fb0ae;
+    --brand-pink: #e8578f;
+    --brand-green: #c9d329;
+
+    --header-bg: #16201f;
+    --nav-bg: #131b1a;
   }
 }
 
@@ -123,6 +144,14 @@
   --warning-bg: #3a2c0d;
 
   --focus-ring: #7fc2c0;
+
+  --brand-teal: #6fb0ae;
+  --brand-pink: #e8578f;
+  --brand-green: #c9d329;
+
+  --header-bg: #16201f;
+  --nav-bg: #131b1a;
+
 }
 
 * {

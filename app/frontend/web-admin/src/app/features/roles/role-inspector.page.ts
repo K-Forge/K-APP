@@ -1,3 +1,4 @@
+import { PageIntroComponent } from '../../shared/ui/page-intro/page-intro.component';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ALL_ROLES, type Role } from '../../core/auth/auth.model';
 import { TokenStore } from '../../core/auth/token.store';
@@ -22,11 +23,16 @@ interface InspectedRow {
  */
 @Component({
   selector: 'app-role-inspector-page',
-  imports: [DataTableComponent, RoleBadgeComponent],
+  imports: [DataTableComponent, RoleBadgeComponent, PageIntroComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="stack">
-      <h1>Roles</h1>
+      <app-page-intro
+        title="Who can do what"
+        what="Every endpoint across the five services, and which roles the API contract says may call it."
+        [can]="['Filter by service, by role, or by path', 'See which operations are public', 'Spot the ones whose contract says nothing usable']"
+        note="This reads the prose in the OpenAPI descriptions — it reports what the contracts CLAIM, not what the code does. To check a row is true, call it yourself in the API console with a token for that role, or read the backend&#39;s authorization matrix tests, which assert the real behaviour per role and are the thing that would fail if the two ever disagreed."
+      />
 
       <div class="card stack">
         <div>
