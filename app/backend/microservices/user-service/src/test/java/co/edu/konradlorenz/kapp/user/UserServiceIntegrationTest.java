@@ -42,7 +42,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Testcontainers
 @TestPropertySource(properties = {
         "eureka.client.enabled=false",
-        "spring.cloud.discovery.enabled=false"
+        "spring.cloud.discovery.enabled=false",
+        // The Feign client to auth-service is built at startup and refuses a blank secret, so
+        // even a test that never deactivates anybody needs one for the context to come up.
+        "kapp.internal.token=test-internal-token-8f2c1d"
 })
 class UserServiceIntegrationTest {
 

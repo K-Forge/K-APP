@@ -50,6 +50,14 @@
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
 
+        <!-- Suspends the credential in auth-service when an administrator deactivates an
+             account. Whether a person may sign in is decided there, so the switch has to
+             reach there; the profile flag this service owns governs a listing, not access. -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>

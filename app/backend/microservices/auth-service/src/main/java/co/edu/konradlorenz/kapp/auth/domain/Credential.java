@@ -81,6 +81,30 @@ public record Credential(
     }
 
     /**
+     * Suspends or restores the account, for an administrator's deactivation.
+     *
+     * <p>Restoring lands on {@code ACTIVE} rather than on whatever the status was before.
+     * Storing the previous one would need a field and a migration, and the case it would
+     * protect - an account suspended while its e-mail was still unverified coming back
+     * verified - is a human decision by an administrator either way. It matters only once
+     * e-mail verification is switched on; {@code SECURITY-AUDIT.md} records it as such.
+     *
+     * <p>Not conditioned on {@code emailVerified}: verification is off in the MVP, so every
+     * account carries {@code emailVerified = false}, and treating that as "send it back to
+     * PENDING_VERIFICATION" would make deactivation a one-way door for all of them.
+     *
+     * <p>Returns {@code this} when nothing would change, so an idempotent call writes nothing.
+     */
+    public Credential withSignInAllowed(boolean allowed, Instant now) {
+        Status target = allowed ? Status.ACTIVE : Status.SUSPENDED;
+        if (status == target) {
+            return this;
+        }
+        return new Credential(id, userId, email, passwordHash, roles, target, emailVerified,
+                provider, verificationTokenHash, verificationTokenExpiresAt, createdAt, now);
+    }
+
+    /**
      * A brand new local account.
      *
      * <p>{@code emailVerified} is hard-coded to {@code false} here rather than taken as a

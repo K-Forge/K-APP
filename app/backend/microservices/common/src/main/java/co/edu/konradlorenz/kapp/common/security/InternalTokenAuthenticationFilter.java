@@ -1,4 +1,4 @@
-package co.edu.konradlorenz.kapp.user.security;
+package co.edu.konradlorenz.kapp.common.security;
 
 import co.edu.konradlorenz.kapp.common.error.ApiError;
 import co.edu.konradlorenz.kapp.common.feign.InternalTokenInterceptor;

@@ -1,4 +1,4 @@
-package co.edu.konradlorenz.kapp.user.security;
+package co.edu.konradlorenz.kapp.auth.security;
 
 import co.edu.konradlorenz.kapp.common.security.InternalTokenAuthenticationFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,7 +14,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 /**
  * A second security chain, for the one path in this service that is not authenticated by
- * a user's token.
+ * a user's token: {@code /internal/credentials/**}, which user-service calls when an
+ * administrator deactivates an account. Sign-in is decided here, so the switch that stops
+ * it has to reach here - the profile flag in user-service governs a listing, not access.
+ *
+ * <p>Character for character the same chain as user-service's, and deliberately so: the
+ * shape below is load-bearing in ways that are not obvious, and the comments explaining why
+ * are worth more repeated than abbreviated.
  *
  * <h2>The shape of this bean is load-bearing</h2>
  * <ul>

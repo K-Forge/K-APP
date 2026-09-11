@@ -4,10 +4,15 @@ import co.edu.konradlorenz.kapp.user.AbstractUserServiceTest;
 import co.edu.konradlorenz.kapp.user.domain.StoredInstant;
 import co.edu.konradlorenz.kapp.user.domain.UserProfile;
 import co.edu.konradlorenz.kapp.user.domain.UserRole;
+import co.edu.konradlorenz.kapp.user.client.CredentialStatusUpdate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -232,6 +237,59 @@ class UserAdminControllerTest extends AbstractUserServiceTest {
                         .content("""
                                 {"active": false}"""))
                 .andExpect(status().isNotFound());
+    }
+
+    // Deactivating is two facts in two databases. Before this, only the profile half happened:
+    // the account stopped being listed as active and its owner kept signing in, because sign-in
+    // is decided by the credential in auth-service and nothing ever suspended it.
+    @Test
+    @DisplayName("deactivating an account also suspends its credential in auth-service")
+    void setStatus_deactivate_suspendsTheCredential() throws Exception {
+        save(student(TARGET_ID, "target@konradlorenz.edu.co", "Target", "Account"));
+
+        mockMvc.perform(patch("/api/users/{userId}/status", TARGET_ID)
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"active": false}"""))
+                .andExpect(status().isOk());
+
+        verify(credentialStatus).setStatus(TARGET_ID, new CredentialStatusUpdate(false));
+    }
+
+    @Test
+    @DisplayName("reactivating an account lets it sign in again")
+    void setStatus_reactivate_restoresTheCredential() throws Exception {
+        save(student(TARGET_ID, "target@konradlorenz.edu.co", "Target", "Account"));
+
+        mockMvc.perform(patch("/api/users/{userId}/status", TARGET_ID)
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"active": true}"""))
+                .andExpect(status().isOk());
+
+        verify(credentialStatus).setStatus(TARGET_ID, new CredentialStatusUpdate(true));
+    }
+
+    // The credential goes first on purpose: if the profile write then fails the account is
+    // already locked out, and a retry finishes the job. The other order would leave a profile
+    // marked inactive whose owner could still sign in - the state this whole change removed.
+    @Test
+    @DisplayName("when auth-service cannot be reached the profile is not flipped either")
+    void setStatus_authServiceDown_leavesTheProfileAlone() throws Exception {
+        save(student(TARGET_ID, "target@konradlorenz.edu.co", "Target", "Account"));
+        doThrow(new IllegalStateException("auth-service is down"))
+                .when(credentialStatus).setStatus(eq(TARGET_ID), any());
+
+        mockMvc.perform(patch("/api/users/{userId}/status", TARGET_ID)
+                        .with(callerWith(ADMIN_ID, UserRole.ROLE_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"active": false}"""))
+                .andExpect(status().is5xxServerError());
+
+        assertThat(reload(TARGET_ID).active()).isTrue();
     }
 
     @Test

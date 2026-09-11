@@ -432,15 +432,27 @@ paths:
       summary: Activate or deactivate a user
       description: |
         Flips the activation flag of an account. Deactivation is a logical
-        delete: the profile is kept for audit and academic history, but the
-        account can no longer use the platform and its tokens stop being
-        honoured.
+        delete: the profile is kept for audit and academic history, and the
+        account can no longer sign in.
+
+        **This writes to two services.** The profile here stops being listed as
+        active, and the User API calls
+        `PATCH /internal/credentials/{userId}/status` on the Auth API to suspend
+        the credential — because whether somebody may sign in is decided there,
+        not here. The credential is changed first, so a failure part-way leaves
+        the account locked out rather than listed as inactive while its owner
+        can still log in. If the Auth API cannot be reached, this call fails and
+        nothing changes.
+
+        **A token already issued stays valid until it expires.** Nothing revokes
+        one; deactivation stops the next one being issued. That is inherent to
+        stateless JWTs and it is why the access-token lifetime is an hour.
 
         **Access: `ROLE_ADMIN` only.** Other roles receive `403`.
 
         The call is idempotent: setting `active` to the value it already holds
-        succeeds and returns the unchanged profile. Returns `404` when no
-        account carries that id.
+        succeeds and returns the unchanged profile, writing nothing on either
+        side. Returns `404` when no account carries that id.
       tags: [Administration]
       parameters:
         - $ref: '#/components/parameters/UserIdPath'

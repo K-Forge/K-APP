@@ -16,6 +16,8 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import co.edu.konradlorenz.kapp.user.client.CredentialStatusClient;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -53,6 +55,15 @@ public abstract class AbstractUserServiceTest {
 
     /** The secret auth-service would hold. Any value works; both sides must agree. */
     public static final String INTERNAL_TOKEN = "test-internal-token-8f2c1d";
+
+    /**
+     * Stands in for auth-service. Deactivating an account suspends the credential over there,
+     * and there is no auth-service in these tests - but the call must still be made, so this is
+     * a stub rather than a switch that turns the behaviour off. {@link UserAdminControllerTest}
+     * asserts against it.
+     */
+    @MockitoBean
+    protected CredentialStatusClient credentialStatus;
 
     static final MongoDBContainer MONGO = new MongoDBContainer("mongo:7.0");
 

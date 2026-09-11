@@ -637,12 +637,111 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiError'
 
+  /internal/credentials/{userId}/status:
+    # POST rather than PATCH, though a partial update is what it is: Feign's default client is
+    # java.net.HttpURLConnection, which refuses PATCH outright. One caller, no public contract,
+    # so the verb gives way rather than the dependency list.
+    post:
+      # Not role-protected: reachable only from inside the compose network, with the
+      # shared internal token, and it has no gateway route at all.
+      x-roles: [SERVICE_ONLY]
+      operationId: setCredentialStatus
+      summary: Allow or refuse sign-in for an account
+      description: |
+        Service-to-service endpoint. The User API calls it when an administrator
+        deactivates or reactivates an account, because whether somebody may sign
+        in is decided here while the profile flag lives there.
+
+        Before this endpoint existed, "deactivate" wrote `active = false` on the
+        profile and nothing else. Sign-in only ever refuses a `SUSPENDED`
+        credential, and nothing in the product ever set `SUSPENDED` — so the
+        button claimed to remove access and the account kept working.
+
+        **Not reachable from outside.** The API gateway does not route
+        `/internal/**`; the path exists only on the auth-service port inside the
+        Docker network. Do not build any client against it — no web, Kotlin or
+        Swift client should ever call it.
+
+        **Access: `X-Internal-Token` header only.** No bearer token is involved
+        and no user role applies. A missing or wrong token gives `401`.
+
+        **A token already issued stays valid until it expires.** This stops the
+        next one being issued; it does not revoke one in flight. That is
+        inherent to stateless JWTs and it is why the access-token lifetime is an
+        hour.
+
+        Idempotent: setting the state the credential already holds answers `204`
+        and writes nothing. Restoring an account lands on `ACTIVE`, including one
+        that was suspended while its e-mail was unverified — verification is off
+        in the MVP, so every credential carries `emailVerified: false` and
+        treating that as "send it back to PENDING_VERIFICATION" would make
+        deactivation a one-way door.
+      tags: [Internal]
+      security:
+        - internalToken: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: >-
+            Account identifier, the same one the User API keys its profile on and
+            the `sub` claim of every token signed for this account.
+          schema:
+            type: string
+            format: uuid
+            example: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active]
+              properties:
+                active:
+                  type: boolean
+                  description: >-
+                    True to allow sign-in, false to suspend. Required: an absent
+                    field is a 400 rather than a silent false, because the
+                    difference between "reactivate" and "omitted" must not be a
+                    locked-out account.
+            example:
+              active: false
+      responses:
+        '204':
+          description: The credential now holds that state.
+        '400':
+          description: The `active` field was absent or not a boolean.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Missing or wrong `X-Internal-Token`.
+        '404':
+          description: >-
+            No credential carries that user id — which means the two services
+            disagree about who exists, and is surfaced rather than swallowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    internalToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Token
+      description: |
+        Shared secret for service-to-service calls inside the Docker network,
+        injected as an environment variable in both the Auth and User services.
+        It is not a JWT, it carries no user identity and it is never handed to a
+        client application.
   schemas:
     InvitationCode:
       type: object

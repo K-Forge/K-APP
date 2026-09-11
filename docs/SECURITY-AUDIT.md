@@ -346,6 +346,57 @@ Cruz Parra (Dirección de TI) says KApp stores no institutional records. That st
 accurate the day this shipped. They should hear it from us, with the retention period, rather
 than find it.
 
+### S13 — "Deactivate" did not remove access (High) — RESOLVED
+
+**Found by using the portal, not by reading it.** The Users screen offers Deactivate, and its
+own copy calls it "the reversible way to take access away". It was not. It flipped `active` on
+the profile in user-service, which decides how a row is drawn in a listing and nothing else.
+
+Sign-in is decided by the credential in auth-service, and `Credential.canSignIn()` refuses only
+`Status.SUSPENDED`. Nothing in the product ever set `SUSPENDED` — the value appeared in exactly
+one place in the whole repository, a test fixture. A deactivated person kept signing in, kept
+receiving tokens with their roles intact, and kept full access to every endpoint. The contract
+said so too: `PATCH /api/users/{userId}/status` claimed the account's "tokens stop being
+honoured".
+
+**Why it survived review.** Both halves were individually correct. user-service owns profiles
+and flipped its flag; auth-service owns sign-in and refuses suspended credentials. Nothing
+joined them, and no test could catch it, because a test of either service in isolation passes.
+It is visible only end to end, from the button.
+
+**The fix.** `UserProfileService.setActive` now calls
+`PATCH /internal/credentials/{userId}/status` on auth-service, over the same `X-Internal-Token`
+channel that registration already uses in the other direction, and the credential goes **first**:
+if the profile write then fails, the account is already locked out, and a retry finishes the job.
+The reverse order would leave a profile marked inactive whose owner could still sign in, which is
+the state this replaced. These are separate databases, so there is no transaction — the order is
+the only safety there is. If auth-service cannot be reached the whole call fails and nothing
+changes.
+
+**What it does not do.** It does not revoke a token already issued. That is inherent to stateless
+JWTs: a suspended account keeps whatever it is holding until it expires, which is at most an
+hour. Shortening that window further, or adding a revocation list, is a trade against every
+request paying for a lookup. An hour is the decision, and it is now stated in both contracts
+rather than implied.
+
+**One thing deliberately left.** Reactivation restores `ACTIVE` rather than the status the
+account held before it was suspended. Storing the previous one needs a field and a migration,
+and the only case it protects — an account suspended while its e-mail was unverified coming back
+verified — is an administrator's own decision either way. It starts to matter the day
+`KAPP_REQUIRE_EMAIL_VERIFICATION` is turned on. Note it there.
+
+### S14 — Any administrator can deactivate every administrator, including themselves (Moderate) — OPEN BY DECISION
+
+There are four accounts and all four are `ROLE_ADMIN`. Now that S13 makes deactivation real,
+four clicks lock everybody out of the portal permanently — there is no create-user path (by
+design: accounts are born from registration) and no super-user, so recovery means editing
+MongoDB by hand.
+
+Left open on purpose, for now. Guarding it properly means deciding what an administrator is
+allowed to do to another administrator, and that question has a real answer only once the roles
+stop being "the four of us building it". Until then the team knows, and
+`scripts/create-dev-accounts.sh --recreate` is the way back.
+
 ## 4. Architectural notes
 
 Observations from the same review that are not security defects but affect maintainability.

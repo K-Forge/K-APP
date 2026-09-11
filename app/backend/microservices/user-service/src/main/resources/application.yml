@@ -24,11 +24,17 @@ spring:
 
 kapp:
   internal:
-    # Shared secret guarding POST /internal/users, the endpoint auth-service calls during
-    # registration. Both services must hold the same value. Left empty the service still
-    # starts, warns once and rejects every internal request with 401: an unset secret must
-    # never read as "no check needed".
+    # Shared secret guarding /internal/** in both directions: POST /internal/users here, which
+    # auth-service calls during registration, and PATCH /internal/credentials/{id}/status there,
+    # which this service calls when an administrator deactivates an account. All three services
+    # must hold the same value. Left empty the service still starts, warns once and rejects
+    # every internal request with 401: an unset secret must never read as "no check needed".
     token: ${KAPP_INTERNAL_TOKEN:}
+
+  user:
+    # Blank means "resolve auth-service through Eureka", the production path. A test or a
+    # local run can point this at a stub instead.
+    auth-service-url: ${KAPP_AUTH_SERVICE_URL:}
 
 mongock:
   migration-scan-package: co.edu.konradlorenz.kapp.user.migration

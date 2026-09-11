@@ -14,4 +14,11 @@ public interface CredentialRepository extends MongoRepository<Credential, String
     Optional<Credential> findByEmailIgnoreCase(String email);
 
     boolean existsByEmailIgnoreCase(String email);
+
+    /**
+     * By the id user-service knows the person as. Credentials and profiles are separate
+     * documents in separate databases; {@code userId} is the only thing that joins them, and
+     * it is what an administrator's "deactivate" has to travel on.
+     */
+    Optional<Credential> findByUserId(String userId);
 }

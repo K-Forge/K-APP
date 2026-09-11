@@ -6,6 +6,8 @@ import co.edu.konradlorenz.kapp.common.error.ResourceNotFoundException;
 import co.edu.konradlorenz.kapp.user.domain.AcademicInfo;
 import co.edu.konradlorenz.kapp.user.domain.SearchTokens;
 import co.edu.konradlorenz.kapp.user.domain.StoredInstant;
+import co.edu.konradlorenz.kapp.user.client.CredentialStatusClient;
+import co.edu.konradlorenz.kapp.user.client.CredentialStatusUpdate;
 import co.edu.konradlorenz.kapp.user.domain.UserProfile;
 import co.edu.konradlorenz.kapp.user.domain.UserRole;
 import co.edu.konradlorenz.kapp.user.repository.UserDirectoryRepository;
@@ -40,11 +42,14 @@ public class UserProfileService {
 
     private final UserProfileRepository repository;
     private final UserDirectoryRepository directory;
+    private final CredentialStatusClient credentials;
 
     public UserProfileService(UserProfileRepository repository,
-                              UserDirectoryRepository directory) {
+                              UserDirectoryRepository directory,
+                              CredentialStatusClient credentials) {
         this.repository = repository;
         this.directory = directory;
+        this.credentials = credentials;
     }
 
     /** The profile of the account a token belongs to, resolved from its {@code sub}. */
@@ -112,13 +117,27 @@ public class UserProfileService {
     }
 
     /**
-     * Flips the activation flag. Idempotent: setting the value the account already holds
-     * returns the profile untouched, without a pointless write.
+     * Flips the activation flag, here and in auth-service.
+     *
+     * <p>Two facts in two databases: whether the profile is listed as active, which this service
+     * owns, and whether the person may sign in, which auth-service owns. Only the first used to
+     * happen - so "Deactivate" removed somebody from a filter and left them able to log in, with
+     * the portal's own copy saying it was "the reversible way to take access away".
+     *
+     * <p>The credential goes first, and deliberately. If the profile write then fails, the
+     * account is already locked out and a retry finishes the job; the other order would leave a
+     * profile marked inactive whose owner could still sign in, which is the state this fixed.
+     * Nothing here is a transaction - they are different databases - so the order is the only
+     * safety there is.
+     *
+     * <p>Idempotent: setting the value the account already holds writes nothing on either side.
      */
     public UserProfileResponse setActive(String userId, boolean active) {
         UserProfile current = load(userId);
-        UserProfile updated = current.withActive(active, StoredInstant.now());
 
+        credentials.setStatus(userId, new CredentialStatusUpdate(active));
+
+        UserProfile updated = current.withActive(active, StoredInstant.now());
         return UserProfileResponse.from(updated == current ? current : repository.save(updated));
     }
 
