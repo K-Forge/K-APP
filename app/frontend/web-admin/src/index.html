@@ -5,7 +5,11 @@
   <title>WebAdmin</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- The .ico first and the SVG second on purpose: a browser that understands SVG takes the
+       later declaration, and one that does not never sees it and keeps the .ico. Both are
+       generated from the same geometry, so they cannot drift. -->
+  <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
   <app-root></app-root>
