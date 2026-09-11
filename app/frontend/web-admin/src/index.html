@@ -2,14 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>WebAdmin</title>
+  <title>KApp · Admin Portal</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- The .ico first and the SVG second on purpose: a browser that understands SVG takes the
        later declaration, and one that does not never sees it and keeps the .ico. Both are
        generated from the same geometry, so they cannot drift. -->
-  <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <!--
+    The ?v= is not decoration. Until now nginx served favicon.ico with
+    `max-age=31536000, immutable`, because its rule matched every .ico and .svg rather than only
+    the hash-named build output - so every browser that ever loaded this portal was told to keep
+    the Angular default until 2027 and not to ask again. The header is fixed, but a browser
+    holding that entry will not revalidate it to find out. A different URL is a resource it has
+    never seen, which is the only thing that reaches a cache that has been told not to check.
+
+    Bump it if the icon is ever redrawn.
+  -->
+  <link rel="icon" href="favicon.ico?v=2" sizes="16x16 32x32 48x48">
+  <link rel="icon" href="favicon.svg?v=2" type="image/svg+xml">
 </head>
 <body>
   <app-root></app-root>
