@@ -20,7 +20,11 @@
 
   --text: #16211f;
   --text-muted: #52625e;
-  --text-faint: #7c8b87;
+  /* 4.83:1 on a card, where #7c8b87 was 3.56 - under the 4.5 minimum for body text.
+     Five pieces of real copy were below it, including the empty state that tells you
+     what to type. Still clearly softer than --text-muted (6.43), so the hierarchy
+     survives; the dark theme's own value measured fine and is left alone. */
+  --text-faint: #667571;
   --text-on-accent: #ffffff;
 
   --primary: #3a6f6e;
@@ -89,7 +93,10 @@
     --text: #eaf1ef;
     --text-muted: #a8b8b4;
     --text-faint: #7c8b87;
-    --text-on-accent: #ffffff;
+    /* Dark ink, not white: the accent is a LIGHT teal in this theme, so white on
+       it measured 2.02:1 - the most prominent button in the portal, well under
+       the 4.5 minimum. Against #7fc2c0 this is about 9:1. */
+    --text-on-accent: #10201f;
 
     --primary: #7fc2c0;
     --primary-strong: #a6dad8;
@@ -135,7 +142,10 @@
   --text: #eaf1ef;
   --text-muted: #a8b8b4;
   --text-faint: #7c8b87;
-  --text-on-accent: #ffffff;
+  /* Dark ink, not white: the accent is a LIGHT teal in this theme, so white on
+     it measured 2.02:1 - the most prominent button in the portal, well under
+     the 4.5 minimum. Against #7fc2c0 this is about 9:1. */
+  --text-on-accent: #10201f;
 
   --primary: #7fc2c0;
   --primary-strong: #a6dad8;
