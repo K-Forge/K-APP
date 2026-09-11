@@ -6,6 +6,7 @@ import co.edu.konradlorenz.kapp.map.domain.Wing;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.TextCriteria;
 import org.springframework.data.mongodb.core.query.TextQuery;
 import org.springframework.stereotype.Component;
@@ -72,12 +73,23 @@ public class SpaceSearch {
     public Result search(String q, String campus, SpaceType type, String buildingCode,
                           Wing wing, int page, int size) {
 
+        boolean searching = StringUtils.hasText(q);
         String term = sanitize(q);
-        if (term.isEmpty()) {
+
+        if (searching && term.isEmpty()) {
             // Everything the caller typed was punctuation the text query language would
             // have read as an operator. An empty $search is an error in MongoDB, and an
             // empty page is the honest answer.
             return new Result(List.of(), 0);
+        }
+
+        if (!searching) {
+            // No term at all is a different question: "show me what is in this building",
+            // which is how somebody manages a floor rather than how a student finds a room.
+            // It cannot go through the text index - $search has nothing to match - so it is
+            // an ordinary filtered query, ordered the way a person reads a building: by
+            // floor, then by code.
+            return browse(campus, type, buildingCode, wing, page, size);
         }
 
         TextQuery query = buildFilter(term, campus, type, buildingCode, wing);
@@ -88,6 +100,37 @@ public class SpaceSearch {
 
         query.sortByScore();
         query.with(Sort.by(Sort.Direction.ASC, "code"));
+        query.skip((long) page * size).limit(size);
+
+        return new Result(mongo.find(query, SpaceDocument.class), total);
+    }
+
+    /**
+     * Listing rather than searching: every space matching the filters, in reading order.
+     *
+     * <p>Unbounded in principle and bounded in practice by the same page size the search uses.
+     * There is no text index involved and none is wanted: {@code $search} needs something to
+     * match, and "everything in building A" has nothing to match on.
+     */
+    private Result browse(String campus, SpaceType type, String buildingCode, Wing wing,
+                           int page, int size) {
+        Query query = new Query();
+        if (StringUtils.hasText(campus)) {
+            query.addCriteria(Criteria.where("campus").is(campus));
+        }
+        if (type != null) {
+            query.addCriteria(Criteria.where("type").is(type));
+        }
+        if (StringUtils.hasText(buildingCode)) {
+            query.addCriteria(Criteria.where("buildingCode").is(buildingCode));
+        }
+        if (wing != null) {
+            query.addCriteria(Criteria.where("wing").is(wing));
+        }
+
+        long total = mongo.count(query, SpaceDocument.class);
+
+        query.with(Sort.by(Sort.Direction.ASC, "buildingCode", "floorLevel", "code"));
         query.skip((long) page * size).limit(size);
 
         return new Result(mongo.find(query, SpaceDocument.class), total);

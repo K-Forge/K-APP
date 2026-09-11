@@ -21,6 +21,7 @@ import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -220,6 +221,74 @@ class MapBusinessRulesTest {
         mockMvc.perform(get("/api/map/spaces/AMB").param("buildingCode", "AMB2").with(guest()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.building.code").value("AMB2"));
+    }
+
+    // ── The basement, and listing without searching ────────────────────────────────
+
+    @Test
+    @DisplayName("a basement floor can be read back, not only written")
+    void basementFloorIsReadable() throws Exception {
+        Instant now = Instant.now();
+        BuildingDocument withBasement = buildings.save(new BuildingDocument(
+                UUID.randomUUID().toString(), "SOT", "Bloque con sotano", "Sede Test", null,
+                List.of(new Floor(-1, "Sotano", 4, 6, List.of())), false, now, now));
+
+        mockMvc.perform(post("/api/map/spaces").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "SOT-01",
+                                  "name": "Deposito",
+                                  "type": "OTHER",
+                                  "buildingCode": "SOT",
+                                  "floorLevel": -1,
+                                  "gridRow": 0,
+                                  "gridColumn": 0
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        // This is the half that was missing: SpaceRequest.floorLevel allowed -5, so the
+        // basement could be filled in, while the floor endpoint was @Min(0) and answered 400
+        // for the only level it mattered on. The data went in and could never be read back.
+        mockMvc.perform(get("/api/map/buildings/{code}/floors/{level}", "SOT", -1).with(guest()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.level").value(-1))
+                .andExpect(jsonPath("$.spaces[0].code").value("SOT-01"));
+
+        assertThat(withBasement.code()).isEqualTo("SOT");
+    }
+
+    @Test
+    @DisplayName("the search lists a whole building when given no term")
+    void searchWithoutATermListsTheBuilding() throws Exception {
+        mockMvc.perform(get("/api/map/spaces/search").param("buildingCode", "A").with(guest()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isNotEmpty())
+                .andExpect(jsonPath("$.totalElements").value(org.hamcrest.Matchers.greaterThan(0)));
+    }
+
+    @Test
+    @DisplayName("listing without a term still honours the other filters")
+    void listingHonoursTheFilters() throws Exception {
+        String body = mockMvc.perform(get("/api/map/spaces/search")
+                        .param("type", "ELEVATOR").with(guest()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(body).contains("ELEVATOR");
+        assertThat(body).doesNotContain("CLASSROOM");
+    }
+
+    @Test
+    @DisplayName("a term made only of text-query punctuation still answers an empty page")
+    void punctuationOnlyTermIsEmptyNotEverything() throws Exception {
+        // The distinction matters now that a missing term means "list everything": a term of
+        // '"""' sanitizes to nothing, and that must stay an empty page rather than becoming an
+        // unfiltered listing of the campus.
+        mockMvc.perform(get("/api/map/spaces/search").param("q", "\"\"\"").with(guest()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     // ── The schematic model's own rules ────────────────────────────────────────────

@@ -69,7 +69,8 @@ export interface SpaceRequest {
 }
 
 export interface SpaceSearchFilters {
-  q: string;
+  /** Omit to list rather than search: the server lists by the other filters. */
+  q?: string;
   page: number;
   size: number;
   campus?: string;

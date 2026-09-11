@@ -537,13 +537,21 @@ paths:
         `code` and every entry in its `aliases`, and a space is returned when any one of them
         matches.
 
+        **`q` is optional.** Without it this lists every space the other filters allow, ordered
+        by building, then floor, then code — the order somebody managing a floor reads them in,
+        rather than by relevance, which means nothing when there is no term. That is how an
+        administrator sees what is in a building at all; with `q` required, the building and
+        type filters did nothing on their own and a space you had just created was invisible
+        until you guessed part of its name.
+
         Matching is **case- and accent-insensitive**: searching `sala de sistemas` finds a space
         whose alias is stored as `Sala de Sistemas`, and `psicologia` finds `Psicologia`
         regardless of how either side is accented. Aliases are what make the search usable in
         practice, because students search for the name they use ("sala de sistemas") rather than
         the name on the door ("Laboratorio de Sistemas").
 
-        Results are paginated and ordered by descending match relevance, then by `code`.
+        Results are paginated. With `q` they are ordered by descending match relevance, then by
+        `code`; without it, by building, floor and code.
 
         Allowed roles: `ROLE_GUEST`, `ROLE_STUDENT`, `ROLE_PROFESSOR`, `ROLE_ADMIN`.
       tags:
@@ -551,10 +559,11 @@ paths:
       parameters:
         - name: q
           in: query
-          required: true
+          required: false
           description: |
-            Search term, minimum 2 characters. Matched case- and accent-insensitively against
-            `name`, `code` and `aliases`.
+            Search term, minimum 2 characters when present. Matched case- and
+            accent-insensitively against `name`, `code` and `aliases`. Omit it to list rather
+            than search.
           schema:
             type: string
             minLength: 2
@@ -1599,11 +1608,14 @@ components:
       in: path
       required: true
       description: |
-        Floor level, matching the first digit of the room codes on that floor. Level `7` holds
-        rooms `708` to `711`.
+        Floor level. On the floors above ground it matches the first digit of the room codes on
+        that floor: level `7` holds rooms `708` to `711`.
+
+        **May be negative.** `-1` is the basement, and the first-digit rule does not apply
+        there — a basement room's code says nothing about its level. The central block has one.
       schema:
         type: integer
-        minimum: 0
+        minimum: -5
         maximum: 99
       example: 7
 

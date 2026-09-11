@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ViewChild, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { AppHttpError } from '../../../core/http/api-http-error';
 import type { ApiError } from '../../../core/http/api-error.model';
 import type { PageResponse } from '../../../core/http/page-response.model';
@@ -59,15 +59,18 @@ const MIN_QUERY_LENGTH = 2;
 
         <app-api-error-banner [error]="error()" />
 
-        @if (query().trim().length < minQueryLength) {
+        @if (nothingAsked()) {
           <div class="empty-state">
-            <p>Type at least {{ minQueryLength }} characters to search spaces.</p>
+            <p>
+              Search by code, name or alias — at least {{ minQueryLength }} characters — or pick
+              a building or a type to list what is there.
+            </p>
           </div>
         } @else {
           <app-data-table
             [loading]="loading()"
             [empty]="!loading() && !error() && (result()?.content?.length ?? 0) === 0"
-            emptyMessage="No spaces match this search."
+            [emptyMessage]="emptyMessage()"
             [totalItems]="result()?.totalElements ?? null"
             [page]="page()"
             [totalPages]="result()?.totalPages ?? 0"
@@ -144,6 +147,21 @@ export class SpacesPage {
   readonly formError = signal<ApiError | null>(null);
   readonly deletingId = signal<string | null>(null);
 
+  /** Searching and listing fail differently, and saying "no match" to a listing is wrong. */
+  readonly emptyMessage = computed(() =>
+    this.query().trim().length > 0
+      ? 'No spaces match this search.'
+      : 'Nothing here yet. Create a space, or widen the filter.',
+  );
+
+  /** True while the screen has been given neither a usable term nor a filter to list by. */
+  readonly nothingAsked = computed(() => {
+    const q = this.query().trim();
+    if (q.length >= MIN_QUERY_LENGTH) return false;
+    if (q.length > 0) return true;
+    return !this.type() && !this.buildingCodeFilter();
+  });
+
   @ViewChild('formModal') private formModal?: ModalComponent;
 
   private debounceHandle?: ReturnType<typeof setTimeout>;
@@ -155,14 +173,26 @@ export class SpacesPage {
     const page = this.page();
     this.refreshTick();
 
-    if (q.length < MIN_QUERY_LENGTH) {
+    // A term shorter than the minimum is a half-typed search, not a request to list the
+    // campus - so it waits. A filter with no term at all is a different question entirely:
+    // "what is in building A". The server answers that now, and without it this screen could
+    // not show you the space you had just created, and the building and type dropdowns did
+    // nothing on their own.
+    const searching = q.length > 0;
+    const filtering = !!type || !!buildingCode;
+
+    if (searching && q.length < MIN_QUERY_LENGTH) {
+      this.result.set(null);
+      return;
+    }
+    if (!searching && !filtering) {
       this.result.set(null);
       return;
     }
 
     this.loading.set(true);
     this.error.set(null);
-    this.spacesService.search({ q, page, size: PAGE_SIZE, type: type || undefined, buildingCode: buildingCode || undefined }).subscribe({
+    this.spacesService.search({ q: searching ? q : undefined, page, size: PAGE_SIZE, type: type || undefined, buildingCode: buildingCode || undefined }).subscribe({
       next: (page) => {
         this.result.set(page);
         this.loading.set(false);

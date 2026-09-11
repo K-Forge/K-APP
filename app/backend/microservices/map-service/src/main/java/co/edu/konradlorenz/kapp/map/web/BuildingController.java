@@ -92,11 +92,15 @@ public class BuildingController {
 
     @GetMapping("/{code}/floors/{level}")
     @Operation(summary = "Get a floor and every space on it",
-            description = "The call that renders a floor plan screen: draw planImageUrl, then "
-                    + "place one pin per space from its x/y percentages. "
+            description = "The call that renders a floor: draw a gridRows x gridColumns grid, "
+                    + "place each space in its cell, and draw the corridors along their paths. "
+                    + "Level may be negative: -1 is the basement. "
                     + "Allowed roles: ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN.")
+    // -5, matching SpaceRequest.floorLevel. It was @Min(0) while a space could already be
+    // created on level -1, so the basement of the central block could be filled in and then
+    // never read back: this endpoint answered 400 for the only level it mattered on.
     public FloorDetailResponse floor(@PathVariable @Size(min = 1, max = 10) String code,
-                                     @PathVariable @Min(0) @Max(99) int level) {
+                                     @PathVariable @Min(-5) @Max(99) int level) {
         return buildings.getFloor(code, level);
     }
 }

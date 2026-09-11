@@ -52,13 +52,18 @@ public class SpaceController {
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search spaces across the campus",
-            description = "Matches q against name, code and aliases, case- and "
+    @Operation(summary = "Search or list spaces across the campus",
+            description = "With q: matches it against name, code and aliases, case- and "
                     + "accent-insensitively, ordered by descending relevance then code. "
-                    + "Filter by wing to separate 301, 301-N and 301-S. "
+                    + "Without q: lists every space the filters allow, ordered by building, "
+                    + "floor and code - which is how a floor is managed rather than how a "
+                    + "student finds a room. Filter by wing to separate 301, 301-N and 301-S. "
                     + "Allowed roles: ROLE_GUEST, ROLE_STUDENT, ROLE_PROFESSOR, ROLE_ADMIN.")
     public PageResponse<SpaceResponse> search(
-            @RequestParam @NotBlank @Size(min = 2, max = 100) String q,
+            // Optional, because "show me everything in building A" is a real question and the
+            // admin portal had no way to ask it: with no term the screen could not list what
+            // you had just created, and the building and type filters did nothing on their own.
+            @RequestParam(required = false) @Size(min = 2, max = 100) String q,
             @RequestParam(required = false) @Size(min = 1, max = 120) String campus,
             @RequestParam(required = false) SpaceType type,
             @RequestParam(required = false) @Size(min = 1, max = 10) String buildingCode,
@@ -94,7 +99,7 @@ public class SpaceController {
 
     @PutMapping("/{code}")
     @Operation(summary = "Update a space",
-            description = "Moving a pin is done here, by sending new x/y percentages. "
+            description = "Moving a space is done here, by sending a new grid cell. "
                     + "Allowed roles: ROLE_ADMIN only.")
     public SpaceResponse update(
             @PathVariable @Size(min = 1, max = 20) String code,
