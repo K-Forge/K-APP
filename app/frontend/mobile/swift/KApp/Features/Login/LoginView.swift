@@ -146,10 +146,16 @@ struct LoginView: View {
                     .foregroundStyle(KColor.text)
 
                 // El dominio se muestra fijo: explica el autocompletado sin una línea de ayuda.
+                //
+                // `fixedSize` y la prioridad de layout no son adorno: sin ellas el TextField se
+                // queda con todo el ancho y el dominio se parte en dos líneas — "…edu.c / o".
                 if !user.contains("@") {
                     Text("@konradlorenz.edu.co")
                         .font(.system(size: 16))
                         .foregroundStyle(KColor.textFaint)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(1)
                 }
             }
             .padding(.horizontal, 16)

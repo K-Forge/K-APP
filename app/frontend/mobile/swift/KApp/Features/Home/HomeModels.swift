@@ -20,8 +20,15 @@ struct ClassOccurrence: Codable, Identifiable, Equatable {
     var id: String { enrollmentId }
 
     /// "Salón 401 · Bloque B", o solo la sede cuando todavía no hay salón.
+    ///
+    /// `room` llega como identificador pelado y a veces ya trae su propia etiqueta
+    /// ("Lab 105"). Anteponer "Salón" siempre producía "Salón Lab 105", así que la palabra
+    /// solo se agrega cuando el valor es puramente numérico.
     var placeLine: String {
-        [room.map { "Salón \($0)" }, campus]
+        let place = room.map { value in
+            value.allSatisfy(\.isNumber) ? "Salón \(value)" : value
+        }
+        return [place, campus]
             .compactMap { $0 }
             .joined(separator: " · ")
     }

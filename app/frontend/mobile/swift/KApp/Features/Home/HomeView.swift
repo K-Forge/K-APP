@@ -22,7 +22,13 @@ struct HomeView: View {
             }
         }
         .background(KColor.background)
-        .ignoresSafeArea(edges: .top)
+        // PENDIENTE: el morado debería llegar hasta el borde superior, por detrás de la
+        // status bar, como en la maqueta. Hoy queda una franja clara arriba.
+        //
+        // No basta con ignoresSafeArea en el fondo de la banda ni en el del ScrollView:
+        // esta vista vive dentro del ZStack de MainShell, que ya está acotado al área
+        // segura. La salida es leer el inset real (GeometryReader en MainShell) y pasárselo
+        // a la banda, o montar el color de marca como capa base del ZStack.
     }
 
     // MARK: - Banda de marca
@@ -55,10 +61,15 @@ struct HomeView: View {
                 )
         }
         .padding(.horizontal, 20)
-        .padding(.top, 54)
-        .padding(.bottom, 12)
+        .padding(.top, 6)
+        // 44 abajo, no 12: la tarjeta de la próxima clase sube 28 para montarse sobre la
+        // banda, y sin este colchón se come el saludo.
+        .padding(.bottom, 44)
         .frame(maxWidth: .infinity)
-        .background(KColor.brand)
+        // El morado se extiende bajo la status bar, pero el saludo respeta el área segura.
+        // Medir ese margen a mano (antes eran 54 fijos) se rompe en cuanto cambia el
+        // recorte de la pantalla: en el 17 Pro la isla es más alta y tapaba el saludo.
+        .background(KColor.brand.ignoresSafeArea(edges: .top))
     }
 
     // MARK: - Contenido
