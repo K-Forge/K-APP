@@ -70,13 +70,13 @@
   --nav-active-text: #1d3a39;
 
   /* How much of each hue reaches the page ground.
-     The green is off in this theme, at 0%. Three hues at sixteen percent over a grey-green
-     base did not read as the institutional palette, it read as a stain - and the green was
-     the one doing it, the same green that had already been pulled out of the text colours.
-     It stays where it means something: the hairline under the header. */
-  --wash-strength: 24%;
-  --wash-green: 0%;
-  --wash-accent: 16%;
+     The green was off in this theme for a while, because at sixteen percent spread thin over
+     a grey base it read as a stain rather than as a colour. The fix was not less of it but
+     more: a wash that faint is dirt, and a wash this strong is a light. Mixed in oklab rather
+     than srgb, which is what keeps a teal from going grey on its way to transparent. */
+  --wash-strength: 52%;
+  --wash-green: 44%;
+  --wash-accent: 44%;
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
 
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
@@ -138,9 +138,13 @@
     --nav-bg: #0e1c17;
     --nav-active-bg: #1c4238;
     --nav-active-text: #bfe8e6;
-    --wash-strength: 20%;
-    --wash-green: 15%;
-    --wash-accent: 13%;
+    --wash-strength: 54%;
+    /* 40, not 46. The contrast sweep reads text against --bg, which is the ground BEFORE the
+       glows are composited over it - so it cannot see this case. Worked out by hand: body text
+       over the centre of the green at 46% sits on about #617221, which is 4.4:1 - a tenth under
+       the minimum. At 40% it is 5.2:1, and the difference is not visible. */
+    --wash-green: 40%;
+    --wash-accent: 48%;
     --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.022'/%3E%3C/svg%3E");
 
   }
@@ -190,9 +194,9 @@
   --nav-bg: #0e1c17;
   --nav-active-bg: #1c4238;
   --nav-active-text: #bfe8e6;
-  --wash-strength: 20%;
-  --wash-green: 15%;
-  --wash-accent: 13%;
+  --wash-strength: 54%;
+  --wash-green: 40%;
+  --wash-accent: 48%;
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.022'/%3E%3C/svg%3E");
 
 
@@ -726,33 +730,33 @@ body {
   background-image:
     radial-gradient(
       70rem 34rem at 6% -10%,
-      color-mix(in srgb, var(--brand-teal) var(--wash-strength), transparent) 0%,
-      transparent 64%
+      color-mix(in oklab, var(--brand-teal) var(--wash-strength), transparent) 0%,
+      transparent 56%
     ),
     radial-gradient(
       56rem 30rem at 52% -14%,
-      color-mix(in srgb, var(--brand-pink) var(--wash-accent), transparent) 0%,
-      transparent 62%
+      color-mix(in oklab, var(--brand-pink) var(--wash-accent), transparent) 0%,
+      transparent 55%
     ),
     radial-gradient(
       54rem 30rem at 98% -8%,
-      color-mix(in srgb, var(--brand-green) var(--wash-green), transparent) 0%,
-      transparent 60%
+      color-mix(in oklab, var(--brand-green) var(--wash-green), transparent) 0%,
+      transparent 54%
     ),
     radial-gradient(
       62rem 34rem at 4% 100%,
-      color-mix(in srgb, var(--brand-green) var(--wash-green), transparent) 0%,
-      transparent 62%
+      color-mix(in oklab, var(--brand-green) var(--wash-green), transparent) 0%,
+      transparent 55%
     ),
     radial-gradient(
       58rem 34rem at 50% 104%,
-      color-mix(in srgb, var(--brand-teal) var(--wash-strength), transparent) 0%,
-      transparent 62%
+      color-mix(in oklab, var(--brand-teal) var(--wash-strength), transparent) 0%,
+      transparent 55%
     ),
     radial-gradient(
       64rem 36rem at 96% 99%,
-      color-mix(in srgb, var(--brand-pink) var(--wash-accent), transparent) 0%,
-      transparent 62%
+      color-mix(in oklab, var(--brand-pink) var(--wash-accent), transparent) 0%,
+      transparent 55%
     ),
     var(--grain);
   background-attachment: fixed;
