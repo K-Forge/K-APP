@@ -1068,12 +1068,33 @@ components:
       type: object
       required: [timestamp, status, error, message, path]
       properties:
-        timestamp: { type: string, format: date-time }
-        status: { type: integer, example: 400 }
-        error: { type: string, example: Bad Request }
-        message: { type: string }
-        path: { type: string }
+        timestamp:
+          description: >-
+            When the service produced this error, in UTC. Not when the request was sent.
+          type: string
+          format: date-time
+        status:
+          description: >-
+            The HTTP status, repeated in the body so a logged response is self-contained.
+          type: integer
+          example: 400
+        error:
+          description: >-
+            The status's standard name - `Bad Request`, `Conflict`. For developers, not for users.
+          type: string
+          example: Bad Request
+        message:
+          description: >-
+            One sentence a person can act on. This is the line worth surfacing in a UI.
+          type: string
+        path:
+          description: >-
+            The path that produced the error, so a log line identifies itself.
+          type: string
         details:
+          description: >-
+            Field-by-field reasons, when there are any. `field` names what was wrong and `issue` says what
+            about it - this is what a form binds its per-field errors to.
           type: array
           items:
             type: object
@@ -1133,6 +1154,9 @@ components:
           description: Data rows in the file, header excluded.
           example: 1203
         pensums:
+          description: >-
+            One entry per pensum the file described, whether or not it was written - a dry run reports the
+            same shape.
           type: array
           items:
             type: object
@@ -1179,6 +1203,9 @@ components:
           maxLength: 60
           example: Mi plan
         pensumCode:
+          description: >-
+            The pensum this plan layers over. The plan stores only the moves; everything else is read from
+            the pensum.
           type: string
           maxLength: 20
           example: "1015"
@@ -1191,8 +1218,16 @@ components:
           description: Only the courses the student moved.
           items:
             $ref: '#/components/schemas/Placement'
-        createdAt: { type: string, format: date-time }
-        updatedAt: { type: string, format: date-time }
+        createdAt:
+          description: >-
+            When the student created the plan.
+          type: string
+          format: date-time
+        updatedAt:
+          description: >-
+            When the plan last changed - a move, a rename, or being made primary.
+          type: string
+          format: date-time
 
     Placement:
       type: object
@@ -1254,6 +1289,9 @@ components:
       required: [plannedLevel]
       properties:
         plannedLevel:
+          description: >-
+            The level the student wants to take this course in. Planning only: it does not change what the
+            prerequisite rules allow.
           type: integer
           minimum: 1
           maximum: 12
@@ -1630,10 +1668,14 @@ components:
       required: [creditsPassed, creditsInProgress, creditsRemaining, totalCredits, percentComplete, byArea, currentLevel]
       properties:
         creditsPassed:
+          description: >-
+            Credits the student has passed, across every knowledge area.
           type: integer
           minimum: 0
           example: 118
         creditsInProgress:
+          description: >-
+            Credits the student is enrolled in right now - neither passed nor still to take.
           type: integer
           minimum: 0
           example: 3
@@ -1660,6 +1702,9 @@ components:
           items:
             $ref: '#/components/schemas/AreaProgress'
         currentLevel:
+          description: >-
+            The semester the student is counted as being in. Derived from what they have passed, not from
+            what they planned.
           type: integer
           minimum: 1
           maximum: 12
@@ -1676,10 +1721,14 @@ components:
           maxLength: 10
           example: ISA
         creditsPassed:
+          description: >-
+            Credits the student has passed in this knowledge area.
           type: integer
           minimum: 0
           example: 48
         creditsTotal:
+          description: >-
+            Credits the area holds in total, which is what the progress bar fills against.
           type: integer
           minimum: 0
           example: 66

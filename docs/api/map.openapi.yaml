@@ -1015,12 +1015,33 @@ components:
       type: object
       required: [timestamp, status, error, message, path]
       properties:
-        timestamp: { type: string, format: date-time }
-        status: { type: integer, example: 400 }
-        error: { type: string, example: Bad Request }
-        message: { type: string }
-        path: { type: string }
+        timestamp:
+          description: >-
+            When the service produced this error, in UTC. Not when the request was sent.
+          type: string
+          format: date-time
+        status:
+          description: >-
+            The HTTP status, repeated in the body so a logged response is self-contained.
+          type: integer
+          example: 400
+        error:
+          description: >-
+            The status's standard name - `Bad Request`, `Conflict`. For developers, not for users.
+          type: string
+          example: Bad Request
+        message:
+          description: >-
+            One sentence a person can act on. This is the line worth surfacing in a UI.
+          type: string
+        path:
+          description: >-
+            The path that produced the error, so a log line identifies itself.
+          type: string
         details:
+          description: >-
+            Field-by-field reasons, when there are any. `field` names what was wrong and `issue` says what
+            about it - this is what a form binds its per-field errors to.
           type: array
           items:
             type: object
@@ -1064,8 +1085,18 @@ components:
       description: One cell of a floor's grid. Zero-based, row 0 at the top as the floor is drawn.
       required: [row, col]
       properties:
-        row: { type: integer, minimum: 0, example: 5 }
-        col: { type: integer, minimum: 0, example: 3 }
+        row:
+          description: >-
+            Zero-based row in the floor's grid, counted from the top.
+          type: integer
+          minimum: 0
+          example: 5
+        col:
+          description: >-
+            Zero-based column in the floor's grid, counted from the left.
+          type: integer
+          minimum: 0
+          example: 3
 
     Corridor:
       type: object
@@ -1077,9 +1108,17 @@ components:
         invented by the client would throw that away.
       required: [code, name, color, path]
       properties:
-        code: { type: string, maxLength: 30, example: PAS-CENTRAL }
+        code:
+          description: >-
+            Identifier unique within the floor. Referenced by a space's access route.
+          type: string
+          maxLength: 30
+          example: PAS-CENTRAL
         name: { type: string, maxLength: 60, example: Pasillo central }
         color:
+          description: >-
+            RGB hex triplet the client draws the corridor in, so one corridor is the same colour on every
+            floor it runs through.
           type: string
           pattern: '^#[0-9A-Fa-f]{6}$'
           example: "#F2A93B"
@@ -1119,6 +1158,9 @@ components:
           maximum: 60
           example: 11
         gridColumns:
+          description: >-
+            How many columns the client draws for this floor. With `gridRows`, the canvas every space is
+            positioned inside.
           type: integer
           minimum: 1
           maximum: 60
@@ -1290,6 +1332,9 @@ components:
         type:
           $ref: '#/components/schemas/SpaceType'
         buildingId:
+          description: >-
+            The building's internal id. Address a building by its `code` instead - the code is the stable
+            business key across this API.
           type: string
           format: uuid
           example: 3f6d1c92-8a41-4b0e-9c77-1d2e3f4a5b60
@@ -1335,6 +1380,8 @@ components:
           minimum: 0
           example: 5
         gridColumn:
+          description: >-
+            Zero-based column of the top-left cell this space occupies, counted from the left.
           type: integer
           minimum: 0
           example: 4
@@ -1345,6 +1392,8 @@ components:
           maximum: 60
           example: 1
         colSpan:
+          description: >-
+            How many columns the space spans. 1 for an ordinary single-cell room.
           type: integer
           minimum: 1
           maximum: 60
@@ -1484,6 +1533,8 @@ components:
           minimum: 0
           example: 5
         gridColumn:
+          description: >-
+            Zero-based column of the top-left cell, counted from the left.
           type: integer
           minimum: 0
           example: 7
@@ -1495,6 +1546,8 @@ components:
           default: 1
           example: 2
         colSpan:
+          description: >-
+            How many columns the space spans. Omit for an ordinary single-cell room.
           type: integer
           minimum: 1
           maximum: 60

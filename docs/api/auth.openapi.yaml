@@ -764,6 +764,8 @@ components:
             absent: it is granted by promotion, never by redeeming a code.
           example: ROLE_STUDENT
         maxUses:
+          description: >-
+            How many accounts this code may create in total, across everybody who uses it.
           type: integer
           minimum: 1
           example: 200
@@ -773,6 +775,9 @@ components:
           description: Incremented atomically on redemption, so it cannot exceed maxUses.
           example: 6
         active:
+          description: >-
+            Whether it is currently accepted. Deactivating stops redemptions while keeping the record of
+            who already used it.
           type: boolean
           example: true
         expiresAt:
@@ -780,6 +785,9 @@ components:
           format: date-time
           description: Null means it does not expire on its own.
         notes:
+          description: >-
+            Free text for whoever issued it - which intake, who asked. Never shown to the person redeeming
+            it.
           type: [string, 'null']
           maxLength: 200
           example: Intake for 2026-2
@@ -797,18 +805,28 @@ components:
       required: [role, maxUses]
       properties:
         role:
+          description: >-
+            The role a registration through this code receives. `ROLE_ADMIN` is refused.
           type: string
           enum: [ROLE_STUDENT, ROLE_PROFESSOR]
           example: ROLE_STUDENT
         maxUses:
+          description: >-
+            Total registrations this code may create. Capped at 10000: a code with no practical ceiling is
+            an open door with extra steps.
           type: integer
           minimum: 1
           maximum: 10000
           example: 200
         expiresAt:
+          description: >-
+            When it stops being accepted. Null means it never expires on its own and has to be deactivated
+            by hand.
           type: [string, 'null']
           format: date-time
         notes:
+          description: >-
+            Free text for whoever issued it. Never shown to the person redeeming it.
           type: [string, 'null']
           maxLength: 200
       additionalProperties: false
@@ -817,12 +835,33 @@ components:
       type: object
       required: [timestamp, status, error, message, path]
       properties:
-        timestamp: { type: string, format: date-time }
-        status: { type: integer, example: 400 }
-        error: { type: string, example: Bad Request }
-        message: { type: string }
-        path: { type: string }
+        timestamp:
+          description: >-
+            When the service produced this error, in UTC. Not when the request was sent.
+          type: string
+          format: date-time
+        status:
+          description: >-
+            The HTTP status, repeated in the body so a logged response is self-contained.
+          type: integer
+          example: 400
+        error:
+          description: >-
+            The status's standard name - `Bad Request`, `Conflict`. For developers, not for users.
+          type: string
+          example: Bad Request
+        message:
+          description: >-
+            One sentence a person can act on. This is the line worth surfacing in a UI.
+          type: string
+        path:
+          description: >-
+            The path that produced the error, so a log line identifies itself.
+          type: string
         details:
+          description: >-
+            Field-by-field reasons, when there are any. `field` names what was wrong and `issue` says what
+            about it - this is what a form binds its per-field errors to.
           type: array
           items:
             type: object
@@ -947,6 +986,8 @@ components:
       required: [code, issuedBy, createdAt, redeemableUntil, redeemed]
       properties:
         code:
+          description: >-
+            What reception reads out to the visitor. Grouped in fours because it is read aloud.
           type: string
           maxLength: 20
           example: KL-V-7K2M-QX9P
@@ -955,10 +996,16 @@ components:
           description: The administrator who minted it, so a pass traces back to a person.
           example: 8f2c1d40-9a77-4e15-b3c8-2d6e05f1a9b3
         notes:
+          description: >-
+            Free text for reception - who the visitor came to see, which event.
           type: string
           maxLength: 200
           example: Feria de programas, auditorio
-        createdAt: { type: string, format: date-time }
+        createdAt:
+          description: >-
+            When reception issued the pass - not when it was used.
+          type: string
+          format: date-time
         redeemableUntil:
           type: string
           format: date-time
@@ -966,7 +1013,11 @@ components:
         redeemed:
           type: boolean
           description: Once true this row is the record of a visit, not an unused pass.
-        redeemedAt: { type: string, format: date-time }
+        redeemedAt:
+          description: >-
+            When the visitor presented it and received their token. Null while the pass is still unused.
+          type: string
+          format: date-time
         documentType:
           $ref: '#/components/schemas/DocumentType'
         documentNumber:
@@ -974,6 +1025,8 @@ components:
           description: Present only once redeemed. Personal data; deleted after 30 days.
           example: "1032456789"
         visitorName:
+          description: >-
+            Taken from the identity document at the counter, for the register.
           type: string
           example: María Fernanda Ríos
         accessExpiresAt:
@@ -1022,6 +1075,8 @@ components:
           description: Institutional or personal address used at registration.
           example: brian.vargasc@konradlorenz.edu.co
         password:
+          description: >-
+            Sent as typed. The service compares it against a bcrypt hash and never stores it.
           type: string
           format: password
           minLength: 10
@@ -1110,6 +1165,8 @@ components:
       required: [message]
       properties:
         message:
+          description: >-
+            What was accepted, in a sentence. The work itself may not have finished - this is a 202.
           type: string
           example: If an account exists for that address, a verification e-mail has been sent.
 
@@ -1156,6 +1213,9 @@ components:
       required: [keys]
       properties:
         keys:
+          description: >-
+            Every key currently accepted for signature validation. More than one while a rotation is in
+            flight, which is why this is a set rather than a key.
           type: array
           minItems: 1
           items:

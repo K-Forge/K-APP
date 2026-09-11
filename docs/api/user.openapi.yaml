@@ -637,12 +637,33 @@ components:
       type: object
       required: [timestamp, status, error, message, path]
       properties:
-        timestamp: { type: string, format: date-time }
-        status: { type: integer, example: 400 }
-        error: { type: string, example: Bad Request }
-        message: { type: string }
-        path: { type: string }
+        timestamp:
+          description: >-
+            When the service produced this error, in UTC. Not when the request was sent.
+          type: string
+          format: date-time
+        status:
+          description: >-
+            The HTTP status, repeated in the body so a logged response is self-contained.
+          type: integer
+          example: 400
+        error:
+          description: >-
+            The status's standard name - `Bad Request`, `Conflict`. For developers, not for users.
+          type: string
+          example: Bad Request
+        message:
+          description: >-
+            One sentence a person can act on. This is the line worth surfacing in a UI.
+          type: string
+        path:
+          description: >-
+            The path that produced the error, so a log line identifies itself.
+          type: string
         details:
+          description: >-
+            Field-by-field reasons, when there are any. `field` names what was wrong and `issue` says what
+            about it - this is what a form binds its per-field errors to.
           type: array
           items:
             type: object
