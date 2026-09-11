@@ -11,12 +11,27 @@ Everything runs in Docker. You almost never need all of it at once — see [Prof
 
 ## Prerequisites
 
-| Tool           | Version | Notes                                        |
-| -------------- | ------- | -------------------------------------------- |
-| Docker Desktop | 4.x+    | Must be **running**, not just installed      |
-| JDK            | 21      | Only to build or run tests outside Docker    |
-| Maven          | —       | Use the bundled `./mvnw`; do not install one |
-| pnpm           | latest  | Only to develop the admin portal itself      |
+| Tool           | Version        | Required?                                                              |
+| -------------- | -------------- | ---------------------------------------------------------------------- |
+| Docker Desktop | 4.x+           | **Yes.** Must be *running*, not just installed. Everything runs in it.  |
+| pnpm           | 10+, Corepack  | **Yes.** `pnpm run microservices:*` is how the stack is controlled.     |
+| Node           | 22+            | **Yes**, because pnpm needs it. Nothing else here does.                 |
+| JDK            | 21             | Only to build or run the tests outside Docker.                          |
+| Maven          | —              | Never install one. The repository ships `./mvnw`.                       |
+
+**Windows and macOS both work, and with the same commands.** The `microservices:*` scripts are
+single `docker compose` invocations with no shell syntax in them — no `cd`, no `&&`, no variables —
+so it makes no difference that pnpm runs scripts through `cmd.exe` on Windows and `sh` everywhere
+else. On Windows, run them from PowerShell or cmd with Docker Desktop started and WSL2 enabled,
+which is Docker Desktop's own default.
+
+There is **no database to install.** Compose starts MongoDB, and the tests start their own through
+Testcontainers.
+
+```bash
+corepack enable                 # ships with Node; gives you the pinned pnpm
+pnpm install                    # repository tooling
+```
 
 The repository pins the JDK with `.java-version` (jenv) in `app/backend/microservices/`. If `java`
 is not found there, `jenv` is not picking it up:
@@ -511,6 +526,14 @@ The passwords will be new, and `.dev-accounts` is overwritten with them.
 
 ## Legacy scripts
 
-`scripts/start-microservices.sh` and `scripts/start-frontend.sh` predate the containers and refer
-to services that no longer exist. Use Docker Compose. They are kept only until someone confirms
-nothing depends on them.
+`scripts/start-microservices.sh` is **gone**. It predated the containers: it started bare JVMs, and
+its service list still named `course-service` and `assignment-service` while knowing nothing about
+`semaphore`, `schedule` or `map`. It also could not run at all on a Mac — it used a bash 4
+associative array, and macOS ships bash 3.2, where `[discovery-server]=8761` is parsed as
+arithmetic and dies with `discovery: unbound variable`.
+
+The `pnpm run microservices:*` commands it backed now wrap `docker compose` directly, which is how
+everything has actually run since the migration, and which behaves the same on Windows and macOS.
+
+`scripts/start-frontend.sh` stays. It serves the frozen prototype in `app/frontend/web/`, it works,
+and `pnpm run web:start:script` still uses it.

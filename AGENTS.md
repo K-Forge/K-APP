@@ -103,7 +103,6 @@ KApp/
 │   └── DOCKER-GUIDE.md              # Superseded by RUNBOOK.md
 ├── scripts/
 │   ├── start-frontend.sh
-│   └── start-microservices.sh
 └── package.json
 ```
 

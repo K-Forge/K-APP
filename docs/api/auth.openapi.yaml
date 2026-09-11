@@ -180,7 +180,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
               example:
-                accessToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImthcHAtYXV0aC0yMDI2LTA4In0.eyJzdWIiOiIzZjhhMWMyZS03YjRkLTRlNWEtOWM2Zi0yZDFiOGUwYTRjNzMiLCJlbWFpbCI6ImJyaWFuLnZhcmdhc2NAa29ucmFkbG9yZW56LmVkdS5jbyIsInJvbGVzIjpbIlJPTEVfU1RVREVOVCJdLCJpc3MiOiJodHRwczovL2F1dGgua2FwcC5rb25yYWRsb3JlbnouZWR1LmNvIiwiaWF0IjoxNzg3NjU0NDAwLCJleHAiOjE3ODc2NTgwMDB9.Yx3nQK1pV9sM0bZrT8uLf2Hc7EjWd5AoXgN4iRySlPvCmUt6BqDkJhZ0wF3xO9aInGe1rMcT7yUvKpL5dQsRb2WjXhA8fZoNmE4gCtIuYlBvPkSxDqMrH6JaWnTcOe0
+                accessToken: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImthcHAtYXV0aC0yMDI2LTA4In0.eyJzdWIiOiIzZjhhMWMyZS03YjRkLTRlNWEtOWM2Zi0yZDFiOGUwYTRjNzMiLCJlbWFpbCI6InBlcGl0by5wZXJlekBrb25yYWRsb3JlbnouZWR1LmNvIiwicm9sZXMiOlsiUk9MRV9TVFVERU5UIl0sImlzcyI6Imh0dHBzOi8vYXV0aC5rYXBwLmtvbnJhZGxvcmVuei5lZHUuY28iLCJpYXQiOjE3ODc2NTQ0MDAsImV4cCI6MTc4NzY1ODAwMH0.Yx3nQK1pV9sM0bZrT8uLf2Hc7EjWd5AoXgN4iRySlPvCmUt6BqDkJhZ0wF3xO9aInGe1rMcT7yUvKpL5dQsRb2WjXhA8fZoNmE4gCtIuYlBvPkSxDqMrH6JaWnTcOe0
                 tokenType: Bearer
                 expiresIn: 3600
                 userId: 3f8a1c2e-7b4d-4e5a-9c6f-2d1b8e0a4c73
@@ -1096,7 +1096,7 @@ components:
           description: |
             RS256 JWT. Send it as `Authorization: Bearer <accessToken>`. Validate
             it against `/.well-known/jwks.json` using the `kid` in its header.
-          example: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImthcHAtYXV0aC0yMDI2LTA4In0.eyJzdWIiOiIzZjhhMWMyZS03YjRkLTRlNWEtOWM2Zi0yZDFiOGUwYTRjNzMiLCJlbWFpbCI6ImJyaWFuLnZhcmdhc2NAa29ucmFkbG9yZW56LmVkdS5jbyIsInJvbGVzIjpbIlJPTEVfU1RVREVOVCJdLCJpc3MiOiJodHRwczovL2F1dGgua2FwcC5rb25yYWRsb3JlbnouZWR1LmNvIiwiaWF0IjoxNzg3NjU0NDAwLCJleHAiOjE3ODc2NTgwMDB9.Yx3nQK1pV9sM0bZrT8uLf2Hc7EjWd5AoXgN4iRySlPvCmUt6BqDkJhZ0wF3xO9aInGe1rMcT7yUvKpL5dQsRb2WjXhA8fZoNmE4gCtIuYlBvPkSxDqMrH6JaWnTcOe0
+          example: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImthcHAtYXV0aC0yMDI2LTA4In0.eyJzdWIiOiIzZjhhMWMyZS03YjRkLTRlNWEtOWM2Zi0yZDFiOGUwYTRjNzMiLCJlbWFpbCI6InBlcGl0by5wZXJlekBrb25yYWRsb3JlbnouZWR1LmNvIiwicm9sZXMiOlsiUk9MRV9TVFVERU5UIl0sImlzcyI6Imh0dHBzOi8vYXV0aC5rYXBwLmtvbnJhZGxvcmVuei5lZHUuY28iLCJpYXQiOjE3ODc2NTQ0MDAsImV4cCI6MTc4NzY1ODAwMH0.Yx3nQK1pV9sM0bZrT8uLf2Hc7EjWd5AoXgN4iRySlPvCmUt6BqDkJhZ0wF3xO9aInGe1rMcT7yUvKpL5dQsRb2WjXhA8fZoNmE4gCtIuYlBvPkSxDqMrH6JaWnTcOe0
         tokenType:
           type: string
           enum: [Bearer]

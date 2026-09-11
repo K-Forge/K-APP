@@ -163,93 +163,20 @@ The mobile clients run on the user's device; every service runs server-side. **T
 component** — service ports are deliberately unpublished — and service locations are resolved through Eureka rather
 than hardcoded.
 
-```mermaid
-flowchart TB
-    subgraph clients["Client devices"]
-        AND["Android · Kotlin"]
-        IOS["iOS · Swift"]
-        PORTAL["Admin portal · Angular<br/>team console, not a product surface"]
-    end
+<p align="center">
+  <img src="./assets/architecture.svg" alt="Three clients call one API gateway, which routes to five services, each owning one database. Eureka, the common library and MongoDB are shared by all five. Grades, enrolment, payments and an institutional production deployment are out of scope." width="100%"/>
+</p>
 
-    subgraph server["Server side"]
-        GW["API Gateway :8080<br/>routing, CORS, rate limiting"]
-        EUR["Discovery :8761<br/>Netflix Eureka"]
+Two properties are worth stating in words, because a box does not carry them:
 
-        subgraph services["Microservices — ports NOT published"]
-            AUTH["auth-service :8081<br/>credentials, RS256 tokens, JWKS,<br/>invitation codes, visitor passes"]
-            USER["user-service :8082<br/>profiles, directory search"]
-            SEM["semaphore-service :8083<br/>catalogue, progress, academic plans"]
-            SCH["schedule-service :8084<br/>enrolments, meetings, agenda"]
-            MAP["map-service :8085<br/>buildings, floors, spaces, search"]
-        end
+**No service trusts the gateway.** Each one validates the access token itself against the published
+JWKS, so a request that somehow reached a service directly is refused by that service rather than
+by the boundary it went around — that gap was security finding S1.
 
-        COMMON["common library<br/>error envelope, CurrentUser, roles"]
-
-        subgraph data["MongoDB — one database AND one account per service"]
-            DBA[("kapp_auth")]
-            DBU[("kapp_user")]
-            DBS[("kapp_semaphore")]
-            DBC[("kapp_schedule")]
-            DBM[("kapp_map")]
-        end
-    end
-
-    AND --> GW
-    IOS --> GW
-    PORTAL --> GW
-
-    GW --> AUTH & USER & SEM & SCH & MAP
-
-    AUTH -.register.-> EUR
-    USER -.register.-> EUR
-    SEM -.register.-> EUR
-    SCH -.register.-> EUR
-    MAP -.register.-> EUR
-    GW -.discover.-> EUR
-
-    AUTH -->|OpenFeign| USER
-    SEM -->|OpenFeign| USER
-    SCH -->|OpenFeign| SEM
-
-    AUTH --> DBA
-    USER --> DBU
-    SEM --> DBS
-    SCH --> DBC
-    MAP --> DBM
-
-    COMMON -.shared.-> AUTH & USER & SEM & SCH & MAP
-```
-
-**The gateway does not decide identity.** It routes; each service validates the token's signature itself against
-auth-service's published JWKS. Trusting a header the gateway set was a finding in the security audit: anyone able to
-reach a service port directly could forge it. A signed token cannot be forged, so the two protections — unpublished
-ports and per-service validation — are independent on purpose.
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant G as API Gateway :8080
-    participant A as auth-service
-    participant S as Domain service
-
-    C->>G: POST /auth/login (email, password)
-    G->>A: forward (public path)
-    A->>A: BCrypt verify, sign RS256 JWT (roles claim)
-    A-->>C: 200 access token, 1 hour
-
-    Note over C,S: Any subsequent request
-
-    C->>G: GET /api/semaphore/me (Bearer token)
-    G->>S: forward, token untouched
-    S->>A: GET /.well-known/jwks.json (once, then cached)
-    A-->>S: public keys
-    S->>S: verify signature, check @PreAuthorize
-    alt wrong role
-        S-->>C: 403
-    else
-        S-->>C: 200
-    end
-```
+**One MongoDB account per service, with `readWrite` on exactly one database.** The separation is
+enforced by the engine rather than respected by convention, and `scripts/verify-db-isolation.sh`
+asserts it by connecting with each account against every database
+([ADR 0005](docs/adr/0005-per-service-database-credentials.md)).
 
 ---
 
@@ -302,87 +229,34 @@ sequenceDiagram
 
 ## Getting Started
 
-### Prerequisites
+**Docker Desktop and pnpm are both required**, and Docker has to be *running*, not just installed —
+every service, the database and even the tests' own database live in containers. Nothing else is:
+there is no MongoDB to install, no Maven (the repository ships `./mvnw`) and no JDK unless you
+intend to build outside Docker.
 
-| Requirement | Version | Used for |
-| --- | --- | --- |
-| Docker Desktop | 4.x+ | **Everything.** MongoDB runs in a container; so do the services and the tests' own database. |
-| Java (JDK) | 21 | Only to build or run tests outside Docker. |
-| Maven | Use the bundled `./mvnw` | Do not install one. |
-| pnpm | 10+ (via Corepack) | Only to develop the admin portal itself. |
-
-There is **no database to install**: Docker Compose starts MongoDB, and the tests start their own
-through Testcontainers.
-
-### 1. Clone and install tooling
+**The same commands work on Windows and macOS.** They are single `docker compose` invocations with
+no shell syntax in them, so it makes no difference which shell pnpm hands them to.
 
 ```bash
 git clone https://github.com/K-Forge/KApp.git
 cd KApp
-corepack enable && corepack prepare pnpm@latest --activate
-pnpm install
+corepack enable && pnpm install
+
+# Secrets are generated on your machine, never copied from an example: a password that
+# passes through a chat or a commit stays in that history forever.
+cd app/backend/microservices && ../../../scripts/generate-dev-secrets.sh > .env && cd -
+
+pnpm run microservices:start     # the five services against a local MongoDB
+pnpm run microservices:status    # what came up
 ```
 
-### 2. Configure environment variables
+There is nothing to initialise afterwards. Mongock creates every index and loads the seed data —
+pensums, buildings, spaces, invitation codes — the first time a service starts.
 
-Secrets are **generated on your machine**, not copied from an example file — a password pasted into a chat or a
-commit stays in that history forever:
-
-```bash
-cd app/backend/microservices
-../../../scripts/generate-dev-secrets.sh > .env
-```
-
-That writes sixteen values: a MongoDB account per service, the shared internal token, and the signing key id.
-`.env` is gitignored and must stay that way.
-
-### 3. Nothing to initialise
-
-Mongock creates every index and loads the seed data — pensums, buildings, spaces, invitation codes — on startup.
-`app/database/init.sql` is the legacy PostgreSQL schema, kept for reference only; nothing reads it.
-
-### 4. Start the microservices
-
-```bash
-pnpm run microservices:start
-```
-
-The script checks prerequisites, starts services in dependency order and polls `/actuator/health` before moving on.
-
-```bash
-pnpm run microservices:status
-pnpm run microservices:stop
-```
-
-### 5. Start the web client
-
-```bash
-pnpm run web:start:script
-```
-
-Available at `http://localhost:3000`; override with `PORT=4000`.
-
-### Docker Compose alternative
-
-```bash
-cd app/backend/microservices
-docker compose up --build
-```
-
-The compose file expects `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` and `PGSSLMODE` to be exported in the
-environment.
-
-### Service ports
-
-| Service            | Port | Responsibility                               |
-| ------------------ | ---- | -------------------------------------------- |
-| Discovery Server   | 8761 | Eureka service registry.                     |
-| API Gateway        | 8080 | Single entry point, routing, JWT validation. |
-| Auth Service       | 8081 | Login, registration, token issuing.          |
-| User Service       | 8082 | People, members, students and employees.     |
-| Course Service     | 8083 | Programs, courses, groups and enrollment.    |
-| Assignment Service | 8084 | Assignments, submissions and grading.        |
-| Web client         | 3000 | Static frontend.                             |
+Working against the **shared Atlas cluster** instead of a local MongoDB, the profiles, what listens
+on which port, the local accounts, and what to do when something will not start are all in
+**[`docs/RUNBOOK.md`](docs/RUNBOOK.md)**. It is the operational document; this section is only the
+shortest path to a running stack.
 
 ### Available scripts
 
@@ -391,9 +265,17 @@ environment.
 | `pnpm run web:dev`              | Serves `app/frontend/web` in development mode.                            |
 | `pnpm run web:start`            | Serves the frontend on port 3000 with SPA fallback.                       |
 | `pnpm run web:start:script`     | Starts the frontend through `scripts/start-frontend.sh` (honours `PORT`). |
-| `pnpm run microservices:start`  | Starts all microservices in order, with health checks.                    |
-| `pnpm run microservices:status` | Reports which microservices are running.                                  |
-| `pnpm run microservices:stop`   | Stops the microservices started by the script.                            |
+| `pnpm run microservices:start`  | Starts the five services against a local MongoDB.                         |
+| `pnpm run microservices:cloud`  | Starts them against the shared Atlas cluster, plus the admin portal.      |
+| `pnpm run microservices:mock`   | Prism mocks only — no JVM, no database. For client work.                  |
+| `pnpm run microservices:status` | Shows what is running.                                                    |
+| `pnpm run microservices:logs`   | Follows the logs. Add `-- <service>` for one of them.                     |
+| `pnpm run microservices:stop`   | Stops everything, mocks and portal included.                              |
+
+These are thin wrappers around `docker compose`, and deliberately so: **they work the same on
+Windows and macOS**. They pass the compose file by path rather than changing directory first,
+because `pnpm` runs scripts through `cmd.exe` on Windows and `sh` elsewhere, and the two do not
+agree about `cd` with forward slashes. Nothing in them is shell-specific.
 
 Older aliases `dev:web`, `start:web`, `start:frontend` and `start:microservices` are kept for backwards
 compatibility.
