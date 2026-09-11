@@ -321,7 +321,24 @@ const NAV_GROUPS: NavGroup[] = [
       flex-direction: column;
       gap: 0.1rem;
       padding: 0.85rem 0.65rem;
-      background: var(--nav-bg);
+
+      /*
+       * Lit by the same lamps as the page.
+       *
+       * The sidebar sits below the strip under the header, so light coming off that strip
+       * should fall on it - and it did not, because this painted an opaque colour straight
+       * over the page's background and cut the glow off at its edge.
+       *
+       * The lights go on TOP of --nav-bg rather than replacing it, so the sidebar keeps
+       * reading as chrome. Attaching them to the viewport is what makes it continuous: the
+       * gradients are positioned against the viewport wherever they are used, so what shows
+       * here is exactly the slice that would have been behind it.
+       */
+      background-color: var(--nav-bg);
+      background-image: var(--page-lights);
+      background-attachment: fixed;
+      background-repeat: no-repeat;
+
       border-right: 1px solid var(--border);
       overflow-y: auto;
     }
@@ -344,7 +361,21 @@ const NAV_GROUPS: NavGroup[] = [
       gap: 0.6rem;
       padding: 0.5rem 0.6rem;
       border-radius: var(--radius-md);
-      color: var(--text-muted);
+      /*
+       * Body-text colour, not the muted one, because the sidebar is lit now.
+       *
+       * The contrast sweep cannot see this: it reads text against --nav-bg, which is the
+       * colour BEFORE the lights are composited on top. Worked out by hand instead. A muted
+       * link over the centre of the pink light lands on about #e091b1 in the light theme -
+       * 2.6:1 - and over the teal in the dark theme on #426b68, which is 2.8:1. Both well
+       * under. Dimming the lights enough to rescue the muted colour would have meant about
+       * 15%, which is not a light, it is a smudge. So the text takes the weight: 6.6:1 and
+       * 4.8:1 on those same two backgrounds.
+       *
+       * Nothing is lost by it. What separated the active item from the rest was never this
+       * colour - it is the fill, the edge and the weight.
+       */
+      color: var(--text);
       text-decoration: none;
       /* Was 0.875rem — a size below the body text, in the one place you read while looking
          somewhere else. */

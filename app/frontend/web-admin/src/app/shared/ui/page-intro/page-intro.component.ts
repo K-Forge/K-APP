@@ -53,10 +53,17 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     .page-intro-head h1 {
       margin: 0;
     }
+    /*
+     * Body colour, not muted: this paragraph sits directly on the page ground, and the ground
+     * is lit. Over the centre of the dark theme's teal it measured 2.78:1 muted - the contrast
+     * sweep cannot see it, because the sweep reads text against --bg, which is the ground
+     * before the lights are composited on top. The hierarchy against the title survives on size
+     * and weight, which is where it was actually coming from.
+     */
     .page-intro-what {
       margin: 0.5rem 0 0;
       max-width: 62ch;
-      color: var(--text-muted);
+      color: var(--text);
     }
     .page-intro-can {
       margin: 0.6rem 0 0;
@@ -71,7 +78,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       position: relative;
       padding-left: 1.1rem;
       font-size: 0.8125rem;
-      color: var(--text-muted);
+      /* On the lit ground too - see .page-intro-what. */
+      color: var(--text);
     }
     /* A tick rather than a bullet: these are things you can do, not things to read. */
     .page-intro-can li::before {
