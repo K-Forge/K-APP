@@ -183,7 +183,12 @@ dist/
 # package-lock.json
 # yarn.lock
 bun.lockb
-pnpm-lock.yaml
+# pnpm-lock.yaml is TRACKED, deliberately. The line below used to ignore it, which is almost
+# certainly a leftover from the template this file came from - every other lockfile here is
+# commented out. CI installs with `--frozen-lockfile`, which is the whole point: it fails when
+# the lockfile and package.json have drifted rather than quietly resolving versions nobody
+# tested against. With the file ignored, that job could not even start.
+# pnpm-lock.yaml
 
 # ─────────────────────────────────────────────
 # IDE — IntelliJ IDEA / Android Studio
