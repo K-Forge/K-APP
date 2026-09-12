@@ -53,6 +53,13 @@
     <!-- Room and building: "Salón 302 · Bloque A". -->
     <string name="home_class_where">%1$s · %2$s</string>
 
+    <string name="placeholder_pending">Esta pantalla todavía no existe</string>
+    <string name="placeholder_profile_contract">Se alimentará de GET /api/users/me.</string>
+    <string name="placeholder_semaphore_contract">Se alimentará de GET /api/semaphore/me.</string>
+    <string name="placeholder_map_contract">Se alimentará de GET /api/map/buildings.</string>
+    <string name="placeholder_schedule_contract">Se alimentará de GET /api/schedule/me/week.</string>
+    <string name="placeholder_home_contract">Se alimentará de GET /api/schedule/me/day.</string>
+
     <string name="invitation_title">Código de invitación</string>
     <string name="invitation_pending">El registro con código de invitación todavía no existe. Su contrato es POST /auth/register en docs/api/auth.openapi.yaml.</string>
     <string name="invitation_back">Volver</string>
